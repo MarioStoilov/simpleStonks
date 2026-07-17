@@ -28,7 +28,9 @@ stage/
 snap/.snapcraft/
 
 # Editor / IDE
-.idea/
+# Ignore JetBrains project files except shared run configurations.
+.idea/*
+!.idea/runConfigurations/
 .vscode/
 *.swp
 *~

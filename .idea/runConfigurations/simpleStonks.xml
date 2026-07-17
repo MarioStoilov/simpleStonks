@@ -1,0 +1,11 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="simpleStonks" type="GoApplicationRunConfiguration" factoryName="Go Application">
+    <module name="simpleStonks" />
+    <working_directory value="$PROJECT_DIR$" />
+    <kind value="PACKAGE" />
+    <package value="github.com/MarioStoilov/simplestonks/cmd/simplestonks" />
+    <directory value="$PROJECT_DIR$/cmd/simplestonks" />
+    <filePath value="$PROJECT_DIR$/cmd/simplestonks/main.go" />
+    <method v="2" />
+  </configuration>
+</component>
