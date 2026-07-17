@@ -21,7 +21,15 @@ Early development. Requirements and design are being finalized.
 
 ## Building
 
-_To be documented once the build is set up._
+Requires Go 1.23+ and (for the GUI) some system dev headers. Quick start:
+
+```sh
+go run ./cmd/simplestonks
+```
+
+See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for prerequisites, the full
+build/test commands, runtime file locations, and how to continue a session on
+another machine.
 
 ## License
 
