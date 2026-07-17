@@ -85,4 +85,5 @@ it's a widget written by a bored person.
 
 ## License
 
-_To be decided._
+[MIT](LICENSE). Use it, fork it, ship it — just keep the copyright notice
+(which points back to this repo) with your copies.

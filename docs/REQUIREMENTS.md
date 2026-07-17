@@ -125,7 +125,8 @@ Deferred (architected-for, not built in v1):
   view during market hours.
 - **Platform:** Linux-primary (snap target). Fyne keeps cross-platform open, but no
   extra effort is spent on other platforms in v1.
-- **License:** to be decided (placeholder for now).
+- **License:** MIT (see `LICENSE`; the copyright notice carries the repo URL so
+  attribution travels with forks/copies).
 
 ## Live configuration reload
 
@@ -296,9 +297,9 @@ The core MVP + polish scope is in place:
 
 Before a shippable MVP:
 
-- **Choose a license** before first public release.
 - **Snap packaging**: finalize `snap/snapcraft.yaml` build + confinement (network,
   desktop integration, writable data dirs) and publish to the store.
+  (License chosen: MIT — done.)
 
 Deferred features / polish:
 
