@@ -10,8 +10,10 @@ package ui
 import (
 	"fyne.io/fyne/v2"
 	fyneapp "fyne.io/fyne/v2/app"
+	"fyne.io/fyne/v2/widget"
 
 	"github.com/MarioStoilov/simplestonks/internal/config"
+	"github.com/MarioStoilov/simplestonks/internal/model"
 	"github.com/MarioStoilov/simplestonks/internal/provider"
 )
 
@@ -26,10 +28,24 @@ type App struct {
 	provider provider.QuoteProvider
 	store    *config.Store
 	cfg      config.Config // cached snapshot of store.Get()
+
+	// View state (UI goroutine only).
+	rng       model.Range
+	tiles     []*tile
+	rangeBtns map[model.Range]*widget.Button
+	stopCh    chan struct{} // closes to stop the current refresh loop
 }
 
 // New constructs the application with the given data provider and config store.
 func New(p provider.QuoteProvider, store *config.Store) *App {
+	// Declare that the app follows Fyne's fyne.Do threading model: every
+	// cross-goroutine UI update is marshalled onto the UI thread via fyne.Do.
+	// This is a truthful declaration (see load/startData), not a silencer.
+	fyneapp.SetMetadata(fyne.AppMetadata{
+		ID:         appID,
+		Name:       "simpleStonks",
+		Migrations: map[string]bool{"fyneDo": true},
+	})
 	return &App{
 		fyne:     fyneapp.NewWithID(appID),
 		provider: p,
@@ -52,8 +68,13 @@ func (a *App) Run() {
 		fyne.Do(func() {
 			a.cfg = cfg
 			a.win.SetContent(a.buildContent())
+			a.startData()
 		})
 	})
+
+	// Start fetching once the app is running, and stop polling on close.
+	a.fyne.Lifecycle().SetOnStarted(func() { a.startData() })
+	a.win.SetOnClosed(a.stopRefresh)
 
 	a.win.ShowAndRun()
 }

@@ -163,14 +163,18 @@ without relying on any machine-local state.
 Progress is recorded in `git log`; the short version:
 
 - Repo, docs, and requirements established.
-- Go module and package skeleton scaffolded (`QuoteProvider` interface stubbed).
+- Go module and package skeleton scaffolded.
 - Live two-way config reload implemented and tested.
 - Leveled, rotating file logger implemented and tested.
+- `pre-commit` / `pre-push` test hooks and the integration-tag harness in place.
+- Yahoo provider (`Quote` / `History`) implemented and tested.
+- Grid UI wired to live data: per-symbol tiles with price and % change (up/down
+  coloring), a real chart line, working range toggles, add/remove from the UI,
+  a polling loop for the live 1D view, and graceful per-tile error handling.
 
 Immediate next candidates:
 
-- Implement the Yahoo provider (`Quote` / `History`) — currently stubbed with
-  `ErrNotImplemented`.
-- Wire real data into the grid tiles and the chart widget.
-- Set up `pre-commit` (unit) and `pre-push` (integration) test hooks once there
-  is enough to test (see `docs/REQUIREMENTS.md` → Testing & CI).
+- List + detail layout (currently falls back to grid).
+- Always-on-top widget form factor.
+- Chart polish: axes/gridlines, hover readout, currency formatting.
+- CI mirroring the pre-push checks.
