@@ -2,6 +2,17 @@
 
 Guidance for Claude Code (and other AI assistants) working in this repository.
 
+## Start here
+
+Before doing any work, read [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) — it covers
+the environment setup, build/test commands, runtime file locations, and how a
+session is continued across machines (the Git remote is the source of truth).
+This matters because a session may be resumed on a different machine with no
+memory of prior work; the docs carry the context.
+
+For scope, locked decisions, and open items, see
+[docs/REQUIREMENTS.md](docs/REQUIREMENTS.md).
+
 ## Project
 
 **simpleStonks** — a bare-bones stock tracker widget/app written in Go and
