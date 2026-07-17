@@ -23,6 +23,7 @@ and the list plus other settings are persisted to a config file.
 | Layout | Both **grid** and **list + detail** layouts will be supported. v1 builds the **grid** layout; the code is architected so list+detail slots in later without rework. |
 | Form factor | Both **normal window** and **always-on-top widget** will be supported. v1 builds the **normal window**; widget mode is designed-for but deferred. |
 | Config | File-based, editable from the UI, XDG/snap-aware, **live two-way reload** (see below). |
+| Logging | Leveled (silent → debug), configured in the config file and live-reloaded, written to a rotating file (see below). |
 | Testing | Unit tests run on every commit; integration tests run on every push (see below). |
 
 ## MVP + polish scope (v1)
@@ -85,6 +86,32 @@ Implementation notes:
   onto the UI thread (Fyne's `fyne.Do`); the `config` package has no UI
   dependency.
 
+## Logging
+
+The app has a leveled, rotating file logger. Its configuration lives in the
+config file and is applied live on reload.
+
+- **Levels (ordered, silent → verbose):** `silent`, `error`, `warn`, `info`,
+  `debug`. `silent` produces no output at all. Built on the standard library
+  `log/slog`.
+- **Configured in the config file** under a `logging` object, so it is persisted
+  and live-reloaded with everything else:
+  - `level` — one of the levels above.
+  - `file` — log file path; empty means the default.
+  - `maxSizeMB` — rotate when the log file exceeds this size (0 disables
+    rotation).
+  - `maxArchives` — how many rotated archives to retain (0 keeps none).
+- **Default log path:** the XDG state directory —
+  `~/.local/state/simplestonks/simplestonks.log` — which stays writable under
+  snap confinement. Overridable via `file`.
+- **Rotation / archiving:** when the live log passes `maxSizeMB`, it is rotated
+  to `<file>.1`, older archives shift up (`.1` → `.2` …), and anything past
+  `maxArchives` is deleted. Implemented in-tree (no external dependency).
+- **Live reconfigure:** the top-level `*slog.Logger` is stable and installed as
+  slog's default; an inner handler is swapped atomically on config change, so
+  level and destination changes apply without a restart and without invalidating
+  held logger references.
+
 ## Testing & CI
 
 - **Unit tests on every commit.** Fast, dependency-free tests (config,
@@ -107,6 +134,7 @@ simpleStonks/
 ├── cmd/simplestonks/main.go        # entrypoint
 ├── internal/
 │   ├── config/                     # load/save JSON config + live-reload Store (XDG/snap-aware)
+│   ├── logging/                    # leveled slog logger + size-based log rotation
 │   ├── provider/                   # QuoteProvider interface + yahoo impl
 │   │   ├── provider.go             # interface + types (Quote, Candle, Range)
 │   │   └── yahoo.go

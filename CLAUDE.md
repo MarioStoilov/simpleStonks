@@ -25,6 +25,10 @@ from the UI, and the list plus other settings are persisted to a config file.
 - The config file supports live two-way reload — UI edits and external file edits
   both apply without restarting. Don't add code paths that require a restart to
   pick up config changes.
+- Logging uses the standard library `log/slog` via the `internal/logging` logger,
+  which is installed as slog's default. Log through `slog` (levels: silent →
+  debug); logging config (level, file, rotation) lives in the config file and is
+  live-reloaded.
 - Match the style, naming, and structure of existing code.
 
 ## Testing

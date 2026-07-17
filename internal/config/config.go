@@ -41,6 +41,51 @@ const (
 	FormFactorWidget FormFactor = "widget"
 )
 
+// LogLevel controls logging verbosity, ordered from silent (no output at all)
+// to debug (most verbose).
+type LogLevel string
+
+const (
+	LogSilent LogLevel = "silent"
+	LogError  LogLevel = "error"
+	LogWarn   LogLevel = "warn"
+	LogInfo   LogLevel = "info"
+	LogDebug  LogLevel = "debug"
+)
+
+// Logging is the logger configuration. It is part of Config, so it is persisted
+// and live-reloaded like every other setting.
+type Logging struct {
+	// Level is the verbosity, from LogSilent to LogDebug.
+	Level LogLevel `json:"level"`
+
+	// File is the log file path. Empty means DefaultLogPath().
+	File string `json:"file"`
+
+	// MaxSizeMB is the size threshold (in MB) at which the log file is rotated.
+	// Zero or negative disables rotation.
+	MaxSizeMB int `json:"maxSizeMB"`
+
+	// MaxArchives is how many rotated archive files to retain. Zero keeps none
+	// (the log simply starts fresh when the threshold is hit).
+	MaxArchives int `json:"maxArchives"`
+}
+
+// DefaultLogPath returns the default log file location, following the XDG state
+// directory convention. Under snap confinement $HOME points at the snap's data
+// dir, so this stays writable there too.
+func DefaultLogPath() string {
+	base := os.Getenv("XDG_STATE_HOME")
+	if base == "" {
+		if home, err := os.UserHomeDir(); err == nil {
+			base = filepath.Join(home, ".local", "state")
+		} else if cache, err := os.UserCacheDir(); err == nil {
+			base = cache
+		}
+	}
+	return filepath.Join(base, appDir, "simplestonks.log")
+}
+
 // Config is the full persisted configuration.
 type Config struct {
 	// Symbols is the ordered list of tracked tickers/indexes (e.g. "AAPL", "^GSPC").
@@ -55,6 +100,9 @@ type Config struct {
 
 	// RefreshInterval controls live-tick polling cadence for the 1D view.
 	RefreshInterval time.Duration `json:"refreshInterval"`
+
+	// Logging configures the leveled, rotating file logger.
+	Logging Logging `json:"logging"`
 }
 
 // Default returns the configuration used on first run.
@@ -65,6 +113,12 @@ func Default() Config {
 		Layout:          LayoutGrid,
 		FormFactor:      FormFactorWindow,
 		RefreshInterval: 30 * time.Second,
+		Logging: Logging{
+			Level:       LogInfo,
+			File:        DefaultLogPath(),
+			MaxSizeMB:   5,
+			MaxArchives: 3,
+		},
 	}
 }
 
