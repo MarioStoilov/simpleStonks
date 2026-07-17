@@ -89,6 +89,48 @@ func TestStoreUpdatePersistsAndNotifies(t *testing.T) {
 	}
 }
 
+func TestStoreUpdateInPlaceReorderPersistsAndNotifies(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+
+	store, err := Open()
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer store.Close()
+
+	if err := store.Update(func(c *Config) { c.Symbols = []string{"A", "B", "C"} }); err != nil {
+		t.Fatalf("seed Update: %v", err)
+	}
+
+	notified := make(chan Config, 4)
+	store.Subscribe(func(c Config) { notified <- c })
+
+	// Swap the first two entries in place — this must be detected as a change
+	// (regression: a shallow copy shared the backing array and defeated it).
+	if err := store.Update(func(c *Config) {
+		c.Symbols[0], c.Symbols[1] = c.Symbols[1], c.Symbols[0]
+	}); err != nil {
+		t.Fatalf("reorder Update: %v", err)
+	}
+
+	select {
+	case c := <-notified:
+		if len(c.Symbols) != 3 || c.Symbols[0] != "B" || c.Symbols[1] != "A" || c.Symbols[2] != "C" {
+			t.Fatalf("notified order = %v, want [B A C]", c.Symbols)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("in-place reorder did not notify subscribers")
+	}
+
+	loaded, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if len(loaded.Symbols) != 3 || loaded.Symbols[0] != "B" || loaded.Symbols[1] != "A" {
+		t.Fatalf("persisted order = %v, want [B A C]", loaded.Symbols)
+	}
+}
+
 func TestStoreNoNotifyWhenUnchanged(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 

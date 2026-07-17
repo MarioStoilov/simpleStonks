@@ -105,6 +105,15 @@ type Config struct {
 	Logging Logging `json:"logging"`
 }
 
+// clone returns a copy safe to mutate without aliasing the original's slices.
+// Update relies on this so in-place edits (e.g. reordering Symbols) don't also
+// mutate the stored config and defeat its change detection.
+func (c Config) clone() Config {
+	cp := c
+	cp.Symbols = append([]string(nil), c.Symbols...)
+	return cp
+}
+
 // Default returns the configuration used on first run.
 func Default() Config {
 	return Config{

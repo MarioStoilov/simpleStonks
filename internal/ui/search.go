@@ -3,13 +3,15 @@ package ui
 import (
 	"context"
 	"fmt"
+	"image/color"
 	"strings"
 	"time"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
-	"fyne.io/fyne/v2/theme"
+	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/MarioStoilov/simplestonks/internal/model"
@@ -41,9 +43,10 @@ func (a *App) showSearchDialog() {
 		provider: a.provider,
 		results:  results,
 		status:   status,
-		onPick: func(sym string) {
-			a.addSymbol(sym)
-			d.Hide()
+		// Selecting a result opens a preview; adding from there closes the
+		// whole search dialog.
+		onSelect: func(r model.SearchResult) {
+			a.showResultPreview(r, func() { d.Hide() })
 		},
 	}
 	entry.OnChanged = sc.onChanged
@@ -59,7 +62,7 @@ type searchController struct {
 	provider provider.QuoteProvider
 	results  *fyne.Container
 	status   *widget.Label
-	onPick   func(symbol string)
+	onSelect func(model.SearchResult)
 
 	timer *time.Timer
 	gen   int
@@ -109,14 +112,25 @@ func (sc *searchController) render(res []model.SearchResult, err error) {
 	sc.status.SetText(fmt.Sprintf("%d result(s)", len(res)))
 	for _, r := range res {
 		r := r
-		sc.results.Add(searchResultRow(r, func() { sc.onPick(r.Symbol) }))
+		sc.results.Add(newResultRow(r, func() { sc.onSelect(r) }))
 	}
 	sc.results.Refresh()
 }
 
-// searchResultRow renders one suggestion: bold symbol + name over the
-// market/type, with an add button.
-func searchResultRow(r model.SearchResult, onAdd func()) fyne.CanvasObject {
+// resultRow renders one search suggestion (bold symbol + name over the
+// market/type). It highlights on hover and opens the preview when tapped; there
+// is no per-row add button.
+type resultRow struct {
+	widget.BaseWidget
+	bg    *canvas.Rectangle
+	root  fyne.CanvasObject
+	onTap func()
+}
+
+func newResultRow(r model.SearchResult, onTap func()) *resultRow {
+	row := &resultRow{onTap: onTap}
+	row.ExtendBaseWidget(row)
+
 	titleText := r.Symbol
 	if r.Name != "" {
 		titleText += "  ·  " + r.Name
@@ -132,8 +146,29 @@ func searchResultRow(r model.SearchResult, onAdd func()) fyne.CanvasObject {
 	}
 	subtitle := widget.NewLabel(sub)
 
-	add := widget.NewButtonWithIcon("", theme.ContentAddIcon(), onAdd)
-	add.Importance = widget.HighImportance
+	row.bg = canvas.NewRectangle(color.Transparent)
+	row.bg.CornerRadius = 4
+	row.root = container.NewStack(row.bg, container.NewPadded(container.NewVBox(title, subtitle)))
+	return row
+}
 
-	return container.NewBorder(nil, nil, nil, add, container.NewVBox(title, subtitle))
+func (r *resultRow) CreateRenderer() fyne.WidgetRenderer { return widget.NewSimpleRenderer(r.root) }
+
+func (r *resultRow) Tapped(*fyne.PointEvent) {
+	if r.onTap != nil {
+		r.onTap()
+	}
+}
+
+// Hoverable: generic highlight while the pointer is over the row.
+func (r *resultRow) MouseIn(*desktop.MouseEvent) {
+	r.bg.FillColor = colorHover
+	r.bg.Refresh()
+}
+
+func (r *resultRow) MouseMoved(*desktop.MouseEvent) {}
+
+func (r *resultRow) MouseOut() {
+	r.bg.FillColor = color.Transparent
+	r.bg.Refresh()
 }

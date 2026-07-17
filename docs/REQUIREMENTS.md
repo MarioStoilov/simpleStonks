@@ -171,7 +171,9 @@ always-visible controls, so the home page stays a clean monitoring view.
   - its **market / exchange location** (e.g. "NASDAQ" / "US"),
 
   so the correct instrument is chosen unambiguously rather than by guessing a
-  ticker. Selecting a suggestion adds it to the list.
+  ticker. Suggestion rows highlight on hover; **clicking a suggestion opens a
+  small preview** (a compact version of the detail view) with **Add** and
+  **Cancel** actions. Add tracks the symbol; Cancel returns to the results.
 
 Implications:
 
@@ -186,9 +188,10 @@ Implications:
 
 Status: **implemented.** The home grid has an Edit button that toggles edit mode;
 in edit mode each cell exposes reorder (up/down) and remove controls, and Add
-opens the live-search dialog (Yahoo search, debounced, showing name + market).
-Reordering and membership persist via the config store. Drag-to-reorder is not
-implemented (up/down buttons are used instead).
+opens the live-search dialog (Yahoo search, debounced, hover-highlighted rows,
+click-to-preview with Add/Cancel). Reorder/remove/add persist via the config
+store and apply live (reordering updates the grid immediately). Drag-to-reorder
+is not implemented (up/down buttons are used instead).
 
 ## Logging
 

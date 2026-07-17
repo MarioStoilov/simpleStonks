@@ -91,7 +91,7 @@ func (s *Store) Subscribe(fn func(Config)) {
 // subscribers. It is the entry point for UI-initiated changes.
 func (s *Store) Update(mutate func(*Config)) error {
 	s.mu.Lock()
-	next := s.cfg
+	next := s.cfg.clone()
 	mutate(&next)
 	if reflect.DeepEqual(next, s.cfg) {
 		s.mu.Unlock()
