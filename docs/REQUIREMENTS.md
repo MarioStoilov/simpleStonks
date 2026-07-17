@@ -80,9 +80,12 @@ to this two-screen model.
   reload](#live-configuration-reload).
 - It goes through the same `config.Store` (`Get` / `Update`) as everything else,
   so its edits and external file edits stay consistent.
-- Which settings it surfaces (e.g. refresh interval, logging level / file /
-  rotation, layout, form factor, default range) is **TBD**.
-- Visual design and exact layout are **TBD**.
+- **Implemented:** a separate window opened by the cog, with a Save/Cancel form
+  exposing **default range**, **refresh interval (s)**, and the **logging** group
+  (level, file, max size MB, archives kept). Save validates the numeric fields
+  and writes through the store, so changes persist and apply live (the logger is
+  reconfigured from the same subscription). Layout/form-factor selectors are not
+  exposed yet (those modes aren't built); visual polish is still open.
 
 Note: this settings window is distinct from **edit mode** on the home grid, which
 manages only the tracked-index list; the settings window covers the rest of the

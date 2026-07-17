@@ -1,9 +1,19 @@
 package ui
 
 import (
+	"fmt"
+	"strconv"
+	"strings"
+	"time"
+
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/layout"
+	"fyne.io/fyne/v2/widget"
 
 	"github.com/MarioStoilov/simplestonks/internal/config"
+	"github.com/MarioStoilov/simplestonks/internal/model"
 )
 
 // addSymbol appends a symbol (ignoring duplicates) via the config store, which
@@ -44,18 +54,115 @@ func (a *App) removeSymbol(symbol string) {
 	})
 }
 
-// update applies a config mutation through the store, surfacing any save error.
+// update applies a config mutation through the store, surfacing any save error
+// on the main window.
 func (a *App) update(mutate func(*config.Config)) {
-	if err := a.store.Update(mutate); err != nil && a.win != nil {
-		dialog.ShowError(err, a.win)
+	a.updateOn(a.win, mutate)
+}
+
+// updateOn applies a config mutation, surfacing any save error on w.
+func (a *App) updateOn(w fyne.Window, mutate func(*config.Config)) {
+	if err := a.store.Update(mutate); err != nil && w != nil {
+		dialog.ShowError(err, w)
 	}
 }
 
-// showSettingsPlaceholder stands in for the not-yet-built settings window that
-// the top-right cog will eventually open (see docs/REQUIREMENTS.md).
-func (a *App) showSettingsPlaceholder() {
-	if a.win == nil {
-		return
+// logLevels is the ordered set of logging levels offered in settings.
+var logLevels = []config.LogLevel{
+	config.LogSilent, config.LogError, config.LogWarn, config.LogInfo, config.LogDebug,
+}
+
+// showSettingsWindow opens the app configuration in a separate window. Saving
+// writes through the config store, so changes persist and apply live (including
+// the logger, which main reconfigures from the same store subscription).
+func (a *App) showSettingsWindow() {
+	cfg := a.cfg // snapshot to populate the form
+
+	rangeSel := widget.NewSelect(rangeOptions(), nil)
+	rangeSel.SetSelected(string(cfg.DefaultRange))
+
+	refresh := widget.NewEntry()
+	refresh.SetText(strconv.Itoa(int(cfg.RefreshInterval / time.Second)))
+
+	levelSel := widget.NewSelect(levelOptions(), nil)
+	levelSel.SetSelected(string(cfg.Logging.Level))
+
+	logFile := widget.NewEntry()
+	logFile.SetPlaceHolder(config.DefaultLogPath())
+	logFile.SetText(cfg.Logging.File)
+
+	maxSize := widget.NewEntry()
+	maxSize.SetText(strconv.Itoa(cfg.Logging.MaxSizeMB))
+
+	archives := widget.NewEntry()
+	archives.SetText(strconv.Itoa(cfg.Logging.MaxArchives))
+
+	form := widget.NewForm(
+		widget.NewFormItem("Default range", rangeSel),
+		widget.NewFormItem("Refresh interval (s)", refresh),
+		widget.NewFormItem("Log level", levelSel),
+		widget.NewFormItem("Log file (blank = default)", logFile),
+		widget.NewFormItem("Log max size (MB)", maxSize),
+		widget.NewFormItem("Log archives kept", archives),
+	)
+
+	w := a.fyne.NewWindow("simpleStonks — Settings")
+
+	save := widget.NewButton("Save", func() {
+		interval, sizeMB, keep, err := parseSettingsForm(refresh.Text, maxSize.Text, archives.Text)
+		if err != nil {
+			dialog.ShowError(err, w)
+			return
+		}
+		a.updateOn(w, func(c *config.Config) {
+			c.DefaultRange = model.Range(rangeSel.Selected)
+			c.RefreshInterval = interval
+			c.Logging.Level = config.LogLevel(levelSel.Selected)
+			c.Logging.File = strings.TrimSpace(logFile.Text)
+			c.Logging.MaxSizeMB = sizeMB
+			c.Logging.MaxArchives = keep
+		})
+		w.Close()
+	})
+	save.Importance = widget.HighImportance
+	cancel := widget.NewButton("Cancel", func() { w.Close() })
+	buttons := container.NewHBox(layout.NewSpacer(), cancel, save)
+
+	w.SetContent(container.NewBorder(nil, buttons, nil, nil, container.NewVScroll(form)))
+	w.Resize(fyne.NewSize(480, 400))
+	w.Show()
+}
+
+// parseSettingsForm validates the free-text settings fields, returning the
+// refresh interval and log rotation numbers or a descriptive error.
+func parseSettingsForm(refreshSecs, maxSizeMB, archives string) (time.Duration, int, int, error) {
+	secs, err := strconv.Atoi(strings.TrimSpace(refreshSecs))
+	if err != nil || secs < 1 {
+		return 0, 0, 0, fmt.Errorf("refresh interval must be a whole number of seconds ≥ 1")
 	}
-	dialog.ShowInformation("Settings", "The settings window is not implemented yet.", a.win)
+	size, err := strconv.Atoi(strings.TrimSpace(maxSizeMB))
+	if err != nil || size < 0 {
+		return 0, 0, 0, fmt.Errorf("log max size must be a non-negative whole number of MB")
+	}
+	keep, err := strconv.Atoi(strings.TrimSpace(archives))
+	if err != nil || keep < 0 {
+		return 0, 0, 0, fmt.Errorf("log archives kept must be a non-negative whole number")
+	}
+	return time.Duration(secs) * time.Second, size, keep, nil
+}
+
+func rangeOptions() []string {
+	out := make([]string, len(model.Ranges))
+	for i, r := range model.Ranges {
+		out[i] = string(r)
+	}
+	return out
+}
+
+func levelOptions() []string {
+	out := make([]string, len(logLevels))
+	for i, l := range logLevels {
+		out[i] = string(l)
+	}
+	return out
 }

@@ -211,12 +211,13 @@ Progress is recorded in `git log`; the short version:
   error handling.
 - Provider symbol search (Yahoo `v1/finance/search`) and home-grid edit mode:
   Edit toggles reorder (up/down) + remove controls per cell, and Add opens a
-  debounced live-search dialog showing each match's name and market. Settings
-  cog is still a placeholder.
+  debounced live-search dialog with click-to-preview (Add disabled + tooltip for
+  already-tracked indexes).
+- Settings window (cog-wheel): a separate window editing default range, refresh
+  interval, and logging (level/file/size/archives), applied live via the store.
 
 Immediate next candidates:
 
-- Settings window behind the cog-wheel.
 - Always-on-top widget form factor.
 - Chart polish: axes/gridlines, hover readout, currency formatting.
 - Drag-to-reorder in edit mode (currently up/down buttons).
