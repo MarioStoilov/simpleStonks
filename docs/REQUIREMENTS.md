@@ -115,12 +115,19 @@ config file and is applied live on reload.
 ## Testing & CI
 
 - **Unit tests on every commit.** Fast, dependency-free tests (config,
-  provider mapping/parsing, model helpers) run before each commit. Intended to be
-  enforced with a `pre-commit` git hook.
-- **Integration tests on every push.** Broader tests (e.g. provider against
-  recorded/live responses, config live-reload end-to-end, UI smoke where
-  feasible) run before each push. Intended to be enforced with a `pre-push` git
-  hook and mirrored in CI once a CI provider is chosen.
+  provider mapping/parsing, model helpers) run before each commit. Enforced by
+  the `.githooks/pre-commit` hook (gofmt check, `go vet`, `go test ./...`).
+- **Integration tests on every push.** Broader tests (e.g. the provider against
+  the live endpoint, config live-reload end-to-end, UI smoke where feasible) run
+  before each push. Enforced by the `.githooks/pre-push` hook
+  (`go test -race -tags=integration ./...`); to be mirrored in CI once a CI
+  provider is chosen.
+- **Integration tag convention.** Integration tests carry the
+  `//go:build integration` build tag, so they are excluded from the default
+  (commit) test run and included on push. Network-dependent integration tests
+  skip themselves when offline so pushes are not blocked.
+- **Hook installation.** The hooks are versioned under `.githooks/` and enabled
+  per clone with `make hooks` (sets `core.hooksPath`); see `docs/DEVELOPMENT.md`.
 - Code is written to be testable: side effects (filesystem, network, clock) are
   reached through interfaces or injectable clients so units can be exercised in
   isolation. The `QuoteProvider` interface and the injectable `*http.Client` in
@@ -145,6 +152,8 @@ simpleStonks/
 │       ├── chart.go
 │       └── settings.go
 ├── snap/snapcraft.yaml             # snap packaging
+├── .githooks/                      # versioned pre-commit / pre-push test hooks
+├── Makefile                        # build/test/hook helper targets
 ├── go.mod
 ├── README.md
 ├── .gitignore

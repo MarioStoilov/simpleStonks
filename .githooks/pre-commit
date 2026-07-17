@@ -1,0 +1,22 @@
+#!/bin/sh
+# Pre-commit gate: formatting, vet, and unit tests.
+# Integration tests (build tag "integration") are intentionally excluded here;
+# they run on push. Bypass in a pinch with `git commit --no-verify`.
+set -e
+
+echo "pre-commit: gofmt"
+unformatted=$(gofmt -l .)
+if [ -n "$unformatted" ]; then
+	echo "The following files are not gofmt-clean:"
+	echo "$unformatted"
+	echo "Run: gofmt -w ."
+	exit 1
+fi
+
+echo "pre-commit: go vet"
+go vet ./...
+
+echo "pre-commit: unit tests"
+go test ./...
+
+echo "pre-commit: ok"

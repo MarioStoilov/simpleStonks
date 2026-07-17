@@ -46,9 +46,15 @@ from the UI, and the list plus other settings are persisted to a config file.
 
 - Write testable code: reach side effects (filesystem, network, clock) through
   interfaces or injectable clients so units can be tested in isolation.
-- **Unit tests run on every commit**; **integration tests run on every push**
-  (enforced via `pre-commit` / `pre-push` git hooks and, later, CI).
+- **Unit tests run on every commit**; **integration tests run on every push** —
+  enforced by the versioned hooks in `.githooks/` (installed per clone with
+  `make hooks`).
+- Integration tests carry the `//go:build integration` tag so they are excluded
+  from the commit run and included on push (`go test -tags=integration ./...`).
+  Network-dependent ones skip themselves when offline.
 - Tests should pass under the race detector: `go test -race ./...`.
+- Common commands are wrapped in the `Makefile` (`make check`, `make
+  test-integration`, `make hooks`, …).
 
 ## Notes
 

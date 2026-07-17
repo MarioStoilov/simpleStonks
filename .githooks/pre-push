@@ -1,0 +1,11 @@
+#!/bin/sh
+# Pre-push gate: the full suite including integration tests (build tag
+# "integration"), under the race detector. Integration tests that need network
+# skip themselves when it is unavailable, so offline pushes are not blocked.
+# Bypass in a pinch with `git push --no-verify`.
+set -e
+
+echo "pre-push: integration + unit tests (-race)"
+go test -race -tags=integration ./...
+
+echo "pre-push: ok"
