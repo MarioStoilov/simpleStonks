@@ -174,6 +174,9 @@ always-visible controls, so the home page stays a clean monitoring view.
   ticker. Suggestion rows highlight on hover; **clicking a suggestion opens a
   small preview** (a compact version of the detail view) with **Add** and
   **Cancel** actions. Add tracks the symbol; Cancel returns to the results.
+- **No duplicates.** An index cannot be tracked more than once. In the preview,
+  if the index is already tracked, **Add is disabled (grayed out) and shows a
+  tooltip** ("already tracking this index") on hover.
 
 Implications:
 
