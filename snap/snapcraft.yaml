@@ -1,0 +1,38 @@
+name: simplestonks
+base: core24
+version: "0.1.0"
+summary: Bare-bones stock tracker widget
+description: |
+  simpleStonks shows a configurable list of stock indexes and tickers and charts
+  their movement, Yahoo Finance style. The tracked list is editable from the UI
+  and persisted along with other settings.
+
+grade: devel
+confinement: strict
+
+# TODO(v1): finalize confinement plan (network, desktop integration) and the
+# apps/parts build once the Fyne app is fleshed out. This is a scaffold.
+apps:
+  simplestonks:
+    command: bin/simplestonks
+    extensions: [gnome]
+    plugs:
+      - network
+      - desktop
+      - desktop-legacy
+      - wayland
+      - x11
+      - opengl
+
+parts:
+  simplestonks:
+    plugin: go
+    source: .
+    build-snaps:
+      - go/1.23/stable
+    build-packages:
+      - gcc
+      - libgl1-mesa-dev
+      - xorg-dev
+    organize:
+      bin/simplestonks: bin/simplestonks
