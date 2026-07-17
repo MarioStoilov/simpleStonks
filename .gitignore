@@ -1,0 +1,41 @@
+# Binaries
+/simpleStonks
+/simplestonks
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+bin/
+dist/
+
+# Test / coverage
+*.test
+*.out
+coverage.*
+
+# Go workspace / vendored deps
+vendor/
+go.work
+go.work.sum
+
+# Snapcraft build artifacts
+*.snap
+parts/
+prime/
+stage/
+.snapcraft/
+snap/.snapcraft/
+
+# Editor / IDE
+.idea/
+.vscode/
+*.swp
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local config / runtime data (user settings live in XDG dirs, not the repo)
+*.local
