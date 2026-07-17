@@ -28,6 +28,7 @@ and the list plus other settings are persisted to a config file.
 | Chart ranges | **1D with live ticking** is the default. The full range toggles (**1D, 5D, 1W, 1M, YTD, 1Y, 5Y, ALL**) appear in the **detail view**; home-grid cells are 1D-only. |
 | MVP scope | MVP + polish (see below). |
 | Screens / navigation | Two screens: a **home grid** of all indexes (1D-only cells) and a **detail view** (expanded chart with range toggles + a left sidebar of indexes). See [Screens & navigation](#screens--navigation). |
+| Settings | A top-right **cog-wheel** icon opens a separate **settings window** that edits the config file (design TBD). See [Settings window](#settings-window). |
 | Form factor | Both **normal window** and **always-on-top widget** will be supported. v1 builds the **normal window**; widget mode is designed-for but deferred. |
 | Symbol management | A multi-step **edit mode** (toggled by an Edit button) gates remove/reorder/add; adding uses a **live search** with name + market details (see below). |
 | Config | File-based, editable from the UI, XDG/snap-aware, **live two-way reload** (see below). |
@@ -47,6 +48,8 @@ detail" is the drill-down detail view, not two separately selectable layouts.)
   **no range toggles on the home grid**.
 - The **Edit** button lives here; edit mode gates add / remove / reorder — see
   [Symbol management](#symbol-management-edit-mode--live-search).
+- A **cog-wheel** icon in the **top-right** opens the [settings
+  window](#settings-window).
 - **Clicking a cell opens the detail view** for that index.
 
 ### Detail view
@@ -65,6 +68,25 @@ detail" is the drill-down detail view, not two separately selectable layouts.)
 Status: **target design.** The current build is a single grid whose cells carry
 the range toggles and has no detail view or sidebar yet; the UI will be reworked
 to this two-screen model.
+
+## Settings window
+
+- A **cog-wheel icon** in the **top-right of the app** opens a **settings
+  window** — a separate window from the home grid and detail view.
+- This window is the UI for **application configuration**: it is where the user
+  changes settings, and it reads and writes the **config file**. Because config
+  supports live two-way reload, edits made here are persisted and applied to the
+  running app immediately — see [Live configuration
+  reload](#live-configuration-reload).
+- It goes through the same `config.Store` (`Get` / `Update`) as everything else,
+  so its edits and external file edits stay consistent.
+- Which settings it surfaces (e.g. refresh interval, logging level / file /
+  rotation, layout, form factor, default range) is **TBD**.
+- Visual design and exact layout are **TBD**.
+
+Note: this settings window is distinct from **edit mode** on the home grid, which
+manages only the tracked-index list; the settings window covers the rest of the
+app configuration.
 
 ## MVP + polish scope (v1)
 
@@ -256,3 +278,5 @@ pluggable modes rather than hardcoded choices.
 - Rework the UI into the two-screen model — 1D-only home grid and a detail view
   with range toggles and an index sidebar — see [Screens & navigation](#screens--navigation).
 - Decide the back-to-grid affordance in the detail view.
+- Design the settings window (which settings it exposes and its layout) — see
+  [Settings window](#settings-window).
