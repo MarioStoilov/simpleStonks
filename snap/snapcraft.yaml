@@ -33,8 +33,11 @@ parts:
     build-snaps:
       - go/1.23/stable
     build-packages:
+      - pkg-config
       - gcc
       - libgl1-mesa-dev
       - xorg-dev
+      - libwayland-dev
+      - libxkbcommon-dev
     organize:
       bin/simplestonks: bin/simplestonks
