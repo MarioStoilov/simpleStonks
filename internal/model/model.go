@@ -43,10 +43,17 @@ type Candle struct {
 // metadata to render the current price and percent change.
 type Series struct {
 	Symbol        string
+	Name          string // friendly display name, e.g. "S&P 500"; may be empty
 	Range         Range
 	Currency      string
 	Candles       []Candle
 	PreviousClose float64 // reference close used for the range's % change
+
+	// SessionStart/SessionEnd bound the regular trading session the series
+	// belongs to (when the provider knows it). An intraday chart is drawn
+	// against this full window so a live day fills in gradually.
+	SessionStart time.Time
+	SessionEnd   time.Time
 }
 
 // SearchResult is one instrument returned by a symbol search: enough to show

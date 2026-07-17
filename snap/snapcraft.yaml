@@ -1,6 +1,7 @@
 name: simplestonks
 base: core24
 version: "0.1.0"
+icon: internal/ui/icon.svg # bundled into the binary too; see internal/ui/app.go
 summary: Bare-bones stock tracker widget
 description: |
   simpleStonks shows a configurable list of stock indexes and tickers and charts

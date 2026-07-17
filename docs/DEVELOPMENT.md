@@ -219,10 +219,34 @@ Progress is recorded in `git log`; the short version:
   already-tracked indexes).
 - Settings window (cog-wheel): a separate window editing default range, refresh
   interval, and logging (level/file/size/archives), applied live via the store.
+- Chart axis labels: size-adaptive y-axis price ticks and range-aware x-axis
+  time labels (hours for 1D, days/dates/months/years for longer ranges) on both
+  the home-grid mini charts and the detail chart.
+- Previous-close reference: a dashed line at the prior interval's close
+  (Yahoo-style, per range) with its value labeled on the y axis and the y-scale
+  widened to keep it in view.
+- Session-window 1D axis: intraday charts span the full regular trading session
+  (from Yahoo's `currentTradingPeriod`), so a live day fills in gradually as
+  the polling loop appends data.
+- Friendly instrument names (Yahoo meta long/short name) shown under the symbol
+  on home tiles, sidebar cells, and the detail header.
+- Live price flash (`priceText` widget): when a refresh changes a displayed
+  price, a semi-transparent green/red background flashes behind the number
+  only, fading out; unchanged prices (closed market) never flash.
+- App logo: a minimalist line-chart SVG (green above the X axis, red below,
+  with matching semi-transparent area fills) at `internal/ui/icon.svg` — a
+  single source embedded into the binary as the window/app icon (see
+  `internal/ui/app.go`) and referenced by the `icon:` key in
+  `snap/snapcraft.yaml`. Known limitation: on a native **Wayland** session dev
+  runs show a placeholder icon — Wayland forbids apps setting their own window
+  icon, and Fyne 2.8 no-ops `SetIcon` there and sets no Wayland `app_id` for a
+  `.desktop`-file match. The icon does show on X11/XWayland, Windows, macOS,
+  and will in the packaged snap via its desktop entry (to be added when snap
+  packaging is finalized).
 
 Immediate next candidates:
 
 - Always-on-top widget form factor.
-- Chart polish: axes/gridlines, hover readout, currency formatting.
+- Chart polish: gridlines, hover readout, currency formatting.
 - Drag-to-reorder in edit mode (currently up/down buttons).
 - CI mirroring the pre-push checks.

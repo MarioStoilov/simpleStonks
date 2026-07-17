@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- simpleStonks logo: a minimalist line-chart mark on a transparent background
+     with only an X axis (no Y axis, grid, frame, or text). The plotted line
+     starts above the axis at its left end, trends up with small inversions,
+     crosses below the zero line, wiggles below, then rises to finish exactly
+     on the axis at its right end. The line is green above the axis and red
+     below it, and the area between the line and the axis carries a matching
+     semi-transparent fill. The crossing point (137.6,128) is interpolated on
+     the segment (126,98)-(150,160). -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -14 256 256" width="256" height="256">
+  <!-- area fills between the line and the axis -->
+  <polygon fill="#26a65b" fill-opacity="0.25"
+           points="16,128 16,112 40,84 56,96 84,44 102,58 126,98 137.6,128"/>
+  <polygon fill="#d03a3a" fill-opacity="0.25"
+           points="137.6,128 150,160 166,142 188,184 240,128"/>
+  <!-- X axis -->
+  <line x1="16" y1="128" x2="240" y2="128" stroke="#6e727e" stroke-width="6" stroke-linecap="round"/>
+  <!-- price line: green above the axis, red below -->
+  <polyline fill="none" stroke="#26a65b" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"
+            points="16,112 40,84 56,96 84,44 102,58 126,98 137.6,128"/>
+  <polyline fill="none" stroke="#d03a3a" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"
+            points="137.6,128 150,160 166,142 188,184 240,128"/>
+</svg>

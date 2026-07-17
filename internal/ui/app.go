@@ -9,6 +9,7 @@ package ui
 
 import (
 	"context"
+	_ "embed"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -20,6 +21,15 @@ import (
 	"github.com/MarioStoilov/simplestonks/internal/model"
 	"github.com/MarioStoilov/simplestonks/internal/provider"
 )
+
+// iconSVG is the app logo, bundled into the binary. The same file is the snap
+// icon (referenced by snap/snapcraft.yaml).
+//
+//go:embed icon.svg
+var iconSVG []byte
+
+// appIcon is the logo as a Fyne resource, used as the icon of every window.
+var appIcon = fyne.NewStaticResource("icon.svg", iconSVG)
 
 // appID is the Fyne application ID; it also namespaces Fyne's own storage.
 const appID = "com.github.mariostoilov.simplestonks"
@@ -54,7 +64,8 @@ type App struct {
 	rangeBtns map[model.Range]*widget.Button
 
 	detailChart  *chart
-	detailPrice  *canvas.Text
+	detailName   *canvas.Text
+	detailPrice  *priceText
 	detailChange *canvas.Text
 
 	stopCh chan struct{} // closes to stop the current refresh loop
@@ -67,6 +78,7 @@ func New(p provider.QuoteProvider, store *config.Store) *App {
 	fyneapp.SetMetadata(fyne.AppMetadata{
 		ID:         appID,
 		Name:       "simpleStonks",
+		Icon:       appIcon,
 		Migrations: map[string]bool{"fyneDo": true},
 	})
 	return &App{

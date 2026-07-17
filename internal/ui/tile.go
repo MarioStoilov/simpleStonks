@@ -14,16 +14,22 @@ import (
 	"github.com/MarioStoilov/simplestonks/internal/model"
 )
 
-// tile is a tappable card for one symbol: the symbol, its latest price and
-// percent change, and — when showChart is set — a mini 1D chart. It is used both
-// for home-grid cells (with chart) and detail-view sidebar cells (without).
+// nameTextSize is the font size of the small friendly-name line shown under a
+// symbol (on tiles and the detail header).
+const nameTextSize = 11
+
+// tile is a tappable card for one symbol: the symbol with its friendly name,
+// its latest price and percent change, and — when showChart is set — a mini 1D
+// chart. It is used both for home-grid cells (with chart) and detail-view
+// sidebar cells (without).
 type tile struct {
 	widget.BaseWidget
 	symbol string
 	onTap  func()
 
 	bg     *canvas.Rectangle
-	price  *canvas.Text
+	name   *canvas.Text // friendly name, filled in once a series arrives
+	price  *priceText
 	change *canvas.Text
 	chart  *chart // nil when showChart is false
 	root   fyne.CanvasObject
@@ -36,9 +42,9 @@ func newTile(symbol string, showChart bool, onTap, onRemove func()) *tile {
 	t.ExtendBaseWidget(t)
 
 	symLbl := widget.NewLabelWithStyle(symbol, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
-	t.price = canvas.NewText("—", theme.Color(theme.ColorNameForeground))
-	t.price.TextStyle = fyne.TextStyle{Bold: true}
-	t.price.Alignment = fyne.TextAlignTrailing
+	t.name = canvas.NewText("", colorAxis)
+	t.name.TextSize = nameTextSize
+	t.price = newPriceText()
 	t.change = canvas.NewText("", colorNeutral)
 
 	var right fyne.CanvasObject = t.price
@@ -52,9 +58,9 @@ func newTile(symbol string, showChart bool, onTap, onRemove func()) *tile {
 	var content fyne.CanvasObject
 	if showChart {
 		t.chart = newChart()
-		content = container.NewBorder(container.NewVBox(header, t.change), nil, nil, nil, t.chart)
+		content = container.NewBorder(container.NewVBox(header, t.name, t.change), nil, nil, nil, t.chart)
 	} else {
-		content = container.NewVBox(header, t.change)
+		content = container.NewVBox(header, t.name, t.change)
 	}
 
 	t.bg = canvas.NewRectangle(colorCardBg)
@@ -91,8 +97,11 @@ func (t *tile) setSeries(s model.Series) {
 		return
 	}
 	col, text := priceChangeText(last, prev)
-	t.price.Text = fmt.Sprintf("%.2f", last)
-	t.price.Refresh()
+	if s.Name != "" && s.Name != t.name.Text {
+		t.name.Text = s.Name
+		t.name.Refresh()
+	}
+	t.price.SetPrice(last, true) // flashes only when a shown price changes
 	t.change.Text = text
 	t.change.Color = col
 	t.change.Refresh()
@@ -104,8 +113,7 @@ func (t *tile) setSeries(s model.Series) {
 
 // setError puts the tile into an unavailable state and logs the cause.
 func (t *tile) setError(err error) {
-	t.price.Text = "—"
-	t.price.Refresh()
+	t.price.SetUnavailable()
 	t.change.Text = "unavailable"
 	t.change.Color = colorNeutral
 	t.change.Refresh()

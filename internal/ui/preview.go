@@ -8,7 +8,6 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
-	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/MarioStoilov/simplestonks/internal/model"
@@ -25,9 +24,7 @@ func (a *App) showResultPreview(r model.SearchResult, onAdded func()) {
 	}
 
 	chartW := newChart()
-	price := canvas.NewText("—", theme.Color(theme.ColorNameForeground))
-	price.TextStyle = fyne.TextStyle{Bold: true}
-	price.Alignment = fyne.TextAlignTrailing
+	price := newPriceText()
 	change := canvas.NewText("", colorNeutral)
 
 	name := r.Symbol
@@ -74,8 +71,9 @@ func (a *App) showResultPreview(r model.SearchResult, onAdded func()) {
 	d.Resize(fyne.NewSize(520, 440))
 	d.Show()
 
-	// Fetch the 1D series for the preview chart and header.
-	loadMainChart(a.provider, chartW, price, change, r.Symbol, model.Range1D)
+	// Fetch the 1D series for the preview chart and header. The title already
+	// carries the friendly name, so no name text is passed and nothing flashes.
+	loadMainChart(a.provider, chartW, nil, price, change, r.Symbol, model.Range1D, false)
 }
 
 // disabledAddControl renders a grayed-out "Add" button that shows a tooltip on

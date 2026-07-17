@@ -47,7 +47,9 @@ func TestYahooQuote(t *testing.T) {
 }
 
 const historyBody = `{"chart":{"result":[{"meta":{
-  "currency":"USD","symbol":"AAPL","chartPreviousClose":100.0},
+  "currency":"USD","symbol":"AAPL","shortName":"Apple","longName":"Apple Inc.",
+  "chartPreviousClose":100.0,
+  "currentTradingPeriod":{"regular":{"start":1699972200,"end":1699995600}}},
   "timestamp":[1700000000,1700000060,1700000120],
   "indicators":{"quote":[{
     "open":[10.0,null,12.0],"high":[10.5,null,12.5],
@@ -81,6 +83,15 @@ func TestYahooHistorySkipsGaps(t *testing.T) {
 	}
 	if s.PreviousClose != 100.0 || s.Range != model.Range1D {
 		t.Errorf("series meta wrong: prevClose=%v range=%v", s.PreviousClose, s.Range)
+	}
+	// The friendly name prefers longName over shortName.
+	if s.Name != "Apple Inc." {
+		t.Errorf("series name = %q, want %q", s.Name, "Apple Inc.")
+	}
+	// The regular trading session window is carried through.
+	if s.SessionStart.Unix() != 1699972200 || s.SessionEnd.Unix() != 1699995600 {
+		t.Errorf("session window = %v..%v, want 1699972200..1699995600",
+			s.SessionStart.Unix(), s.SessionEnd.Unix())
 	}
 	// Range1D must map to range=1d interval=1m on the wire.
 	if r, i := got.URL.Query().Get("range"), got.URL.Query().Get("interval"); r != "1d" || i != "1m" {

@@ -84,13 +84,19 @@ func (y *Yahoo) History(ctx context.Context, symbol string, r model.Range) (mode
 	if err != nil {
 		return model.Series{}, fmt.Errorf("yahoo: %s: %w", symbol, err)
 	}
-	return model.Series{
+	s := model.Series{
 		Symbol:        symbolOr(res.Meta.Symbol, symbol),
+		Name:          res.Meta.displayName(),
 		Range:         r,
 		Currency:      res.Meta.Currency,
 		Candles:       candles,
 		PreviousClose: res.Meta.previousCloseRef(),
-	}, nil
+	}
+	if p := res.Meta.CurrentTradingPeriod.Regular; p.Start > 0 && p.End > p.Start {
+		s.SessionStart = time.Unix(p.Start, 0).UTC()
+		s.SessionEnd = time.Unix(p.End, 0).UTC()
+	}
+	return s, nil
 }
 
 // Search implements QuoteProvider using Yahoo's search endpoint.
@@ -206,12 +212,28 @@ type yahooResult struct {
 }
 
 type yahooMeta struct {
-	Currency           string  `json:"currency"`
-	Symbol             string  `json:"symbol"`
-	RegularMarketPrice float64 `json:"regularMarketPrice"`
-	PreviousClose      float64 `json:"previousClose"`
-	ChartPreviousClose float64 `json:"chartPreviousClose"`
-	RegularMarketTime  int64   `json:"regularMarketTime"`
+	Currency             string  `json:"currency"`
+	Symbol               string  `json:"symbol"`
+	ShortName            string  `json:"shortName"`
+	LongName             string  `json:"longName"`
+	RegularMarketPrice   float64 `json:"regularMarketPrice"`
+	PreviousClose        float64 `json:"previousClose"`
+	ChartPreviousClose   float64 `json:"chartPreviousClose"`
+	RegularMarketTime    int64   `json:"regularMarketTime"`
+	CurrentTradingPeriod struct {
+		Regular struct {
+			Start int64 `json:"start"`
+			End   int64 `json:"end"`
+		} `json:"regular"`
+	} `json:"currentTradingPeriod"`
+}
+
+// displayName is the friendly instrument name, preferring the long form.
+func (m yahooMeta) displayName() string {
+	if m.LongName != "" {
+		return m.LongName
+	}
+	return m.ShortName
 }
 
 // previousCloseRef is the close used as the % change reference for a range.

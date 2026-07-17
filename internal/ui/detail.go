@@ -2,7 +2,6 @@ package ui
 
 import (
 	"context"
-	"fmt"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -36,15 +35,15 @@ func (a *App) buildDetail() fyne.CanvasObject {
 	sidebar.SetMinSize(fyne.NewSize(190, 0))
 
 	a.detailChart = newChart()
-	a.detailPrice = canvas.NewText("—", theme.Color(theme.ColorNameForeground))
-	a.detailPrice.TextStyle = fyne.TextStyle{Bold: true}
-	a.detailPrice.Alignment = fyne.TextAlignTrailing
+	a.detailName = canvas.NewText("", colorAxis)
+	a.detailName.TextSize = nameTextSize
+	a.detailPrice = newPriceText()
 	a.detailChange = canvas.NewText("", colorNeutral)
 
 	back := widget.NewButtonWithIcon("", theme.NavigateBackIcon(), func() { a.showHome() })
 	title := widget.NewLabelWithStyle(a.selected, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 	header := container.NewBorder(nil, nil,
-		container.NewHBox(back, title),
+		container.NewHBox(back, container.NewVBox(title, a.detailName)),
 		container.NewHBox(a.detailPrice, a.detailChange),
 	)
 	top := container.NewVBox(header, a.buildRangeToggles())
@@ -106,6 +105,7 @@ func (a *App) detailTick() func() {
 	side := a.sideTiles
 	intraday := a.rng.Intraday()
 	chart := a.detailChart
+	name := a.detailName
 	price := a.detailPrice
 	change := a.detailChange
 	symbol := a.selected
@@ -115,27 +115,27 @@ func (a *App) detailTick() func() {
 			loadTile1D(prov, t)
 		}
 		if intraday {
-			loadMainChart(prov, chart, price, change, symbol, rng)
+			loadMainChart(prov, chart, name, price, change, symbol, rng, true)
 		}
 	}
 }
 
 // loadMain reloads the main chart for the current selection and range.
 func (a *App) loadMain() {
-	loadMainChart(a.provider, a.detailChart, a.detailPrice, a.detailChange, a.selected, a.rng)
+	loadMainChart(a.provider, a.detailChart, a.detailName, a.detailPrice, a.detailChange, a.selected, a.rng, false)
 }
 
-// loadMainChart fetches a symbol's history at a range and applies it to the main
-// chart and header on the UI goroutine.
-func loadMainChart(prov provider.QuoteProvider, chart *chart, price, change *canvas.Text, symbol string, rng model.Range) {
+// loadMainChart fetches a symbol's history at a range and applies it to the
+// main chart and header on the UI goroutine. name is optional (nil skips it);
+// flash marks a live refresh, letting a changed price flash its background.
+func loadMainChart(prov provider.QuoteProvider, chart *chart, name *canvas.Text, price *priceText, change *canvas.Text, symbol string, rng model.Range, flash bool) {
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), fetchTimeout)
 		defer cancel()
 		s, err := prov.History(ctx, symbol, rng)
 		fyne.Do(func() {
 			if err != nil || len(s.Candles) == 0 {
-				price.Text = "—"
-				price.Refresh()
+				price.SetUnavailable()
 				change.Text = "unavailable"
 				change.Color = colorNeutral
 				change.Refresh()
@@ -145,8 +145,11 @@ func loadMainChart(prov provider.QuoteProvider, chart *chart, price, change *can
 			}
 			last := s.Candles[len(s.Candles)-1].Close
 			col, text := priceChangeText(last, s.PreviousClose)
-			price.Text = fmt.Sprintf("%.2f", last)
-			price.Refresh()
+			if name != nil && s.Name != "" && s.Name != name.Text {
+				name.Text = s.Name
+				name.Refresh()
+			}
+			price.SetPrice(last, flash)
 			change.Text = text
 			change.Color = col
 			change.Refresh()

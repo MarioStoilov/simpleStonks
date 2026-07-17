@@ -36,11 +36,9 @@ func (a *App) buildHome() fyne.CanvasObject {
 	return container.NewBorder(a.buildTopBar(), nil, nil, nil, container.NewVScroll(grid))
 }
 
-// buildTopBar shows the title plus mode-appropriate actions: Edit + settings in
-// view mode; Add (live search) + Done in edit mode.
+// buildTopBar shows the mode-appropriate actions: Edit + settings in view mode;
+// Add (live search) + Done in edit mode.
 func (a *App) buildTopBar() fyne.CanvasObject {
-	title := widget.NewLabelWithStyle("simpleStonks", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
-
 	var right *fyne.Container
 	if a.editMode {
 		add := widget.NewButtonWithIcon("Add", theme.ContentAddIcon(), func() { a.showSearchDialog() })
@@ -52,7 +50,7 @@ func (a *App) buildTopBar() fyne.CanvasObject {
 		settings := widget.NewButtonWithIcon("", theme.SettingsIcon(), func() { a.showSettingsWindow() })
 		right = container.NewHBox(edit, settings)
 	}
-	return container.NewBorder(nil, nil, title, right)
+	return container.NewBorder(nil, nil, nil, right)
 }
 
 // editControls is the per-cell reorder/remove row shown in edit mode.

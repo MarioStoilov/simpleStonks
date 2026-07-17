@@ -306,6 +306,13 @@ Deferred features / polish:
 - Whether to keep a selectable **layout** toggle: the `layout` config field no
   longer changes behavior now that home-grid → detail is the sole navigation.
 - **Drag-to-reorder** in edit mode (currently up/down buttons).
-- **Chart polish**: axes/gridlines, hover readout, currency formatting.
+- **Chart polish**: gridlines, hover readout, currency formatting. (Done: axis
+  labels — size-adaptive y-axis price ticks and range-aware x-axis time labels,
+  hours for 1D, days/dates/months/years for longer ranges — on both grid and
+  detail charts; a dashed previous-close reference line per range with its
+  value on the y axis; 1D charts drawn over the full trading-session window so
+  a live day fills in gradually; friendly instrument names under the symbol on
+  tiles and the detail header; live price updates flash a semi-transparent
+  green/red background behind the price number.)
 - Expose **layout / form-factor** in the settings window once those modes exist.
 - **CI** mirroring the pre-push checks.
