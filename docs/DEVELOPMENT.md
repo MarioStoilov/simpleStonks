@@ -45,6 +45,42 @@ For the snap build only:
 sudo snap install snapcraft --classic   # plus LXD, per snapcraft's docs
 ```
 
+## Compile and run locally
+
+From a clean machine to a running app:
+
+1. **Install Go 1.23+** and the **system build dependencies** listed above
+   (`pkg-config`, `gcc`, and the GL/X11/Wayland headers). Verify Go:
+   ```sh
+   go version   # expect go1.23 or newer
+   ```
+2. **Clone and enter the repo:**
+   ```sh
+   git clone git@github.com:MarioStoilov/simpleStonks.git
+   cd simpleStonks
+   ```
+3. **Download Go module dependencies:**
+   ```sh
+   go mod download
+   ```
+4. **Compile:**
+   ```sh
+   go build ./...                              # compile all packages (or: make build)
+   go build -o bin/simplestonks ./cmd/simplestonks   # produce a runnable binary
+   ```
+5. **Run:**
+   ```sh
+   go run ./cmd/simplestonks   # or: make run, or: ./bin/simplestonks
+   ```
+
+On first run the app creates its config with a default set of tracked symbols and
+starts fetching data. See [Runtime file locations](#runtime-file-locations) for
+where the config and logs are written.
+
+If the compile step fails with errors about `GL`, `X11`, `wayland`, or
+`pkg-config`, the system build dependencies are missing — install them (step 1)
+and retry.
+
 ## Getting the code on a new machine
 
 ```sh

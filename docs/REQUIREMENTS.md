@@ -10,6 +10,13 @@ Go and distributed via the Snap Store. It shows a user-configurable list of stoc
 indexes/tickers and charts their movement. The tracked list is editable from the UI,
 and the list plus other settings are persisted to a config file.
 
+> **UI status: work in progress, design not final.** The current interface is an
+> early implementation. Layouts, controls, and flows (including everything under
+> [Symbol management](#symbol-management-edit-mode--live-search)) are **targets,
+> not commitments to what is built today**. Expect substantial reworks; where this
+> document and the current UI disagree, this document describes the intended
+> direction.
+
 ## Locked decisions
 
 | Area | Decision |
@@ -22,6 +29,7 @@ and the list plus other settings are persisted to a config file.
 | MVP scope | MVP + polish (see below). |
 | Layout | Both **grid** and **list + detail** layouts will be supported. v1 builds the **grid** layout; the code is architected so list+detail slots in later without rework. |
 | Form factor | Both **normal window** and **always-on-top widget** will be supported. v1 builds the **normal window**; widget mode is designed-for but deferred. |
+| Symbol management | A multi-step **edit mode** (toggled by an Edit button) gates remove/reorder/add; adding uses a **live search** with name + market details (see below). |
 | Config | File-based, editable from the UI, XDG/snap-aware, **live two-way reload** (see below). |
 | Logging | Leveled (silent → debug), configured in the config file and live-reloaded, written to a rotating file (see below). |
 | Testing | Unit tests run on every commit; integration tests run on every push (see below). |
@@ -30,7 +38,10 @@ and the list plus other settings are persisted to a config file.
 
 Included in v1:
 
-- Add/remove tracked symbols from the UI.
+- Manage the tracked list from the UI via an edit mode — add (with live search),
+  remove, and reorder — see [Symbol management](#symbol-management-edit-mode--live-search).
+  (The current build ships a simpler add dialog plus per-tile remove and will be
+  reworked to this flow.)
 - Persist tracked symbols and settings to a config file.
 - Fetch quote/chart data via the free provider and draw a line chart per symbol.
 - Grid layout (mini-chart tile per symbol), normal resizable window.
@@ -85,6 +96,43 @@ Implementation notes:
 - Reloads arrive on a background goroutine, so UI subscribers marshal their work
   onto the UI thread (Fyne's `fyne.Do`); the `config` package has no UI
   dependency.
+
+## Symbol management (edit mode & live search)
+
+Managing the tracked list is an explicit, multi-step flow rather than
+always-visible controls, so the home page stays a clean monitoring view.
+
+- **View mode (default).** The grid/home page is read-only: it displays the
+  tracked indexes and their charts. No add/remove/reorder controls are shown.
+- **Edit mode.** An **Edit** button on the grid/home page toggles edit mode.
+  **Only in edit mode** may the user:
+  - **remove** a tracked index,
+  - **reorder** the tracked indexes (the order is persisted),
+  - **add** a new index.
+  Leaving edit mode returns to the clean view.
+- **Adding with live search.** Adding opens a text input with **live search**: as
+  the user types, the app shows a list of matching instruments, each annotated
+  with:
+  - the instrument's **full name** (e.g. "Apple Inc."), and
+  - its **market / exchange location** (e.g. "NASDAQ" / "US"),
+
+  so the correct instrument is chosen unambiguously rather than by guessing a
+  ticker. Selecting a suggestion adds it to the list.
+
+Implications:
+
+- The data provider gains a **symbol search** capability alongside `Quote` /
+  `History`, behind the same swappable interface. The first implementation can use
+  Yahoo's search/autocomplete endpoint (`v1/finance/search`), which returns
+  symbol, long name, exchange, and quote type.
+- Search must be **debounced** and cancelable (each keystroke supersedes the
+  previous in-flight request) and degrade gracefully offline.
+- Reordering persists the order in the config's ordered `symbols` list; live
+  reload already round-trips that order.
+
+Status: **target design.** The current UI implements only a simple add dialog and
+a per-tile remove button; the edit-mode gating, reordering, and live search are
+not built yet and will require UI rework.
 
 ## Logging
 
@@ -169,3 +217,7 @@ pluggable modes rather than hardcoded choices.
 - Choose a license before first public release.
 - Confirm snap confinement plan (network access, `personal-files`/data dirs) during
   packaging.
+- Extend the `QuoteProvider` interface with a symbol-search method and implement it
+  for Yahoo (`v1/finance/search`), to back the live-search add flow.
+- Rework the UI toward the edit-mode symbol management flow (gated remove/reorder,
+  live-search add) — see [Symbol management](#symbol-management-edit-mode--live-search).
