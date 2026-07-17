@@ -25,14 +25,46 @@ and the list plus other settings are persisted to a config file.
 | GUI toolkit | Fyne (pure Go, self-contained, snap-friendly) |
 | Distribution | Snap Store (snapcraft) |
 | Data provider | Free/keyless. First implementation uses the Yahoo Finance chart endpoint (`v8/finance/chart`), behind a swappable provider interface. The swap capability is internal only — not advertised and not a committed feature. |
-| Chart ranges | Default view is **1D with live ticking**. Range toggles: **1D, 5D, 1W, 1M, YTD, 1Y, 5Y, ALL**. |
+| Chart ranges | **1D with live ticking** is the default. The full range toggles (**1D, 5D, 1W, 1M, YTD, 1Y, 5Y, ALL**) appear in the **detail view**; home-grid cells are 1D-only. |
 | MVP scope | MVP + polish (see below). |
-| Layout | Both **grid** and **list + detail** layouts will be supported. v1 builds the **grid** layout; the code is architected so list+detail slots in later without rework. |
+| Screens / navigation | Two screens: a **home grid** of all indexes (1D-only cells) and a **detail view** (expanded chart with range toggles + a left sidebar of indexes). See [Screens & navigation](#screens--navigation). |
 | Form factor | Both **normal window** and **always-on-top widget** will be supported. v1 builds the **normal window**; widget mode is designed-for but deferred. |
 | Symbol management | A multi-step **edit mode** (toggled by an Edit button) gates remove/reorder/add; adding uses a **live search** with name + market details (see below). |
 | Config | File-based, editable from the UI, XDG/snap-aware, **live two-way reload** (see below). |
 | Logging | Leveled (silent → debug), configured in the config file and live-reloaded, written to a rotating file (see below). |
 | Testing | Unit tests run on every commit; integration tests run on every push (see below). |
+
+## Screens & navigation
+
+The app has two screens: a home grid and a detail view. (This unifies the earlier
+"grid vs list + detail" framing — the grid is the home screen and the "list +
+detail" is the drill-down detail view, not two separately selectable layouts.)
+
+### Home (grid)
+
+- The default screen is a **grid** of all configured indexes, one cell each.
+- Each cell shows **only the 1D view** (mini chart + price / % change). There are
+  **no range toggles on the home grid**.
+- The **Edit** button lives here; edit mode gates add / remove / reorder — see
+  [Symbol management](#symbol-management-edit-mode--live-search).
+- **Clicking a cell opens the detail view** for that index.
+
+### Detail view
+
+- Reached by clicking a home-grid cell (or a sidebar cell).
+- The selected index's chart is **expanded to take up most of the screen**.
+- The **range toggles (1D, 5D, 1W, 1M, YTD, 1Y, 5Y, ALL) are visible here** and
+  switch the detail chart's range. 1D remains the default and keeps live ticking.
+- A **left sidebar** lists all configured indexes as **mini cells in a single
+  vertical column**, with the currently-viewed index **highlighted / selected**.
+- **Clicking any index in the sidebar** switches the detail view to that index
+  (staying in the detail view).
+- A way back to the home grid (e.g. a back control) is needed; exact affordance
+  is an open detail.
+
+Status: **target design.** The current build is a single grid whose cells carry
+the range toggles and has no detail view or sidebar yet; the UI will be reworked
+to this two-screen model.
 
 ## MVP + polish scope (v1)
 
@@ -44,8 +76,9 @@ Included in v1:
   reworked to this flow.)
 - Persist tracked symbols and settings to a config file.
 - Fetch quote/chart data via the free provider and draw a line chart per symbol.
-- Grid layout (mini-chart tile per symbol), normal resizable window.
-- Range toggles (1D default with live ticking, plus 5D/1W/1M/YTD/1Y/5Y/ALL).
+- Home grid of all indexes (1D-only cells) and a detail view (expanded chart with
+  range toggles + index sidebar) — see [Screens & navigation](#screens--navigation).
+  Normal resizable window.
 - Percent-change display with up/down coloring.
 - Offline / API-error handling (graceful degradation, no crashes).
 - Live two-way config reload (UI edits and external file edits both apply
@@ -54,7 +87,6 @@ Included in v1:
 
 Deferred (architected-for, not built in v1):
 
-- List + detail layout.
 - Always-on-top widget form factor.
 - Alternative data providers.
 
@@ -221,3 +253,6 @@ pluggable modes rather than hardcoded choices.
   for Yahoo (`v1/finance/search`), to back the live-search add flow.
 - Rework the UI toward the edit-mode symbol management flow (gated remove/reorder,
   live-search add) — see [Symbol management](#symbol-management-edit-mode--live-search).
+- Rework the UI into the two-screen model — 1D-only home grid and a detail view
+  with range toggles and an index sidebar — see [Screens & navigation](#screens--navigation).
+- Decide the back-to-grid affordance in the detail view.
