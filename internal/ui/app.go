@@ -18,21 +18,23 @@ import (
 // appID is the Fyne application ID; it also namespaces Fyne's own storage.
 const appID = "com.github.mariostoilov.simplestonks"
 
-// App wires together the Fyne application, the loaded config, and the data
+// App wires together the Fyne application, the live config store, and the data
 // provider.
 type App struct {
 	fyne     fyne.App
 	win      fyne.Window
 	provider provider.QuoteProvider
-	cfg      config.Config
+	store    *config.Store
+	cfg      config.Config // cached snapshot of store.Get()
 }
 
-// New constructs the application with the given data provider and config.
-func New(p provider.QuoteProvider, cfg config.Config) *App {
+// New constructs the application with the given data provider and config store.
+func New(p provider.QuoteProvider, store *config.Store) *App {
 	return &App{
 		fyne:     fyneapp.NewWithID(appID),
 		provider: p,
-		cfg:      cfg,
+		store:    store,
+		cfg:      store.Get(),
 	}
 }
 
@@ -42,6 +44,17 @@ func (a *App) Run() {
 	a.win = a.fyne.NewWindow("simpleStonks")
 	a.win.SetContent(a.buildContent())
 	a.win.Resize(fyne.NewSize(900, 600))
+
+	// Rebuild the UI whenever the config changes, whether from our own edits
+	// or an external change to the file. Reloads arrive on the watcher
+	// goroutine, so marshal the rebuild onto the UI thread.
+	a.store.Subscribe(func(cfg config.Config) {
+		fyne.Do(func() {
+			a.cfg = cfg
+			a.win.SetContent(a.buildContent())
+		})
+	})
+
 	a.win.ShowAndRun()
 }
 

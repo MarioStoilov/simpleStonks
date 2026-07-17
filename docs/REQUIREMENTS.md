@@ -22,7 +22,8 @@ and the list plus other settings are persisted to a config file.
 | MVP scope | MVP + polish (see below). |
 | Layout | Both **grid** and **list + detail** layouts will be supported. v1 builds the **grid** layout; the code is architected so list+detail slots in later without rework. |
 | Form factor | Both **normal window** and **always-on-top widget** will be supported. v1 builds the **normal window**; widget mode is designed-for but deferred. |
-| Config | File-based, editable from the UI, XDG/snap-aware. |
+| Config | File-based, editable from the UI, XDG/snap-aware, **live two-way reload** (see below). |
+| Testing | Unit tests run on every commit; integration tests run on every push (see below). |
 
 ## MVP + polish scope (v1)
 
@@ -35,6 +36,8 @@ Included in v1:
 - Range toggles (1D default with live ticking, plus 5D/1W/1M/YTD/1Y/5Y/ALL).
 - Percent-change display with up/down coloring.
 - Offline / API-error handling (graceful degradation, no crashes).
+- Live two-way config reload (UI edits and external file edits both apply
+  without a restart).
 - Snap packaging (`snapcraft.yaml`).
 
 Deferred (architected-for, not built in v1):
@@ -55,13 +58,55 @@ Deferred (architected-for, not built in v1):
   extra effort is spent on other platforms in v1.
 - **License:** to be decided (placeholder for now).
 
+## Live configuration reload
+
+The config file stays in sync with the running app in **both** directions,
+without a restart:
+
+- **UI → file:** edits made in the UI are persisted immediately (atomic
+  write-tmp-then-rename).
+- **File → UI:** external edits to the config file (hand edits, another tool)
+  are detected and applied to the running UI.
+
+Implementation notes:
+
+- The config directory is watched with `fsnotify` (watch the directory, not the
+  file, so atomic rename-based writes keep being followed). Filesystem events are
+  debounced before reloading.
+- A `config.Store` owns the live config behind a mutex and exposes `Get`,
+  `Update` (UI edits), `Subscribe`, and `Close`. Subscribers are notified on any
+  change from either direction.
+- The app's own writes do not cause a redundant rebuild or a feedback loop:
+  after a reload, the new config is compared to the in-memory one and ignored if
+  unchanged.
+- A malformed external edit is logged and ignored, keeping the last-good config;
+  the UI is never left blank or crashed.
+- Reloads arrive on a background goroutine, so UI subscribers marshal their work
+  onto the UI thread (Fyne's `fyne.Do`); the `config` package has no UI
+  dependency.
+
+## Testing & CI
+
+- **Unit tests on every commit.** Fast, dependency-free tests (config,
+  provider mapping/parsing, model helpers) run before each commit. Intended to be
+  enforced with a `pre-commit` git hook.
+- **Integration tests on every push.** Broader tests (e.g. provider against
+  recorded/live responses, config live-reload end-to-end, UI smoke where
+  feasible) run before each push. Intended to be enforced with a `pre-push` git
+  hook and mirrored in CI once a CI provider is chosen.
+- Code is written to be testable: side effects (filesystem, network, clock) are
+  reached through interfaces or injectable clients so units can be exercised in
+  isolation. The `QuoteProvider` interface and the injectable `*http.Client` in
+  the Yahoo provider are examples of this.
+- Tests should pass under the race detector (`go test -race ./...`).
+
 ## Proposed project structure
 
 ```
 simpleStonks/
 ├── cmd/simplestonks/main.go        # entrypoint
 ├── internal/
-│   ├── config/                     # load/save JSON config (XDG/snap-aware)
+│   ├── config/                     # load/save JSON config + live-reload Store (XDG/snap-aware)
 │   ├── provider/                   # QuoteProvider interface + yahoo impl
 │   │   ├── provider.go             # interface + types (Quote, Candle, Range)
 │   │   └── yahoo.go

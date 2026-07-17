@@ -10,13 +10,13 @@ import (
 )
 
 func main() {
-	cfg, err := config.Load()
+	store, err := config.Open()
 	if err != nil {
-		log.Printf("config: falling back to defaults: %v", err)
-		cfg = config.Default()
+		log.Fatalf("config: %v", err)
 	}
+	defer store.Close()
 
 	p := provider.NewYahoo(nil)
 
-	ui.New(p, cfg).Run()
+	ui.New(p, store).Run()
 }

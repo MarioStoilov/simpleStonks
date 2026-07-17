@@ -22,7 +22,18 @@ from the UI, and the list plus other settings are persisted to a config file.
 - Keep it simple — this is intentionally a minimal app.
 - Persisted config/settings should follow the XDG Base Directory spec and must be
   compatible with the snap confinement model (write to snap-provided data dirs).
+- The config file supports live two-way reload — UI edits and external file edits
+  both apply without restarting. Don't add code paths that require a restart to
+  pick up config changes.
 - Match the style, naming, and structure of existing code.
+
+## Testing
+
+- Write testable code: reach side effects (filesystem, network, clock) through
+  interfaces or injectable clients so units can be tested in isolation.
+- **Unit tests run on every commit**; **integration tests run on every push**
+  (enforced via `pre-commit` / `pre-push` git hooks and, later, CI).
+- Tests should pass under the race detector: `go test -race ./...`.
 
 ## Notes
 

@@ -40,32 +40,35 @@ func (a *App) showAddSymbolDialog() {
 	form.Show()
 }
 
-// addSymbol appends a symbol (ignoring duplicates) and persists the config.
+// addSymbol appends a symbol (ignoring duplicates) via the config store, which
+// persists it and triggers a UI rebuild through the subscription.
 func (a *App) addSymbol(symbol string) {
-	for _, s := range a.cfg.Symbols {
-		if s == symbol {
-			return
+	a.update(func(c *config.Config) {
+		for _, s := range c.Symbols {
+			if s == symbol {
+				return
+			}
 		}
-	}
-	a.cfg.Symbols = append(a.cfg.Symbols, symbol)
-	a.persist()
+		c.Symbols = append(c.Symbols, symbol)
+	})
 }
 
-// removeSymbol drops a symbol from the tracked list and persists the config.
+// removeSymbol drops a symbol from the tracked list via the config store.
 func (a *App) removeSymbol(symbol string) {
-	kept := a.cfg.Symbols[:0]
-	for _, s := range a.cfg.Symbols {
-		if s != symbol {
-			kept = append(kept, s)
+	a.update(func(c *config.Config) {
+		kept := make([]string, 0, len(c.Symbols))
+		for _, s := range c.Symbols {
+			if s != symbol {
+				kept = append(kept, s)
+			}
 		}
-	}
-	a.cfg.Symbols = kept
-	a.persist()
+		c.Symbols = kept
+	})
 }
 
-// persist saves the current config, surfacing any error to the user.
-func (a *App) persist() {
-	if err := config.Save(a.cfg); err != nil && a.win != nil {
+// update applies a config mutation through the store, surfacing any save error.
+func (a *App) update(mutate func(*config.Config)) {
+	if err := a.store.Update(mutate); err != nil && a.win != nil {
 		dialog.ShowError(err, a.win)
 	}
 }
