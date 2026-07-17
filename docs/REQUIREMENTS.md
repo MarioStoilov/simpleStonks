@@ -298,8 +298,9 @@ The core MVP + polish scope is in place:
 Before a shippable MVP:
 
 - **Snap packaging**: finalize `snap/snapcraft.yaml` build + confinement (network,
-  desktop integration, writable data dirs) and publish to the store.
-  (License chosen: MIT — done.)
+  writable data dirs), verify a clean `snapcraft pack`, and publish to the store.
+  (Done so far: license MIT + `license:` key, store icon via `icon:` key, and the
+  desktop entry `snap/gui/simplestonks.desktop`.)
 
 Deferred features / polish:
 

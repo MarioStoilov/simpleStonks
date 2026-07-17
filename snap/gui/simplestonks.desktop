@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=simpleStonks
+Comment=Bare-bones stock tracker with live charts
+Exec=simplestonks
+Icon=${SNAP}/meta/gui/icon.svg
+Terminal=false
+Categories=Office;Finance;
+Keywords=stocks;shares;index;ticker;finance;charts;
+StartupWMClass=simpleStonks

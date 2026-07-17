@@ -241,8 +241,8 @@ Progress is recorded in `git log`; the short version:
   runs show a placeholder icon — Wayland forbids apps setting their own window
   icon, and Fyne 2.8 no-ops `SetIcon` there and sets no Wayland `app_id` for a
   `.desktop`-file match. The icon does show on X11/XWayland, Windows, macOS,
-  and will in the packaged snap via its desktop entry (to be added when snap
-  packaging is finalized).
+  and in the packaged snap via its desktop entry
+  (`snap/gui/simplestonks.desktop`).
 
 Immediate next candidates:
 
