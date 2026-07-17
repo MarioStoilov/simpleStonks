@@ -47,6 +47,7 @@ type App struct {
 	screen   screenKind
 	selected string      // symbol shown in the detail view
 	rng      model.Range // active range in the detail view
+	editMode bool        // home-grid edit mode (gates add/remove/reorder)
 
 	homeTiles []*tile
 	sideTiles []*tile
@@ -102,6 +103,14 @@ func (a *App) Run() {
 
 // showHome switches to the home grid.
 func (a *App) showHome() {
+	a.screen = screenHome
+	a.win.SetContent(a.buildHome())
+	a.startData()
+}
+
+// setEditMode toggles home-grid edit mode and rebuilds the home screen.
+func (a *App) setEditMode(on bool) {
+	a.editMode = on
 	a.screen = screenHome
 	a.win.SetContent(a.buildHome())
 	a.startData()

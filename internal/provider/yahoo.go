@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/MarioStoilov/simplestonks/internal/model"
@@ -16,15 +17,20 @@ import (
 // together cover Quote and History.
 const yahooBaseURL = "https://query1.finance.yahoo.com/v8/finance/chart/"
 
+// yahooSearchURL is the keyless Yahoo Finance search endpoint, used to back the
+// add-symbol live search.
+const yahooSearchURL = "https://query1.finance.yahoo.com/v1/finance/search"
+
 // yahooUserAgent is sent with every request; Yahoo tends to reject requests
 // carrying Go's default user agent.
 const yahooUserAgent = "simplestonks/0.1 (+https://github.com/MarioStoilov/simpleStonks)"
 
 // Yahoo is the default, keyless QuoteProvider backed by the Yahoo Finance
-// chart endpoint.
+// chart and search endpoints.
 type Yahoo struct {
-	client  *http.Client
-	baseURL string
+	client    *http.Client
+	baseURL   string
+	searchURL string
 }
 
 // NewYahoo returns a Yahoo provider using the given HTTP client, or a client
@@ -33,7 +39,17 @@ func NewYahoo(client *http.Client) *Yahoo {
 	if client == nil {
 		client = &http.Client{Timeout: 10 * time.Second}
 	}
-	return &Yahoo{client: client, baseURL: yahooBaseURL}
+	return &Yahoo{client: client, baseURL: yahooBaseURL, searchURL: yahooSearchURL}
+}
+
+// get issues a GET with the Yahoo-friendly user agent.
+func (y *Yahoo) get(ctx context.Context, endpoint string) (*http.Response, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("User-Agent", yahooUserAgent)
+	return y.client.Do(req)
 }
 
 // Name implements QuoteProvider.
@@ -77,6 +93,46 @@ func (y *Yahoo) History(ctx context.Context, symbol string, r model.Range) (mode
 	}, nil
 }
 
+// Search implements QuoteProvider using Yahoo's search endpoint.
+func (y *Yahoo) Search(ctx context.Context, query string) ([]model.SearchResult, error) {
+	if strings.TrimSpace(query) == "" {
+		return nil, nil
+	}
+	endpoint := y.searchURL + "?" + url.Values{
+		"q":           {query},
+		"quotesCount": {"10"},
+		"newsCount":   {"0"},
+	}.Encode()
+
+	resp, err := y.get(ctx, endpoint)
+	if err != nil {
+		return nil, fmt.Errorf("yahoo: search %q: %w", query, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("yahoo: search %q: unexpected status %s", query, resp.Status)
+	}
+	var body yahooSearchResponse
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		return nil, fmt.Errorf("yahoo: search %q: %w", query, err)
+	}
+
+	out := make([]model.SearchResult, 0, len(body.Quotes))
+	for _, q := range body.Quotes {
+		if q.Symbol == "" {
+			continue
+		}
+		out = append(out, model.SearchResult{
+			Symbol:   q.Symbol,
+			Name:     firstNonEmpty(q.LongName, q.ShortName),
+			Exchange: firstNonEmpty(q.ExchDisp, q.Exchange),
+			Type:     firstNonEmpty(q.TypeDisp, q.QuoteType),
+		})
+	}
+	return out, nil
+}
+
 // fetchChart requests the chart endpoint for a symbol and returns the first
 // result, mapping transport and API-level failures to errors.
 func (y *Yahoo) fetchChart(ctx context.Context, symbol, rng, interval string) (*yahooResult, error) {
@@ -88,13 +144,7 @@ func (y *Yahoo) fetchChart(ctx context.Context, symbol, rng, interval string) (*
 		"interval": {interval},
 	}.Encode()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("User-Agent", yahooUserAgent)
-
-	resp, err := y.client.Do(req)
+	resp, err := y.get(ctx, endpoint)
 	if err != nil {
 		return nil, fmt.Errorf("yahoo: %s: %w", symbol, err)
 	}
@@ -132,6 +182,19 @@ type yahooResponse struct {
 type yahooError struct {
 	Code        string `json:"code"`
 	Description string `json:"description"`
+}
+
+// yahooSearchResponse mirrors the parts of the search endpoint response we use.
+type yahooSearchResponse struct {
+	Quotes []struct {
+		Symbol    string `json:"symbol"`
+		ShortName string `json:"shortname"`
+		LongName  string `json:"longname"`
+		Exchange  string `json:"exchange"`
+		ExchDisp  string `json:"exchDisp"`
+		QuoteType string `json:"quoteType"`
+		TypeDisp  string `json:"typeDisp"`
+	} `json:"quotes"`
 }
 
 type yahooResult struct {
@@ -227,6 +290,16 @@ func symbolOr(meta, requested string) string {
 		return meta
 	}
 	return requested
+}
+
+// firstNonEmpty returns the first non-empty string, or "".
+func firstNonEmpty(vals ...string) string {
+	for _, v := range vals {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
 }
 
 // fptrAt returns the *float64 at index i, or nil if out of range.

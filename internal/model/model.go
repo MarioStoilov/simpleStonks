@@ -49,6 +49,15 @@ type Series struct {
 	PreviousClose float64 // reference close used for the range's % change
 }
 
+// SearchResult is one instrument returned by a symbol search: enough to show
+// the user a disambiguated suggestion (symbol, full name, market/exchange).
+type SearchResult struct {
+	Symbol   string // e.g. "AAPL", "^GSPC"
+	Name     string // full/long name, e.g. "Apple Inc."
+	Exchange string // market/exchange display, e.g. "NASDAQ"
+	Type     string // instrument type, e.g. "Equity", "Index", "ETF"
+}
+
 // Quote is a lightweight snapshot of a symbol's latest price and how it has
 // moved relative to a reference close.
 type Quote struct {

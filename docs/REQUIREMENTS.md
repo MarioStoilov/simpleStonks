@@ -184,9 +184,11 @@ Implications:
 - Reordering persists the order in the config's ordered `symbols` list; live
   reload already round-trips that order.
 
-Status: **target design.** The current UI implements only a simple add dialog and
-a per-tile remove button; the edit-mode gating, reordering, and live search are
-not built yet and will require UI rework.
+Status: **implemented.** The home grid has an Edit button that toggles edit mode;
+in edit mode each cell exposes reorder (up/down) and remove controls, and Add
+opens the live-search dialog (Yahoo search, debounced, showing name + market).
+Reordering and membership persist via the config store. Drag-to-reorder is not
+implemented (up/down buttons are used instead).
 
 ## Logging
 

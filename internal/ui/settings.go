@@ -1,44 +1,10 @@
 package ui
 
 import (
-	"strings"
-
-	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/dialog"
-	"fyne.io/fyne/v2/widget"
 
 	"github.com/MarioStoilov/simplestonks/internal/config"
 )
-
-// showAddSymbolDialog prompts for a symbol, appends it to the tracked list, and
-// persists the config.
-//
-// TODO(v1): validate the symbol against the provider before adding, and rebuild
-// the grid so the new tile appears without a restart.
-func (a *App) showAddSymbolDialog() {
-	if a.win == nil {
-		return
-	}
-	entry := widget.NewEntry()
-	entry.SetPlaceHolder("e.g. AAPL or ^GSPC")
-
-	form := dialog.NewForm("Add symbol", "Add", "Cancel",
-		[]*widget.FormItem{widget.NewFormItem("Symbol", entry)},
-		func(ok bool) {
-			if !ok {
-				return
-			}
-			sym := strings.ToUpper(strings.TrimSpace(entry.Text))
-			if sym == "" {
-				return
-			}
-			a.addSymbol(sym)
-		},
-		a.win,
-	)
-	form.Resize(fyne.NewSize(320, 120))
-	form.Show()
-}
 
 // addSymbol appends a symbol (ignoring duplicates) via the config store, which
 // persists it and triggers a UI rebuild through the subscription.
@@ -50,6 +16,18 @@ func (a *App) addSymbol(symbol string) {
 			}
 		}
 		c.Symbols = append(c.Symbols, symbol)
+	})
+}
+
+// moveSymbol swaps the symbol at index i with its neighbor delta positions away
+// (delta is -1 or +1), persisting the new order. Out-of-range moves are no-ops.
+func (a *App) moveSymbol(i, delta int) {
+	j := i + delta
+	a.update(func(c *config.Config) {
+		if i < 0 || i >= len(c.Symbols) || j < 0 || j >= len(c.Symbols) {
+			return
+		}
+		c.Symbols[i], c.Symbols[j] = c.Symbols[j], c.Symbols[i]
 	})
 }
 

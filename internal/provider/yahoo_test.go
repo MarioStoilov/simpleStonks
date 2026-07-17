@@ -126,6 +126,53 @@ func TestYahooEmptySymbol(t *testing.T) {
 	}
 }
 
+const searchBody = `{"quotes":[
+  {"symbol":"AAPL","shortname":"Apple","longname":"Apple Inc.","exchange":"NMS","exchDisp":"NASDAQ","quoteType":"EQUITY","typeDisp":"Equity"},
+  {"symbol":"","shortname":"junk with no symbol"},
+  {"symbol":"^GSPC","longname":"S&P 500","exchDisp":"SNP","quoteType":"INDEX","typeDisp":"Index"}
+],"news":[]}`
+
+func TestYahooSearch(t *testing.T) {
+	var got *http.Request
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got = r
+		_, _ = w.Write([]byte(searchBody))
+	}))
+	defer srv.Close()
+
+	y := NewYahoo(srv.Client())
+	y.searchURL = srv.URL
+
+	res, err := y.Search(context.Background(), "apple")
+	if err != nil {
+		t.Fatalf("Search: %v", err)
+	}
+	// The entry with an empty symbol must be dropped.
+	if len(res) != 2 {
+		t.Fatalf("got %d results, want 2: %+v", len(res), res)
+	}
+	if res[0] != (model.SearchResult{Symbol: "AAPL", Name: "Apple Inc.", Exchange: "NASDAQ", Type: "Equity"}) {
+		t.Errorf("result[0] = %+v", res[0])
+	}
+	// Name falls back are covered; index uses longname + exchDisp.
+	if res[1].Symbol != "^GSPC" || res[1].Name != "S&P 500" || res[1].Exchange != "SNP" {
+		t.Errorf("result[1] = %+v", res[1])
+	}
+	if got.URL.Query().Get("q") != "apple" {
+		t.Errorf("query q = %q, want apple", got.URL.Query().Get("q"))
+	}
+}
+
+func TestYahooSearchEmptyQuery(t *testing.T) {
+	// Empty query must short-circuit without an HTTP call.
+	y := NewYahoo(nil)
+	y.searchURL = "http://127.0.0.1:0/should-not-be-called"
+	res, err := y.Search(context.Background(), "   ")
+	if err != nil || res != nil {
+		t.Fatalf("empty query: got (%v, %v), want (nil, nil)", res, err)
+	}
+}
+
 func TestYahooParams(t *testing.T) {
 	cases := map[model.Range][2]string{
 		model.Range1D:  {"1d", "1m"},

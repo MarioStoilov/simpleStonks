@@ -54,3 +54,30 @@ func TestIntegrationYahooHistory(t *testing.T) {
 		t.Fatal("expected candles for the 1M range")
 	}
 }
+
+func TestIntegrationYahooSearch(t *testing.T) {
+	requireNetwork(t)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	res, err := NewYahoo(nil).Search(ctx, "apple")
+	if err != nil {
+		t.Fatalf("live Search: %v", err)
+	}
+	if len(res) == 0 {
+		t.Fatal("expected search results for 'apple'")
+	}
+	found := false
+	for _, r := range res {
+		if r.Symbol == "AAPL" {
+			found = true
+			if r.Name == "" {
+				t.Errorf("AAPL result missing name: %+v", r)
+			}
+		}
+	}
+	if !found {
+		t.Errorf("expected AAPL among results, got %+v", res)
+	}
+}

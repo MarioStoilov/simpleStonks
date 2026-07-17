@@ -208,13 +208,16 @@ Progress is recorded in `git log`; the short version:
   a detail view (expanded chart with 1D..ALL range toggles plus a left sidebar of
   all symbols), per-tile price/% change with up/down coloring and a real chart
   line, a per-screen polling loop for the live 1D data, and graceful per-tile
-  error handling. Add via toolbar, remove via per-tile button (edit-mode flow
-  still pending). Settings cog is a placeholder.
+  error handling.
+- Provider symbol search (Yahoo `v1/finance/search`) and home-grid edit mode:
+  Edit toggles reorder (up/down) + remove controls per cell, and Add opens a
+  debounced live-search dialog showing each match's name and market. Settings
+  cog is still a placeholder.
 
 Immediate next candidates:
 
-- Edit-mode symbol management + provider symbol search (live-search add).
 - Settings window behind the cog-wheel.
 - Always-on-top widget form factor.
 - Chart polish: axes/gridlines, hover readout, currency formatting.
+- Drag-to-reorder in edit mode (currently up/down buttons).
 - CI mirroring the pre-push checks.
