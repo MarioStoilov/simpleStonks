@@ -277,17 +277,35 @@ The `provider` package's interface is the seam for swapping data sources. The `u
 package is split so that grid-vs-list layout and window-vs-widget form factor are
 pluggable modes rather than hardcoded choices.
 
+## Implemented so far
+
+The core MVP + polish scope is in place:
+
+- Keyless Yahoo provider: `Quote`, `History`, `Search` (behind the swappable
+  `QuoteProvider` interface).
+- Two-screen UI: 1D-only home grid → detail view (expanded chart, 1D..ALL range
+  toggles, index sidebar, back to grid).
+- Edit-mode symbol management: reorder (up/down) + remove, and Add via a debounced
+  live search with click-to-preview and duplicate prevention (disabled Add +
+  tooltip).
+- Live two-way config reload; leveled rotating file logging.
+- Settings window (cog): default range, refresh interval, logging — applied live.
+- Tests gated by `pre-commit` (unit) and `pre-push` (integration) hooks.
+
 ## Open items
 
-- Choose a license before first public release.
-- Confirm snap confinement plan (network access, `personal-files`/data dirs) during
-  packaging.
-- Extend the `QuoteProvider` interface with a symbol-search method and implement it
-  for Yahoo (`v1/finance/search`), to back the live-search add flow.
-- Rework the UI toward the edit-mode symbol management flow (gated remove/reorder,
-  live-search add) — see [Symbol management](#symbol-management-edit-mode--live-search).
-- Rework the UI into the two-screen model — 1D-only home grid and a detail view
-  with range toggles and an index sidebar — see [Screens & navigation](#screens--navigation).
-- Decide the back-to-grid affordance in the detail view.
-- Design the settings window (which settings it exposes and its layout) — see
-  [Settings window](#settings-window).
+Before a shippable MVP:
+
+- **Choose a license** before first public release.
+- **Snap packaging**: finalize `snap/snapcraft.yaml` build + confinement (network,
+  desktop integration, writable data dirs) and publish to the store.
+
+Deferred features / polish:
+
+- Always-on-top **widget** form factor (`formFactor: widget` is not built).
+- Whether to keep a selectable **layout** toggle: the `layout` config field no
+  longer changes behavior now that home-grid → detail is the sole navigation.
+- **Drag-to-reorder** in edit mode (currently up/down buttons).
+- **Chart polish**: axes/gridlines, hover readout, currency formatting.
+- Expose **layout / form-factor** in the settings window once those modes exist.
+- **CI** mirroring the pre-push checks.

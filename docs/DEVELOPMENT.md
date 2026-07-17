@@ -73,6 +73,10 @@ From a clean machine to a running app:
    go run ./cmd/simplestonks   # or: make run, or: ./bin/simplestonks
    ```
 
+**JetBrains GoLand:** a shared run configuration named **simpleStonks** is
+committed under `.idea/runConfigurations/`, so Run/Debug work out of the box
+(the rest of `.idea/` is gitignored).
+
 On first run the app creates its config with a default set of tracked symbols and
 starts fetching data. See [Runtime file locations](#runtime-file-locations) for
 where the config and logs are written.
