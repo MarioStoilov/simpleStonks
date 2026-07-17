@@ -204,13 +204,17 @@ Progress is recorded in `git log`; the short version:
 - Leveled, rotating file logger implemented and tested.
 - `pre-commit` / `pre-push` test hooks and the integration-tag harness in place.
 - Yahoo provider (`Quote` / `History`) implemented and tested.
-- Grid UI wired to live data: per-symbol tiles with price and % change (up/down
-  coloring), a real chart line, working range toggles, add/remove from the UI,
-  a polling loop for the live 1D view, and graceful per-tile error handling.
+- Two-screen UI wired to live data: a home grid of 1D-only cells that drills into
+  a detail view (expanded chart with 1D..ALL range toggles plus a left sidebar of
+  all symbols), per-tile price/% change with up/down coloring and a real chart
+  line, a per-screen polling loop for the live 1D data, and graceful per-tile
+  error handling. Add via toolbar, remove via per-tile button (edit-mode flow
+  still pending). Settings cog is a placeholder.
 
 Immediate next candidates:
 
-- List + detail layout (currently falls back to grid).
+- Edit-mode symbol management + provider symbol search (live-search add).
+- Settings window behind the cog-wheel.
 - Always-on-top widget form factor.
 - Chart polish: axes/gridlines, hover readout, currency formatting.
 - CI mirroring the pre-push checks.

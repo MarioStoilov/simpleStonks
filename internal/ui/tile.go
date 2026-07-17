@@ -1,0 +1,136 @@
+package ui
+
+import (
+	"fmt"
+	"image/color"
+	"log/slog"
+
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
+	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/theme"
+	"fyne.io/fyne/v2/widget"
+
+	"github.com/MarioStoilov/simplestonks/internal/model"
+)
+
+// tile is a tappable card for one symbol: the symbol, its latest price and
+// percent change, and — when showChart is set — a mini 1D chart. It is used both
+// for home-grid cells (with chart) and detail-view sidebar cells (without).
+type tile struct {
+	widget.BaseWidget
+	symbol string
+	onTap  func()
+
+	bg     *canvas.Rectangle
+	price  *canvas.Text
+	change *canvas.Text
+	chart  *chart // nil when showChart is false
+	root   fyne.CanvasObject
+}
+
+// newTile builds a tile. onTap fires when the cell (outside its buttons) is
+// clicked; onRemove, when non-nil, adds a small remove button.
+func newTile(symbol string, showChart bool, onTap, onRemove func()) *tile {
+	t := &tile{symbol: symbol, onTap: onTap}
+	t.ExtendBaseWidget(t)
+
+	symLbl := widget.NewLabelWithStyle(symbol, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+	t.price = canvas.NewText("—", theme.Color(theme.ColorNameForeground))
+	t.price.TextStyle = fyne.TextStyle{Bold: true}
+	t.price.Alignment = fyne.TextAlignTrailing
+	t.change = canvas.NewText("", colorNeutral)
+
+	var right fyne.CanvasObject = t.price
+	if onRemove != nil {
+		rm := widget.NewButtonWithIcon("", theme.ContentClearIcon(), onRemove)
+		rm.Importance = widget.LowImportance
+		right = container.NewHBox(t.price, rm)
+	}
+	header := container.NewBorder(nil, nil, symLbl, right)
+
+	var content fyne.CanvasObject
+	if showChart {
+		t.chart = newChart()
+		content = container.NewBorder(container.NewVBox(header, t.change), nil, nil, nil, t.chart)
+	} else {
+		content = container.NewVBox(header, t.change)
+	}
+
+	t.bg = canvas.NewRectangle(colorCardBg)
+	t.bg.CornerRadius = 6
+	t.root = container.NewStack(t.bg, container.NewPadded(content))
+	return t
+}
+
+// CreateRenderer implements fyne.Widget.
+func (t *tile) CreateRenderer() fyne.WidgetRenderer { return widget.NewSimpleRenderer(t.root) }
+
+// Tapped implements fyne.Tappable.
+func (t *tile) Tapped(*fyne.PointEvent) {
+	if t.onTap != nil {
+		t.onTap()
+	}
+}
+
+// SetSelected highlights the tile (used for the current sidebar entry).
+func (t *tile) SetSelected(sel bool) {
+	if sel {
+		t.bg.FillColor = colorSelected
+	} else {
+		t.bg.FillColor = colorCardBg
+	}
+	t.bg.Refresh()
+}
+
+// setSeries renders a fetched series onto the tile.
+func (t *tile) setSeries(s model.Series) {
+	last, prev, ok := latestAndPrev(s)
+	if !ok {
+		t.setError(fmt.Errorf("no data"))
+		return
+	}
+	col, text := priceChangeText(last, prev)
+	t.price.Text = fmt.Sprintf("%.2f", last)
+	t.price.Refresh()
+	t.change.Text = text
+	t.change.Color = col
+	t.change.Refresh()
+	if t.chart != nil {
+		t.chart.SetColor(col)
+		t.chart.SetSeries(s)
+	}
+}
+
+// setError puts the tile into an unavailable state and logs the cause.
+func (t *tile) setError(err error) {
+	t.price.Text = "—"
+	t.price.Refresh()
+	t.change.Text = "unavailable"
+	t.change.Color = colorNeutral
+	t.change.Refresh()
+	if t.chart != nil {
+		t.chart.SetColor(colorNeutral)
+		t.chart.SetSeries(model.Series{})
+	}
+	slog.Warn("tile update failed", "symbol", t.symbol, "err", err)
+}
+
+// latestAndPrev returns the last close and the reference previous close.
+func latestAndPrev(s model.Series) (last, prev float64, ok bool) {
+	if len(s.Candles) == 0 {
+		return 0, 0, false
+	}
+	return s.Candles[len(s.Candles)-1].Close, s.PreviousClose, true
+}
+
+// priceChangeText formats the "+1.23 (+0.45%)" change string and its color.
+func priceChangeText(last, prev float64) (color.Color, string) {
+	delta := last - prev
+	col, sign := changeStyle(delta)
+	pct := 0.0
+	if prev != 0 {
+		pct = delta / prev * 100
+	}
+	return col, fmt.Sprintf("%s%.2f (%s%.2f%%)", sign, delta, sign, pct)
+}

@@ -72,3 +72,12 @@ func (a *App) update(mutate func(*config.Config)) {
 		dialog.ShowError(err, a.win)
 	}
 }
+
+// showSettingsPlaceholder stands in for the not-yet-built settings window that
+// the top-right cog will eventually open (see docs/REQUIREMENTS.md).
+func (a *App) showSettingsPlaceholder() {
+	if a.win == nil {
+		return
+	}
+	dialog.ShowInformation("Settings", "The settings window is not implemented yet.", a.win)
+}
