@@ -217,8 +217,11 @@ Progress is recorded in `git log`; the short version:
   Edit toggles reorder (up/down) + remove controls per cell, and Add opens a
   debounced live-search dialog with click-to-preview (Add disabled + tooltip for
   already-tracked indexes).
-- Settings window (cog-wheel): a separate window editing default range, refresh
-  interval, and logging (level/file/size/archives), applied live via the store.
+- Settings window (cog-wheel): a separate window with a section sidebar —
+  General (default range, refresh interval), Appearance (window background via
+  swatch + color-picker dialog and an opacity slider, live-previewed via a
+  theme override), and Logging (level/file/size/archives) — applied live via
+  the store.
 - Chart axis labels: size-adaptive y-axis price ticks and range-aware x-axis
   time labels (hours for 1D, days/dates/months/years for longer ranges) on both
   the home-grid mini charts and the detail chart.
@@ -227,9 +230,18 @@ Progress is recorded in `git log`; the short version:
   widened to keep it in view.
 - Session-window 1D axis: intraday charts span the full regular trading session
   (from Yahoo's `currentTradingPeriod`), so a live day fills in gradually as
-  the polling loop appends data.
+  the polling loop appends data. While the market is closed, Yahoo pairs the
+  previous day's candles with the *upcoming* session; those render evenly
+  spaced across the full width, and the chart re-initiates onto the new
+  session automatically at the first post-open poll (no restart or range
+  change needed).
 - Friendly instrument names (Yahoo meta long/short name) shown under the symbol
   on home tiles, sidebar cells, and the detail header.
+- Chart hover readout (dot on the nearest data point + price tooltip) on all
+  charts, and a button-like hover highlight on clickable tiles (home grid +
+  detail sidebar; suppressed in edit mode, where tiles don't navigate). The
+  mini chart forwards its hover state to its tile so the highlight covers the
+  whole cell.
 - Live price flash (`priceText` widget): when a refresh changes a displayed
   price, a semi-transparent green/red background flashes behind the number
   only, fading out; unchanged prices (closed market) never flash.
@@ -243,10 +255,17 @@ Progress is recorded in `git log`; the short version:
   `.desktop`-file match. The icon does show on X11/XWayland, Windows, macOS,
   and in the packaged snap via its desktop entry
   (`snap/gui/simplestonks.desktop`).
+- Snap packaging verified: `snapcraft pack` builds cleanly in LXD (needs the
+  Wayland dev packages in `build-packages`; on hosts running Docker, allow
+  `lxdbr0` in the `DOCKER-USER` iptables chain or container networking is
+  blocked). The strict snap passed a local smoke test: network fetch, config
+  under `$SNAP_USER_DATA/.config`, logs under `$SNAP_USER_DATA/.local/state`,
+  desktop entry + taskbar icon.
 
 Immediate next candidates:
 
 - Always-on-top widget form factor.
-- Chart polish: gridlines, hover readout, currency formatting.
+- Chart polish: gridlines, currency formatting. (Hover readout is done: a dot
+  marks the nearest data point under the pointer, with its price in a tooltip.)
 - Drag-to-reorder in edit mode (currently up/down buttons).
 - CI mirroring the pre-push checks.

@@ -80,12 +80,17 @@ to this two-screen model.
   reload](#live-configuration-reload).
 - It goes through the same `config.Store` (`Get` / `Update`) as everything else,
   so its edits and external file edits stay consistent.
-- **Implemented:** a separate window opened by the cog, with a Save/Cancel form
-  exposing **default range**, **refresh interval (s)**, and the **logging** group
-  (level, file, max size MB, archives kept). Save validates the numeric fields
-  and writes through the store, so changes persist and apply live (the logger is
-  reconfigured from the same subscription). Layout/form-factor selectors are not
-  exposed yet (those modes aren't built); visual polish is still open.
+- **Implemented:** a separate window opened by the cog, divided into
+  **sections** picked from a left sidebar — **General** (default range, refresh
+  interval s), **Appearance** (window background color via a swatch + color
+  picker dialog plus an opacity % slider, previewed **live** while editing and
+  reverted unless saved; persisted as `#RRGGBB` + opacity), and **Logging**
+  (level, file, max size MB, archives kept) — with window-wide Save/Cancel.
+  Save validates the fields and writes through the store, so changes persist
+  and apply live (the logger is reconfigured from the same subscription; the
+  background is applied via a theme override, and its `background` config
+  object live-reloads like everything else). Layout/form-factor selectors are
+  not exposed yet (those modes aren't built).
 
 Note: this settings window is distinct from **edit mode** on the home grid, which
 manages only the tracked-index list; the settings window covers the rest of the
@@ -290,17 +295,22 @@ The core MVP + polish scope is in place:
   live search with click-to-preview and duplicate prevention (disabled Add +
   tooltip).
 - Live two-way config reload; leveled rotating file logging.
-- Settings window (cog): default range, refresh interval, logging — applied live.
+- Settings window (cog): sectioned (General / Appearance / Logging) with a
+  sidebar; includes the window background (color + opacity) with live preview —
+  all applied live.
 - Tests gated by `pre-commit` (unit) and `pre-push` (integration) hooks.
 
 ## Open items
 
 Before a shippable MVP:
 
-- **Snap packaging**: finalize `snap/snapcraft.yaml` build + confinement (network,
-  writable data dirs), verify a clean `snapcraft pack`, and publish to the store.
-  (Done so far: license MIT + `license:` key, store icon via `icon:` key, and the
-  desktop entry `snap/gui/simplestonks.desktop`.)
+- **Snap store publish**: register the name and upload (start on `edge`; flip
+  `grade: devel` → `stable` when promoting). Everything else is verified:
+  `snapcraft pack` builds cleanly in LXD, and the installed strict-confinement
+  snap passed a local smoke test (network fetch, config in
+  `$SNAP_USER_DATA/.config`, logs in `$SNAP_USER_DATA/.local/state`, desktop
+  entry + taskbar icon; the window titlebar icon stays generic under native
+  Wayland — known Fyne/Wayland limitation).
 
 Deferred features / polish:
 
@@ -308,8 +318,9 @@ Deferred features / polish:
 - Whether to keep a selectable **layout** toggle: the `layout` config field no
   longer changes behavior now that home-grid → detail is the sole navigation.
 - **Drag-to-reorder** in edit mode (currently up/down buttons).
-- **Chart polish**: gridlines, hover readout, currency formatting. (Done: axis
-  labels — size-adaptive y-axis price ticks and range-aware x-axis time labels,
+- **Chart polish**: gridlines, currency formatting. (Done: hover readout — a
+  dot marks the nearest data point under the pointer, with its price in a
+  tooltip; axis labels — size-adaptive y-axis price ticks and range-aware x-axis time labels,
   hours for 1D, days/dates/months/years for longer ranges — on both grid and
   detail charts; a dashed previous-close reference line per range with its
   value on the y axis; 1D charts drawn over the full trading-session window so
