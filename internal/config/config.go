@@ -142,8 +142,11 @@ func Default() Config {
 		RefreshInterval: 30 * time.Second,
 		Background:      DefaultBackground(),
 		Logging: Logging{
-			Level:       LogInfo,
-			File:        DefaultLogPath(),
+			Level: LogInfo,
+			// File stays empty so the default path is resolved at runtime:
+			// an absolute path baked in here would go stale — under snap it
+			// contains the revision directory, which changes on refresh.
+			File:        "",
 			MaxSizeMB:   5,
 			MaxArchives: 3,
 		},

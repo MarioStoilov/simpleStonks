@@ -18,9 +18,19 @@ func main() {
 	}
 	defer store.Close()
 
-	logger, err := logging.New(store.Get().Logging)
+	// A bad log destination must never stop the app: fall back to the default
+	// path (e.g. when a stale absolute path survives a snap refresh), then to
+	// silent logging as a last resort.
+	logCfg := store.Get().Logging
+	logger, err := logging.New(logCfg)
 	if err != nil {
-		log.Fatalf("logging: %v", err)
+		log.Printf("logging: %v; falling back to the default log path", err)
+		logCfg.File = ""
+		if logger, err = logging.New(logCfg); err != nil {
+			log.Printf("logging: %v; continuing without file logging", err)
+			logCfg.Level = config.LogSilent
+			logger, _ = logging.New(logCfg) // silent logging cannot fail
+		}
 	}
 	defer logger.Close()
 	slog.SetDefault(logger.Slog())
