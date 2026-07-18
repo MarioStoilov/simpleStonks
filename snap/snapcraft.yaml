@@ -1,6 +1,6 @@
 name: simplestonks
 base: core24
-version: "0.1.0"
+version: "0.2.0"
 icon: internal/ui/icon.svg # bundled into the binary too; see internal/ui/app.go
 license: MIT
 summary: Bare-bones stock tracker widget
@@ -12,8 +12,6 @@ description: |
 grade: devel
 confinement: strict
 
-# TODO(v1): finalize confinement plan (network, desktop integration) and the
-# apps/parts build once the Fyne app is fleshed out. This is a scaffold.
 apps:
   simplestonks:
     command: bin/simplestonks
