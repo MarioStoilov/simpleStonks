@@ -86,6 +86,21 @@ func DefaultLogPath() string {
 	return filepath.Join(base, appDir, "simplestonks.log")
 }
 
+// Background styles the app window background.
+type Background struct {
+	// Color is the background color as a "#RRGGBB" hex string.
+	Color string `json:"color"`
+
+	// Opacity is the background opacity from 0 (fully transparent) to 1
+	// (fully opaque).
+	Opacity float64 `json:"opacity"`
+}
+
+// DefaultBackground matches Fyne's dark-theme window background.
+func DefaultBackground() Background {
+	return Background{Color: "#171718", Opacity: 1}
+}
+
 // Config is the full persisted configuration.
 type Config struct {
 	// Symbols is the ordered list of tracked tickers/indexes (e.g. "AAPL", "^GSPC").
@@ -100,6 +115,9 @@ type Config struct {
 
 	// RefreshInterval controls live-tick polling cadence for the 1D view.
 	RefreshInterval time.Duration `json:"refreshInterval"`
+
+	// Background styles the app window background.
+	Background Background `json:"background"`
 
 	// Logging configures the leveled, rotating file logger.
 	Logging Logging `json:"logging"`
@@ -122,6 +140,7 @@ func Default() Config {
 		Layout:          LayoutGrid,
 		FormFactor:      FormFactorWindow,
 		RefreshInterval: 30 * time.Second,
+		Background:      DefaultBackground(),
 		Logging: Logging{
 			Level:       LogInfo,
 			File:        DefaultLogPath(),

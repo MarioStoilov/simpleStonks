@@ -63,6 +63,9 @@ type App struct {
 	sideTiles []*tile
 	rangeBtns map[model.Range]*widget.Button
 
+	bgApplied config.Background // last background applied to the theme
+	bgSet     bool              // whether bgApplied has been applied at all
+
 	detailChart  *chart
 	detailName   *canvas.Text
 	detailPrice  *priceText
@@ -91,6 +94,7 @@ func New(p provider.QuoteProvider, store *config.Store) *App {
 
 // Run builds the home screen and starts the event loop. It blocks until close.
 func (a *App) Run() {
+	a.applyBackground()
 	a.win = a.fyne.NewWindow("simpleStonks")
 	a.screen = screenHome
 	a.win.SetContent(a.buildHome())
@@ -102,6 +106,7 @@ func (a *App) Run() {
 	a.store.Subscribe(func(cfg config.Config) {
 		fyne.Do(func() {
 			a.cfg = cfg
+			a.applyBackground()
 			a.rebuildCurrent()
 		})
 	})

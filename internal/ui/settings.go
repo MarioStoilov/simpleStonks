@@ -2,11 +2,13 @@ package ui
 
 import (
 	"fmt"
+	"image/color"
 	"strconv"
 	"strings"
 	"time"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
@@ -72,41 +74,111 @@ var logLevels = []config.LogLevel{
 	config.LogSilent, config.LogError, config.LogWarn, config.LogInfo, config.LogDebug,
 }
 
-// showSettingsWindow opens the app configuration in a separate window. Saving
-// writes through the config store, so changes persist and apply live (including
-// the logger, which main reconfigures from the same store subscription).
+// showSettingsWindow opens the app configuration in a separate window, divided
+// into sections picked from a sidebar. Saving writes through the config store,
+// so changes persist and apply live (including the logger, which main
+// reconfigures from the same store subscription). Appearance edits preview
+// live while the window is open and are reverted unless saved.
 func (a *App) showSettingsWindow() {
-	cfg := a.cfg // snapshot to populate the form
+	cfg := a.cfg // snapshot to populate the forms
+	w := a.fyne.NewWindow("simpleStonks — Settings")
 
+	// General.
 	rangeSel := widget.NewSelect(rangeOptions(), nil)
 	rangeSel.SetSelected(string(cfg.DefaultRange))
-
 	refresh := widget.NewEntry()
 	refresh.SetText(strconv.Itoa(int(cfg.RefreshInterval / time.Second)))
+	general := widget.NewForm(
+		widget.NewFormItem("Default range", rangeSel),
+		widget.NewFormItem("Refresh interval (s)", refresh),
+	)
 
+	// Appearance: background color (swatch + picker dialog) and opacity,
+	// previewed live. Transparency is the opacity slider's job, so the picked
+	// color is always taken fully opaque.
+	bgCol, ok := parseHexColor(cfg.Background.Color)
+	if !ok {
+		bgCol, _ = parseHexColor(config.DefaultBackground().Color)
+	}
+	swatch := canvas.NewRectangle(bgCol)
+	swatch.CornerRadius = 4
+	swatch.StrokeColor = colorAxis
+	swatch.StrokeWidth = 1
+	swatch.SetMinSize(fyne.NewSize(48, 28))
+	opacity := widget.NewSlider(0, 100)
+	opacity.Step = 1
+	opacity.SetValue(cfg.Background.Opacity * 100)
+	preview := func() {
+		a.previewBackground(config.Background{
+			Color:   formatHexColor(bgCol),
+			Opacity: opacity.Value / 100,
+		})
+	}
+	pick := widget.NewButton("Choose…", func() {
+		picker := dialog.NewColorPicker("Background color", "", func(c color.Color) {
+			bgCol = color.NRGBAModel.Convert(c).(color.NRGBA)
+			bgCol.A = 0xff
+			swatch.FillColor = bgCol
+			swatch.Refresh()
+			preview()
+		}, w)
+		picker.Advanced = true
+		picker.SetColor(bgCol)
+		picker.Show()
+	})
+	opacity.OnChanged = func(float64) { preview() }
+	appearance := widget.NewForm(
+		widget.NewFormItem("Background color", container.NewHBox(swatch, pick)),
+		widget.NewFormItem("Background opacity (%)", opacity),
+	)
+
+	// Logging.
 	levelSel := widget.NewSelect(levelOptions(), nil)
 	levelSel.SetSelected(string(cfg.Logging.Level))
-
 	logFile := widget.NewEntry()
 	logFile.SetPlaceHolder(config.DefaultLogPath())
 	logFile.SetText(cfg.Logging.File)
-
 	maxSize := widget.NewEntry()
 	maxSize.SetText(strconv.Itoa(cfg.Logging.MaxSizeMB))
-
 	archives := widget.NewEntry()
 	archives.SetText(strconv.Itoa(cfg.Logging.MaxArchives))
-
-	form := widget.NewForm(
-		widget.NewFormItem("Default range", rangeSel),
-		widget.NewFormItem("Refresh interval (s)", refresh),
+	logging := widget.NewForm(
 		widget.NewFormItem("Log level", levelSel),
 		widget.NewFormItem("Log file (blank = default)", logFile),
 		widget.NewFormItem("Log max size (MB)", maxSize),
 		widget.NewFormItem("Log archives kept", archives),
 	)
 
-	w := a.fyne.NewWindow("simpleStonks — Settings")
+	// Sidebar of sections; clicking one swaps the content pane.
+	sections := []struct {
+		name string
+		view fyne.CanvasObject
+	}{
+		{"General", general},
+		{"Appearance", appearance},
+		{"Logging", logging},
+	}
+	content := container.NewStack()
+	btns := make([]*widget.Button, len(sections))
+	selectSection := func(i int) {
+		for j, b := range btns {
+			if j == i {
+				b.Importance = widget.HighImportance
+			} else {
+				b.Importance = widget.MediumImportance
+			}
+			b.Refresh()
+		}
+		content.Objects = []fyne.CanvasObject{sections[i].view}
+		content.Refresh()
+	}
+	sidebar := container.NewVBox()
+	for i, s := range sections {
+		i := i
+		btns[i] = widget.NewButton(s.name, func() { selectSection(i) })
+		sidebar.Add(btns[i])
+	}
+	selectSection(0)
 
 	save := widget.NewButton("Save", func() {
 		interval, sizeMB, keep, err := parseSettingsForm(refresh.Text, maxSize.Text, archives.Text)
@@ -117,6 +189,7 @@ func (a *App) showSettingsWindow() {
 		a.updateOn(w, func(c *config.Config) {
 			c.DefaultRange = model.Range(rangeSel.Selected)
 			c.RefreshInterval = interval
+			c.Background = config.Background{Color: formatHexColor(bgCol), Opacity: opacity.Value / 100}
 			c.Logging.Level = config.LogLevel(levelSel.Selected)
 			c.Logging.File = strings.TrimSpace(logFile.Text)
 			c.Logging.MaxSizeMB = sizeMB
@@ -128,8 +201,11 @@ func (a *App) showSettingsWindow() {
 	cancel := widget.NewButton("Cancel", func() { w.Close() })
 	buttons := container.NewHBox(layout.NewSpacer(), cancel, save)
 
-	w.SetContent(container.NewBorder(nil, buttons, nil, nil, container.NewVScroll(form)))
-	w.Resize(fyne.NewSize(480, 400))
+	// Closing without saving reverts any live appearance preview.
+	w.SetOnClosed(func() { a.applyBackground() })
+
+	w.SetContent(container.NewBorder(nil, buttons, sidebar, nil, container.NewVScroll(content)))
+	w.Resize(fyne.NewSize(600, 420))
 	w.Show()
 }
 
