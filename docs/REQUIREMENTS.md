@@ -302,15 +302,11 @@ The core MVP + polish scope is in place:
 
 ## Open items
 
-Before a shippable MVP:
-
-- **Snap store publish**: register the name and upload (start on `edge`; flip
-  `grade: devel` → `stable` when promoting). Everything else is verified:
-  `snapcraft pack` builds cleanly in LXD, and the installed strict-confinement
-  snap passed a local smoke test (network fetch, config in
-  `$SNAP_USER_DATA/.config`, logs in `$SNAP_USER_DATA/.local/state`, desktop
-  entry + taskbar icon; the window titlebar icon stays generic under native
-  Wayland — known Fyne/Wayland limitation).
+The MVP is **shipped**: v1.0.0 is published on the Snap Store `stable` channel
+(name `simplestonks`, `grade: stable`, strict confinement; earlier 0.2.x
+revisions went through `edge`). Known limitation: the window titlebar icon
+stays generic under native Wayland (Fyne/Wayland limitation); the desktop
+entry/taskbar icon works.
 
 Deferred features / polish:
 

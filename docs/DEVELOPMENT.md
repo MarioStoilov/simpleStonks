@@ -265,6 +265,12 @@ Progress is recorded in `git log`; the short version:
   blocked). The strict snap passed a local smoke test: network fetch, config
   under `$SNAP_USER_DATA/.config`, logs under `$SNAP_USER_DATA/.local/state`,
   desktop entry + taskbar icon.
+- **Published on the Snap Store** as `simplestonks`: 0.2.x releases proved out
+  the `edge` channel (rev 2 surfaced the stale-log-path refresh bug, fixed in
+  0.2.1/rev 3); v1.0.0 (`grade: stable`) is the first `stable` release. On a
+  release: bump `version` in snapcraft.yaml **and** `appVersion` in
+  `internal/ui/app.go`, `snapcraft pack`, `snapcraft upload
+  --release=stable,edge <snap>`.
 
 Immediate next candidates:
 

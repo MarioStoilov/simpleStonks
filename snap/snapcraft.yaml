@@ -1,6 +1,6 @@
 name: simplestonks
 base: core24
-version: "0.2.1"
+version: "1.0.0"
 icon: internal/ui/icon.svg # bundled into the binary too; see internal/ui/app.go
 license: MIT
 summary: Bare-bones stock tracker widget
@@ -9,7 +9,7 @@ description: |
   their movement, Yahoo Finance style. The tracked list is editable from the UI
   and persisted along with other settings.
 
-grade: devel
+grade: stable
 confinement: strict
 
 apps:

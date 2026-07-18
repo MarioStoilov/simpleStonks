@@ -47,8 +47,13 @@ live symbol search…
 
 ## Install
 
-Snap Store release is planned but not published yet. Until then, build from
-source (below).
+From the [Snap Store](https://snapcraft.io/simplestonks):
+
+```sh
+sudo snap install simplestonks
+```
+
+Or build from source (below).
 
 ## Build and run from source
 
