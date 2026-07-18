@@ -4,8 +4,30 @@ import (
 	"testing"
 	"time"
 
+	"fyne.io/fyne/v2"
+
 	"github.com/MarioStoilov/simplestonks/internal/model"
 )
+
+func TestNearestPoint(t *testing.T) {
+	pts := []fyne.Position{{X: 0, Y: 0}, {X: 10, Y: 0}, {X: 30, Y: 0}}
+	cases := []struct {
+		x    float32
+		want int
+	}{
+		{-5, 0},  // left of the first point clamps to it
+		{4, 0},   // closer to 0 than 10
+		{6, 1},   // closer to 10
+		{19, 1},  // just left of the 10/30 midpoint
+		{21, 2},  // just right of it
+		{100, 2}, // right of the last point clamps to it
+	}
+	for _, c := range cases {
+		if got := nearestPoint(pts, c.x); got != c.want {
+			t.Errorf("nearestPoint(%v) = %d, want %d", c.x, got, c.want)
+		}
+	}
+}
 
 func TestPlotPathMapsExtremes(t *testing.T) {
 	// values: min=10 (should map to bottom), max=20 (top).
@@ -151,6 +173,29 @@ func TestXFracsClampsOutsideSession(t *testing.T) {
 	fr := xFracs(s)
 	if fr[0] != 0 || fr[1] != 1 {
 		t.Errorf("fracs = %v, want [0 1] (clamped to the session)", fr)
+	}
+}
+
+func TestXFracsPreviousDayFallsBackToEvenSpacing(t *testing.T) {
+	// Market closed: Yahoo pairs the previous day's candles with the upcoming
+	// session in currentTradingPeriod. The completed day must span the full
+	// width instead of collapsing onto the left edge of the future window —
+	// once the session opens and its candles arrive, window mode takes over
+	// again (covered by TestXFracsSessionScalesToFullWindow).
+	s := sessionSeries(
+		time.Date(2026, 7, 16, 9, 30, 0, 0, time.UTC),
+		time.Date(2026, 7, 16, 12, 45, 0, 0, time.UTC),
+		time.Date(2026, 7, 16, 16, 0, 0, 0, time.UTC),
+	)
+	if sessionWindow(s) {
+		t.Fatal("sessionWindow = true for previous-day candles, want false")
+	}
+	fr := xFracs(s)
+	want := []float32{0, 0.5, 1}
+	for i := range want {
+		if fr[i] != want[i] {
+			t.Errorf("frac %d = %v, want %v", i, fr[i], want[i])
+		}
 	}
 }
 

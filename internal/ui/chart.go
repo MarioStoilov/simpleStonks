@@ -7,6 +7,8 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
+	"fyne.io/fyne/v2/driver/desktop"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/MarioStoilov/simplestonks/internal/model"
@@ -14,21 +16,30 @@ import (
 
 const (
 	chartPadding = 4
-	axisTextSize = 12 // font size of the axis labels
-	axisGap      = 4  // gap between axis labels and the plot area
-	xTickSpacing = 80 // minimum horizontal pixels per time label
-	yTickSpacing = 48 // minimum vertical pixels per price label
-	maxYTicks    = 8  // cap on the number of y-axis reference values
-	dashLen      = 4  // dash length of the previous-close line
-	dashGap      = 4  // gap between dashes of the previous-close line
+	axisTextSize = 12  // font size of the axis labels
+	axisGap      = 4   // gap between axis labels and the plot area
+	xTickSpacing = 80  // minimum horizontal pixels per time label
+	yTickSpacing = 48  // minimum vertical pixels per price label
+	maxYTicks    = 8   // cap on the number of y-axis reference values
+	dashLen      = 4   // dash length of the previous-close line
+	dashGap      = 4   // gap between dashes of the previous-close line
+	dotRadius    = 3.5 // radius of the hover marker dot
+	tipPad       = 4   // padding inside the hover tooltip
+	tipGap       = 8   // gap between the hover dot and its tooltip
 )
 
 // chart is a custom Fyne widget that plots a price series as a line, colored by
-// the caller (up/down).
+// the caller (up/down). Hovering the plot marks the nearest data point with a
+// dot and shows its price in a tooltip.
 type chart struct {
 	widget.BaseWidget
 	series model.Series
 	line   color.Color
+
+	renderer *chartRenderer // for lightweight hover updates
+	hovering bool
+	hoverAt  fyne.Position
+	onHover  func(bool) // optional: notifies the enclosing widget (e.g. a tile)
 }
 
 // newChart constructs an empty chart widget.
@@ -47,16 +58,65 @@ func (c *chart) SetSeries(s model.Series) {
 // SetColor sets the line color used on the next redraw.
 func (c *chart) SetColor(col color.Color) { c.line = col }
 
+// MouseIn implements desktop.Hoverable.
+func (c *chart) MouseIn(ev *desktop.MouseEvent) { c.MouseMoved(ev) }
+
+// MouseMoved implements desktop.Hoverable: it tracks the pointer and updates
+// the hover marker without rebuilding the chart. Since the chart is the
+// topmost hoverable, it also forwards enter/leave to onHover so an enclosing
+// tile can render its own hover effect.
+func (c *chart) MouseMoved(ev *desktop.MouseEvent) {
+	if !c.hovering && c.onHover != nil {
+		c.onHover(true)
+	}
+	c.hovering = true
+	c.hoverAt = ev.Position
+	if c.renderer != nil {
+		c.renderer.updateHover()
+	}
+}
+
+// MouseOut implements desktop.Hoverable.
+func (c *chart) MouseOut() {
+	c.hovering = false
+	if c.onHover != nil {
+		c.onHover(false)
+	}
+	if c.renderer != nil {
+		c.renderer.updateHover()
+	}
+}
+
 // CreateRenderer implements fyne.Widget.
 func (c *chart) CreateRenderer() fyne.WidgetRenderer {
 	bg := canvas.NewRectangle(color.NRGBA{R: 0x1e, G: 0x1e, B: 0x24, A: 0xff})
-	return &chartRenderer{chart: c, bg: bg, objects: []fyne.CanvasObject{bg}}
+	dot := canvas.NewCircle(colorNeutral)
+	dot.StrokeColor = theme.Color(theme.ColorNameForeground)
+	dot.StrokeWidth = 1
+	tipBg := canvas.NewRectangle(colorHover)
+	tipBg.CornerRadius = 4
+	tipText := canvas.NewText("", theme.Color(theme.ColorNameForeground))
+	tipText.TextSize = axisTextSize
+	r := &chartRenderer{
+		chart: c, bg: bg, dot: dot, tipBg: tipBg, tipText: tipText,
+		objects: []fyne.CanvasObject{bg},
+	}
+	c.renderer = r
+	return r
 }
 
 type chartRenderer struct {
 	chart   *chart
 	bg      *canvas.Rectangle
 	objects []fyne.CanvasObject
+
+	// Hover readout state: the plotted points (absolute coordinates) and their
+	// values, cached by rebuild, plus the marker/tooltip canvas objects.
+	hoverPts  []fyne.Position
+	hoverVals []float64
+	dot       *canvas.Circle
+	tipBg     *canvas.Rectangle
+	tipText   *canvas.Text
 }
 
 func (r *chartRenderer) Layout(size fyne.Size) {
@@ -80,7 +140,14 @@ func (r *chartRenderer) Destroy() {}
 // margin (time labels); margins collapse to zero when there is nothing to draw.
 func (r *chartRenderer) rebuild(size fyne.Size) {
 	objs := []fyne.CanvasObject{r.bg}
-	defer func() { r.objects = objs }()
+	r.hoverPts, r.hoverVals = nil, nil
+	defer func() {
+		if len(r.hoverPts) > 0 { // keep the hover marker/tooltip on top
+			objs = append(objs, r.tipBg, r.tipText, r.dot)
+		}
+		r.objects = objs
+	}()
+	defer r.updateHover() // runs first: re-aim the marker at the new geometry
 
 	s := r.chart.series
 	values := closesOf(s)
@@ -154,6 +221,15 @@ func (r *chartRenderer) rebuild(size fyne.Size) {
 		leftMargin, bottomMargin = 0, 0
 		plotW, plotH = size.Width, size.Height
 		pts = plotPath(values, xFracs(s), plotW, plotH, chartPadding, lo, hi)
+	}
+
+	// Cache the plotted points (absolute coordinates) for the hover readout.
+	if pts != nil {
+		r.hoverVals = values
+		r.hoverPts = make([]fyne.Position, len(pts))
+		for i, p := range pts {
+			r.hoverPts[i] = fyne.NewPos(p.X+leftMargin, p.Y)
+		}
 	}
 
 	// Dashed reference line at the previous interval's close (under the series).
@@ -242,6 +318,71 @@ func (r *chartRenderer) rebuild(size fyne.Size) {
 		}
 		place(t, x, plotH+axisGap)
 	}
+}
+
+// updateHover repositions the hover marker dot and its price tooltip for the
+// current pointer position — a lightweight path that avoids rebuilding the
+// chart. Both are hidden when the pointer leaves or there is nothing plotted.
+func (r *chartRenderer) updateHover() {
+	c := r.chart
+	if !c.hovering || len(r.hoverPts) == 0 {
+		r.dot.Hide()
+		r.tipBg.Hide()
+		r.tipText.Hide()
+		canvas.Refresh(r.dot)
+		canvas.Refresh(r.tipBg)
+		canvas.Refresh(r.tipText)
+		return
+	}
+	i := nearestPoint(r.hoverPts, c.hoverAt.X)
+	p := r.hoverPts[i]
+
+	r.dot.FillColor = c.line
+	r.dot.Position1 = fyne.NewPos(p.X-dotRadius, p.Y-dotRadius)
+	r.dot.Position2 = fyne.NewPos(p.X+dotRadius, p.Y+dotRadius)
+	r.dot.Show()
+	canvas.Refresh(r.dot)
+
+	r.tipText.Text = formatAxisPrice(r.hoverVals[i])
+	ts := fyne.MeasureText(r.tipText.Text, axisTextSize, fyne.TextStyle{})
+	w := ts.Width + 2*tipPad
+	h := ts.Height + 2*tipPad
+	size := c.Size()
+	x := p.X - w/2
+	if x < 0 {
+		x = 0
+	}
+	if x+w > size.Width {
+		x = size.Width - w
+	}
+	y := p.Y - dotRadius - tipGap - h // above the dot ...
+	if y < 0 {
+		y = p.Y + dotRadius + tipGap // ... or below when clipped at the top
+	}
+	r.tipBg.Resize(fyne.NewSize(w, h))
+	r.tipBg.Move(fyne.NewPos(x, y))
+	r.tipBg.Show()
+	canvas.Refresh(r.tipBg)
+	r.tipText.Move(fyne.NewPos(x+tipPad, y+tipPad))
+	r.tipText.Show()
+	canvas.Refresh(r.tipText)
+}
+
+// nearestPoint returns the index of the point whose x coordinate is closest
+// to x. Points must be ordered by non-decreasing x (as plotted points are).
+func nearestPoint(pts []fyne.Position, x float32) int {
+	best := 0
+	bestDist := float32(-1)
+	for i, p := range pts {
+		d := p.X - x
+		if d < 0 {
+			d = -d
+		}
+		if bestDist < 0 || d < bestDist {
+			best, bestDist = i, d
+		}
+	}
+	return best
 }
 
 // axisTick is one x-axis label at a fractional position along the plot width.
@@ -338,9 +479,20 @@ func evenFracs(n int) []float32 {
 }
 
 // sessionWindow reports whether a series should be drawn against its full
-// trading-session window: intraday data with known session bounds.
+// trading-session window: intraday data with known session bounds whose
+// candles actually belong to that session. While a market is closed, Yahoo
+// pairs the *previous* day's candles with the *upcoming* session in
+// currentTradingPeriod; drawing those against the future window would
+// collapse them onto its left edge, so they fall back to even spacing (the
+// completed day spans the full width). Once the session opens and its first
+// candles arrive, the window mode kicks in and the new chart starts filling
+// in from the left.
 func sessionWindow(s model.Series) bool {
-	return s.Range.Intraday() && s.SessionEnd.After(s.SessionStart)
+	if !s.Range.Intraday() || !s.SessionEnd.After(s.SessionStart) || len(s.Candles) == 0 {
+		return false
+	}
+	last := s.Candles[len(s.Candles)-1].Time
+	return !last.Before(s.SessionStart)
 }
 
 // xFracs returns each candle's horizontal position as a 0..1 fraction. Within

@@ -8,6 +8,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
@@ -26,6 +27,9 @@ type tile struct {
 	widget.BaseWidget
 	symbol string
 	onTap  func()
+
+	selected bool
+	hovered  bool
 
 	bg     *canvas.Rectangle
 	name   *canvas.Text // friendly name, filled in once a series arrives
@@ -58,6 +62,9 @@ func newTile(symbol string, showChart bool, onTap, onRemove func()) *tile {
 	var content fyne.CanvasObject
 	if showChart {
 		t.chart = newChart()
+		// The chart is the topmost hoverable over most of the cell, so it
+		// forwards its hover state to keep the tile's effect seamless.
+		t.chart.onHover = t.setHovered
 		content = container.NewBorder(container.NewVBox(header, t.name, t.change), nil, nil, nil, t.chart)
 	} else {
 		content = container.NewVBox(header, t.name, t.change)
@@ -79,11 +86,39 @@ func (t *tile) Tapped(*fyne.PointEvent) {
 	}
 }
 
+// MouseIn implements desktop.Hoverable.
+func (t *tile) MouseIn(*desktop.MouseEvent) { t.setHovered(true) }
+
+// MouseMoved implements desktop.Hoverable.
+func (t *tile) MouseMoved(*desktop.MouseEvent) {}
+
+// MouseOut implements desktop.Hoverable.
+func (t *tile) MouseOut() { t.setHovered(false) }
+
+// setHovered applies the button-like hover highlight, signalling that the
+// tile is clickable — so it is skipped for non-tappable (edit mode) tiles.
+func (t *tile) setHovered(h bool) {
+	if t.onTap == nil || t.hovered == h {
+		return
+	}
+	t.hovered = h
+	t.updateBg()
+}
+
 // SetSelected highlights the tile (used for the current sidebar entry).
 func (t *tile) SetSelected(sel bool) {
-	if sel {
+	t.selected = sel
+	t.updateBg()
+}
+
+// updateBg resolves the background from the selection/hover state.
+func (t *tile) updateBg() {
+	switch {
+	case t.selected:
 		t.bg.FillColor = colorSelected
-	} else {
+	case t.hovered:
+		t.bg.FillColor = colorHover
+	default:
 		t.bg.FillColor = colorCardBg
 	}
 	t.bg.Refresh()
