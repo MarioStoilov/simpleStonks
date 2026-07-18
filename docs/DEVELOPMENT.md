@@ -245,6 +245,10 @@ Progress is recorded in `git log`; the short version:
 - Live price flash (`priceText` widget): when a refresh changes a displayed
   price, a semi-transparent green/red background flashes behind the number
   only, fading out; unchanged prices (closed market) never flash.
+- About dialog: an info button in the home top bar (next to Edit and the
+  settings cog) opens a modal with the logo, version (`appVersion` in
+  `internal/ui/app.go` — keep in sync with snapcraft.yaml on release),
+  GitHub/license links, and the data disclaimer.
 - App logo: a minimalist line-chart SVG (green above the X axis, red below,
   with matching semi-transparent area fills) at `internal/ui/icon.svg` — a
   single source embedded into the binary as the window/app icon (see

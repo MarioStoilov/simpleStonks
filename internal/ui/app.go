@@ -34,6 +34,10 @@ var appIcon = fyne.NewStaticResource("icon.svg", iconSVG)
 // appID is the Fyne application ID; it also namespaces Fyne's own storage.
 const appID = "com.github.mariostoilov.simplestonks"
 
+// appVersion is the released application version, shown in the About dialog.
+// Keep it in sync with the `version` key in snap/snapcraft.yaml.
+const appVersion = "0.2.1"
+
 // fetchTimeout bounds a single provider request.
 const fetchTimeout = 15 * time.Second
 
@@ -81,6 +85,7 @@ func New(p provider.QuoteProvider, store *config.Store) *App {
 	fyneapp.SetMetadata(fyne.AppMetadata{
 		ID:         appID,
 		Name:       "simpleStonks",
+		Version:    appVersion,
 		Icon:       appIcon,
 		Migrations: map[string]bool{"fyneDo": true},
 	})

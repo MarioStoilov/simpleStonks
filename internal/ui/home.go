@@ -47,8 +47,9 @@ func (a *App) buildTopBar() fyne.CanvasObject {
 		right = container.NewHBox(add, done)
 	} else {
 		edit := widget.NewButtonWithIcon("Edit", theme.DocumentCreateIcon(), func() { a.setEditMode(true) })
+		info := widget.NewButtonWithIcon("", theme.InfoIcon(), func() { a.showAboutDialog() })
 		settings := widget.NewButtonWithIcon("", theme.SettingsIcon(), func() { a.showSettingsWindow() })
-		right = container.NewHBox(edit, settings)
+		right = container.NewHBox(edit, info, settings)
 	}
 	return container.NewBorder(nil, nil, nil, right)
 }
