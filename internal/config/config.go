@@ -14,13 +14,8 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/MarioStoilov/simplestonks/internal/constants"
 	"github.com/MarioStoilov/simplestonks/internal/model"
-)
-
-// appDir is the config subdirectory and file names used under UserConfigDir.
-const (
-	appDir     = "simplestonks"
-	configFile = "config.json"
 )
 
 // Layout selects how tracked symbols are arranged. v1 ships Grid; ListDetail is
@@ -75,15 +70,15 @@ type Logging struct {
 // directory convention. Under snap confinement $HOME points at the snap's data
 // dir, so this stays writable there too.
 func DefaultLogPath() string {
-	base := os.Getenv("XDG_STATE_HOME")
+	base := os.Getenv(constants.EnvXDGStateHome)
 	if base == "" {
 		if home, err := os.UserHomeDir(); err == nil {
-			base = filepath.Join(home, ".local", "state")
+			base = filepath.Join(home, constants.StateSubdir)
 		} else if cache, err := os.UserCacheDir(); err == nil {
 			base = cache
 		}
 	}
-	return filepath.Join(base, appDir, "simplestonks.log")
+	return filepath.Join(base, constants.AppDirName, constants.LogFileName)
 }
 
 // Background styles the app window background.
@@ -98,7 +93,10 @@ type Background struct {
 
 // DefaultBackground matches Fyne's dark-theme window background.
 func DefaultBackground() Background {
-	return Background{Color: "#171718", Opacity: 1}
+	return Background{
+		Color:   constants.DefaultBackgroundColor,
+		Opacity: constants.DefaultBackgroundOpacity,
+	}
 }
 
 // Config is the full persisted configuration.
@@ -135,11 +133,11 @@ func (cfg Config) clone() Config {
 // Default returns the configuration used on first run.
 func Default() Config {
 	return Config{
-		Symbols:         []string{"^GSPC", "^IXIC", "AAPL"},
+		Symbols:         append([]string(nil), constants.DefaultSymbols...),
 		DefaultRange:    model.Range1D,
 		Layout:          LayoutGrid,
 		FormFactor:      FormFactorWindow,
-		RefreshInterval: 30 * time.Second,
+		RefreshInterval: constants.DefaultRefreshInterval,
 		Background:      DefaultBackground(),
 		Logging: Logging{
 			Level: LogInfo,
@@ -147,8 +145,8 @@ func Default() Config {
 			// an absolute path baked in here would go stale — under snap it
 			// contains the revision directory, which changes on refresh.
 			File:        "",
-			MaxSizeMB:   5,
-			MaxArchives: 3,
+			MaxSizeMB:   constants.DefaultLogMaxSizeMB,
+			MaxArchives: constants.DefaultLogMaxArchives,
 		},
 	}
 }
@@ -159,7 +157,7 @@ func Path() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(dir, appDir, configFile), nil
+	return filepath.Join(dir, constants.AppDirName, constants.ConfigFileName), nil
 }
 
 // Load reads the config file, returning Default() (and no error) when the file
@@ -190,15 +188,15 @@ func Save(cfg Config) error {
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), constants.DirPerm); err != nil {
 		return err
 	}
 	data, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
 		return err
 	}
-	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, data, 0o644); err != nil {
+	tmp := path + constants.TmpFileSuffix
+	if err := os.WriteFile(tmp, data, constants.FilePerm); err != nil {
 		return err
 	}
 	return os.Rename(tmp, path)

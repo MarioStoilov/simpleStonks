@@ -15,6 +15,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/MarioStoilov/simplestonks/internal/config"
+	"github.com/MarioStoilov/simplestonks/internal/constants"
 	"github.com/MarioStoilov/simplestonks/internal/model"
 )
 
@@ -82,7 +83,7 @@ var logLevels = []config.LogLevel{
 // live while the window is open and are reverted unless saved.
 func (app *App) showSettingsWindow() {
 	cfg := app.cfg // snapshot to populate the forms
-	win := app.fyne.NewWindow("simpleStonks — Settings")
+	win := app.fyne.NewWindow(constants.TitleSettings)
 
 	// General.
 	rangeSel := widget.NewSelect(rangeOptions(), nil)
@@ -90,8 +91,8 @@ func (app *App) showSettingsWindow() {
 	refresh := widget.NewEntry()
 	refresh.SetText(strconv.Itoa(int(cfg.RefreshInterval / time.Second)))
 	general := widget.NewForm(
-		widget.NewFormItem("Default range", rangeSel),
-		widget.NewFormItem("Refresh interval (s)", refresh),
+		widget.NewFormItem(constants.LabelDefaultRange, rangeSel),
+		widget.NewFormItem(constants.LabelRefreshInterval, refresh),
 	)
 
 	// Appearance: background color (swatch + picker dialog) and opacity,
@@ -102,21 +103,21 @@ func (app *App) showSettingsWindow() {
 		bgCol, _ = parseHexColor(config.DefaultBackground().Color)
 	}
 	swatch := canvas.NewRectangle(bgCol)
-	swatch.CornerRadius = 4
-	swatch.StrokeColor = colorAxis
-	swatch.StrokeWidth = 1
-	swatch.SetMinSize(fyne.NewSize(48, 28))
-	opacity := widget.NewSlider(0, 100)
+	swatch.CornerRadius = constants.PanelCornerRadius
+	swatch.StrokeColor = constants.ColorAxis
+	swatch.StrokeWidth = constants.HairlineWidth
+	swatch.SetMinSize(fyne.NewSize(constants.SwatchWidth, constants.SwatchHeight))
+	opacity := widget.NewSlider(0, constants.PercentMax)
 	opacity.Step = 1
-	opacity.SetValue(cfg.Background.Opacity * 100)
+	opacity.SetValue(cfg.Background.Opacity * constants.PercentMax)
 	preview := func() {
 		app.previewBackground(config.Background{
 			Color:   formatHexColor(bgCol),
-			Opacity: opacity.Value / 100,
+			Opacity: opacity.Value / constants.PercentMax,
 		})
 	}
-	pick := widget.NewButton("Choose…", func() {
-		picker := dialog.NewColorPicker("Background color", "", func(picked color.Color) {
+	pick := widget.NewButton(constants.LabelChoose, func() {
+		picker := dialog.NewColorPicker(constants.TitleColorPicker, "", func(picked color.Color) {
 			bgCol = color.NRGBAModel.Convert(picked).(color.NRGBA)
 			bgCol.A = 0xff
 			swatch.FillColor = bgCol
@@ -129,8 +130,8 @@ func (app *App) showSettingsWindow() {
 	})
 	opacity.OnChanged = func(float64) { preview() }
 	appearance := widget.NewForm(
-		widget.NewFormItem("Background color", container.NewHBox(swatch, pick)),
-		widget.NewFormItem("Background opacity (%)", opacity),
+		widget.NewFormItem(constants.LabelBackgroundColor, container.NewHBox(swatch, pick)),
+		widget.NewFormItem(constants.LabelBackgroundOpacity, opacity),
 	)
 
 	// Logging.
@@ -144,10 +145,10 @@ func (app *App) showSettingsWindow() {
 	archives := widget.NewEntry()
 	archives.SetText(strconv.Itoa(cfg.Logging.MaxArchives))
 	logging := widget.NewForm(
-		widget.NewFormItem("Log level", levelSel),
-		widget.NewFormItem("Log file (blank = default)", logFile),
-		widget.NewFormItem("Log max size (MB)", maxSize),
-		widget.NewFormItem("Log archives kept", archives),
+		widget.NewFormItem(constants.LabelLogLevel, levelSel),
+		widget.NewFormItem(constants.LabelLogFile, logFile),
+		widget.NewFormItem(constants.LabelLogMaxSize, maxSize),
+		widget.NewFormItem(constants.LabelLogArchives, archives),
 	)
 
 	// Sidebar of sections; clicking one swaps the content pane.
@@ -155,9 +156,9 @@ func (app *App) showSettingsWindow() {
 		name string
 		view fyne.CanvasObject
 	}{
-		{"General", general},
-		{"Appearance", appearance},
-		{"Logging", logging},
+		{constants.SectionGeneral, general},
+		{constants.SectionAppearance, appearance},
+		{constants.SectionLogging, logging},
 	}
 	content := container.NewStack()
 	btns := make([]*widget.Button, len(sections))
@@ -181,7 +182,7 @@ func (app *App) showSettingsWindow() {
 	}
 	selectSection(0)
 
-	save := widget.NewButton("Save", func() {
+	save := widget.NewButton(constants.LabelSave, func() {
 		interval, sizeMB, keep, err := parseSettingsForm(refresh.Text, maxSize.Text, archives.Text)
 		if err != nil {
 			dialog.ShowError(err, win)
@@ -190,7 +191,7 @@ func (app *App) showSettingsWindow() {
 		app.updateOn(win, func(conf *config.Config) {
 			conf.DefaultRange = model.Range(rangeSel.Selected)
 			conf.RefreshInterval = interval
-			conf.Background = config.Background{Color: formatHexColor(bgCol), Opacity: opacity.Value / 100}
+			conf.Background = config.Background{Color: formatHexColor(bgCol), Opacity: opacity.Value / constants.PercentMax}
 			conf.Logging.Level = config.LogLevel(levelSel.Selected)
 			conf.Logging.File = strings.TrimSpace(logFile.Text)
 			conf.Logging.MaxSizeMB = sizeMB
@@ -199,14 +200,14 @@ func (app *App) showSettingsWindow() {
 		win.Close()
 	})
 	save.Importance = widget.HighImportance
-	cancel := widget.NewButton("Cancel", func() { win.Close() })
+	cancel := widget.NewButton(constants.LabelCancel, func() { win.Close() })
 	buttons := container.NewHBox(layout.NewSpacer(), cancel, save)
 
 	// Closing without saving reverts any live appearance preview.
 	win.SetOnClosed(func() { app.applyBackground() })
 
 	win.SetContent(container.NewBorder(nil, buttons, sidebar, nil, container.NewVScroll(content)))
-	win.Resize(fyne.NewSize(600, 420))
+	win.Resize(fyne.NewSize(constants.SettingsWindowWidth, constants.SettingsWindowHeight))
 	win.Show()
 }
 
@@ -215,15 +216,15 @@ func (app *App) showSettingsWindow() {
 func parseSettingsForm(refreshSecs, maxSizeMB, archives string) (time.Duration, int, int, error) {
 	secs, err := strconv.Atoi(strings.TrimSpace(refreshSecs))
 	if err != nil || secs < 1 {
-		return 0, 0, 0, fmt.Errorf("refresh interval must be a whole number of seconds ≥ 1")
+		return 0, 0, 0, fmt.Errorf(constants.MsgErrRefreshInterval)
 	}
 	size, err := strconv.Atoi(strings.TrimSpace(maxSizeMB))
 	if err != nil || size < 0 {
-		return 0, 0, 0, fmt.Errorf("log max size must be a non-negative whole number of MB")
+		return 0, 0, 0, fmt.Errorf(constants.MsgErrLogMaxSize)
 	}
 	keep, err := strconv.Atoi(strings.TrimSpace(archives))
 	if err != nil || keep < 0 {
-		return 0, 0, 0, fmt.Errorf("log archives kept must be a non-negative whole number")
+		return 0, 0, 0, fmt.Errorf(constants.MsgErrLogArchives)
 	}
 	return time.Duration(secs) * time.Second, size, keep, nil
 }

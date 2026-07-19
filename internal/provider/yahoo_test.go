@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/MarioStoilov/simplestonks/internal/constants"
 	"github.com/MarioStoilov/simplestonks/internal/model"
 )
 
@@ -41,8 +42,8 @@ func TestYahooQuote(t *testing.T) {
 	if got.URL.Path != "/AAPL" {
 		t.Errorf("request path = %q, want /AAPL", got.URL.Path)
 	}
-	if userAgent := got.Header.Get("User-Agent"); userAgent != yahooUserAgent {
-		t.Errorf("User-Agent = %q, want %q", userAgent, yahooUserAgent)
+	if userAgent := got.Header.Get("User-Agent"); userAgent != constants.YahooUserAgent {
+		t.Errorf("User-Agent = %q, want %q", userAgent, constants.YahooUserAgent)
 	}
 }
 

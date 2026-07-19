@@ -12,12 +12,9 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
+	"github.com/MarioStoilov/simplestonks/internal/constants"
 	"github.com/MarioStoilov/simplestonks/internal/model"
 )
-
-// nameTextSize is the font size of the small friendly-name line shown under a
-// symbol (on tiles and the detail header).
-const nameTextSize = 11
 
 // tile is a tappable card for one symbol: the symbol with its friendly name,
 // its latest price and percent change, and — when showChart is set — a mini 1D
@@ -46,10 +43,10 @@ func newTile(symbol string, showChart bool, onTap, onRemove func()) *tile {
 	cell.ExtendBaseWidget(cell)
 
 	symLbl := widget.NewLabelWithStyle(symbol, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
-	cell.name = canvas.NewText("", colorAxis)
-	cell.name.TextSize = nameTextSize
+	cell.name = canvas.NewText("", constants.ColorAxis)
+	cell.name.TextSize = constants.NameTextSize
 	cell.price = newPriceText()
-	cell.change = canvas.NewText("", colorNeutral)
+	cell.change = canvas.NewText("", constants.ColorNeutral)
 
 	var right fyne.CanvasObject = cell.price
 	if onRemove != nil {
@@ -70,8 +67,8 @@ func newTile(symbol string, showChart bool, onTap, onRemove func()) *tile {
 		content = container.NewVBox(header, cell.name, cell.change)
 	}
 
-	cell.background = canvas.NewRectangle(colorCardBg)
-	cell.background.CornerRadius = 6
+	cell.background = canvas.NewRectangle(constants.ColorCardBg)
+	cell.background.CornerRadius = constants.TileCornerRadius
 	cell.root = container.NewStack(cell.background, container.NewPadded(content))
 	return cell
 }
@@ -115,11 +112,11 @@ func (cell *tile) SetSelected(selected bool) {
 func (cell *tile) updateBg() {
 	switch {
 	case cell.selected:
-		cell.background.FillColor = colorSelected
+		cell.background.FillColor = constants.ColorSelected
 	case cell.hovered:
-		cell.background.FillColor = colorHover
+		cell.background.FillColor = constants.ColorHover
 	default:
-		cell.background.FillColor = colorCardBg
+		cell.background.FillColor = constants.ColorCardBg
 	}
 	cell.background.Refresh()
 }
@@ -149,11 +146,11 @@ func (cell *tile) setSeries(series model.Series) {
 // setError puts the tile into an unavailable state and logs the cause.
 func (cell *tile) setError(err error) {
 	cell.price.SetUnavailable()
-	cell.change.Text = "unavailable"
-	cell.change.Color = colorNeutral
+	cell.change.Text = constants.MsgUnavailable
+	cell.change.Color = constants.ColorNeutral
 	cell.change.Refresh()
 	if cell.chart != nil {
-		cell.chart.SetColor(colorNeutral)
+		cell.chart.SetColor(constants.ColorNeutral)
 		cell.chart.SetSeries(model.Series{})
 	}
 	slog.Warn("tile update failed", "symbol", cell.symbol, "err", err)
@@ -175,5 +172,5 @@ func priceChangeText(last, prev float64) (color.Color, string) {
 	if prev != 0 {
 		pct = delta / prev * 100
 	}
-	return col, fmt.Sprintf("%s%.2f (%s%.2f%%)", sign, delta, sign, pct)
+	return col, fmt.Sprintf(constants.FmtPriceChange, sign, delta, sign, pct)
 }

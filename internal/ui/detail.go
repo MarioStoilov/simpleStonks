@@ -9,6 +9,7 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
+	"github.com/MarioStoilov/simplestonks/internal/constants"
 	"github.com/MarioStoilov/simplestonks/internal/model"
 	"github.com/MarioStoilov/simplestonks/internal/provider"
 )
@@ -32,14 +33,14 @@ func (app *App) buildDetail() fyne.CanvasObject {
 	}
 	app.sideTiles = side
 	sidebar := container.NewVScroll(container.NewVBox(sideObjs...))
-	sidebar.SetMinSize(fyne.NewSize(190, 0))
+	sidebar.SetMinSize(fyne.NewSize(constants.SidebarMinWidth, 0))
 
 	app.detailChart = newChart()
 	app.detailChart.hoverReadout = true // price/time readout only on the big chart
-	app.detailName = canvas.NewText("", colorAxis)
-	app.detailName.TextSize = nameTextSize
+	app.detailName = canvas.NewText("", constants.ColorAxis)
+	app.detailName.TextSize = constants.NameTextSize
 	app.detailPrice = newPriceText()
-	app.detailChange = canvas.NewText("", colorNeutral)
+	app.detailChange = canvas.NewText("", constants.ColorNeutral)
 
 	back := widget.NewButtonWithIcon("", theme.NavigateBackIcon(), func() { app.showHome() })
 	title := widget.NewLabelWithStyle(app.selected, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
@@ -131,16 +132,16 @@ func (app *App) loadMain() {
 // flash marks a live refresh, letting a changed price flash its background.
 func loadMainChart(prov provider.QuoteProvider, chart *chart, name *canvas.Text, price *priceText, change *canvas.Text, symbol string, rng model.Range, flash bool) {
 	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), fetchTimeout)
+		ctx, cancel := context.WithTimeout(context.Background(), constants.FetchTimeout)
 		defer cancel()
 		series, err := prov.History(ctx, symbol, rng)
 		fyne.Do(func() {
 			if err != nil || len(series.Candles) == 0 {
 				price.SetUnavailable()
-				change.Text = "unavailable"
-				change.Color = colorNeutral
+				change.Text = constants.MsgUnavailable
+				change.Color = constants.ColorNeutral
 				change.Refresh()
-				chart.SetColor(colorNeutral)
+				chart.SetColor(constants.ColorNeutral)
 				chart.SetSeries(model.Series{})
 				return
 			}

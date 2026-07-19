@@ -46,6 +46,13 @@ from the UI, and the list plus other settings are persisted to a config file.
   `s, err :=`, `for _, value :=` not `for _, v :=`, `idx` not `i`). Allowed
   exceptions: the comma-ok idiom (`v, ok :=` keeps `ok`) and the standard
   `t *testing.T`.
+- **No magic numbers or strings.** All numeric literals, technical strings
+  (URLs, file names, time/number formats), and user-facing text (labels,
+  titles, messages) are defined in `internal/constants` — grouped by domain —
+  and referred to from there. Exceptions that stay at their definition sites:
+  typed enum values (`model.Range`, `config.LogLevel`), struct tags, protocol
+  mapping tables (e.g. `yahooParams`), diagnostic log/error-wrap messages, and
+  test fixtures.
 - Match the style, naming, and structure of existing code.
 
 ## Testing

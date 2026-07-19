@@ -1,8 +1,6 @@
 package ui
 
 import (
-	"image/color"
-
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
@@ -10,6 +8,7 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 
+	"github.com/MarioStoilov/simplestonks/internal/constants"
 	"github.com/MarioStoilov/simplestonks/internal/model"
 )
 
@@ -25,18 +24,18 @@ func (app *App) showResultPreview(result model.SearchResult, onAdded func()) {
 
 	chartW := newChart()
 	price := newPriceText()
-	change := canvas.NewText("", colorNeutral)
+	change := canvas.NewText("", constants.ColorNeutral)
 
 	name := result.Symbol
 	if result.Name != "" {
-		name += "  ·  " + result.Name
+		name += constants.SepTitle + result.Name
 	}
 	title := widget.NewLabelWithStyle(name, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 
 	meta := result.Exchange
 	if result.Type != "" {
 		if meta != "" {
-			meta += " · "
+			meta += constants.SepMeta
 		}
 		meta += result.Type
 	}
@@ -48,13 +47,13 @@ func (app *App) showResultPreview(result model.SearchResult, onAdded func()) {
 	)
 
 	var dlg *dialog.CustomDialog
-	cancel := widget.NewButton("Cancel", func() { dlg.Hide() })
+	cancel := widget.NewButton(constants.LabelCancel, func() { dlg.Hide() })
 
 	var addObj fyne.CanvasObject
 	if containsStr(app.cfg.Symbols, result.Symbol) {
-		addObj = disabledAddControl("Already tracking this index")
+		addObj = disabledAddControl(constants.TipAlreadyTracked)
 	} else {
-		add := widget.NewButton("Add", func() {
+		add := widget.NewButton(constants.LabelAdd, func() {
 			app.addSymbol(result.Symbol)
 			dlg.Hide()
 			if onAdded != nil {
@@ -67,8 +66,8 @@ func (app *App) showResultPreview(result model.SearchResult, onAdded func()) {
 	footer := container.NewHBox(layout.NewSpacer(), cancel, addObj)
 
 	body := container.NewBorder(header, footer, nil, nil, chartW)
-	dlg = dialog.NewCustomWithoutButtons("Preview", body, app.win)
-	dlg.Resize(fyne.NewSize(520, 440))
+	dlg = dialog.NewCustomWithoutButtons(constants.TitlePreview, body, app.win)
+	dlg.Resize(fyne.NewSize(constants.PreviewDialogWidth, constants.PreviewDialogHeight))
 	dlg.Show()
 
 	// Fetch the 1D series for the preview chart and header. The title already
@@ -80,10 +79,10 @@ func (app *App) showResultPreview(result model.SearchResult, onAdded func()) {
 // hover (used when the index is already tracked). Fyne's disabled buttons don't
 // support tooltips, so this is a styled stand-in wrapped in a hoverTip.
 func disabledAddControl(tip string) fyne.CanvasObject {
-	boxBg := canvas.NewRectangle(color.NRGBA{R: 0x3a, G: 0x3a, B: 0x40, A: 0xff})
-	boxBg.CornerRadius = 4
-	boxBg.SetMinSize(fyne.NewSize(72, 32))
-	label := canvas.NewText("Add", color.NRGBA{R: 0x80, G: 0x80, B: 0x80, A: 0xff})
+	boxBg := canvas.NewRectangle(constants.ColorDisabledBg)
+	boxBg.CornerRadius = constants.PanelCornerRadius
+	boxBg.SetMinSize(fyne.NewSize(constants.DisabledAddWidth, constants.DisabledAddHeight))
+	label := canvas.NewText(constants.LabelAdd, constants.ColorDisabledFg)
 	label.Alignment = fyne.TextAlignCenter
 	content := container.NewStack(boxBg, container.NewCenter(label))
 	return newHoverTip(content, tip)

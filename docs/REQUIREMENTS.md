@@ -260,6 +260,7 @@ simpleStonks/
 ├── cmd/simplestonks/main.go        # entrypoint
 ├── internal/
 │   ├── config/                     # load/save JSON config + live-reload Store (XDG/snap-aware)
+│   ├── constants/                  # centralized numbers/strings (identity, storage, network, UI, text)
 │   ├── logging/                    # leveled slog logger + size-based log rotation
 │   ├── provider/                   # QuoteProvider interface + yahoo impl
 │   │   ├── provider.go             # interface + types (Quote, Candle, Range)

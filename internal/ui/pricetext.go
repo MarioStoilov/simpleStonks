@@ -3,22 +3,14 @@ package ui
 import (
 	"fmt"
 	"image/color"
-	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
+
+	"github.com/MarioStoilov/simplestonks/internal/constants"
 )
-
-// flashDuration is how long a price-update flash takes to fade out.
-const flashDuration = 900 * time.Millisecond
-
-// flashAlpha is the starting opacity of the flash background.
-const flashAlpha = 0x66
-
-// flashPad is the extra background width to the left of the number.
-const flashPad = 3
 
 // priceText displays a right-aligned price number and, on live updates,
 // flashes the number's background — semi-transparent green for a rise, red
@@ -36,11 +28,11 @@ type priceText struct {
 // newPriceText builds an empty ("—") price display.
 func newPriceText() *priceText {
 	price := &priceText{}
-	price.text = canvas.NewText("—", theme.Color(theme.ColorNameForeground))
+	price.text = canvas.NewText(constants.PricePlaceholder, theme.Color(theme.ColorNameForeground))
 	price.text.TextStyle = fyne.TextStyle{Bold: true}
 	price.text.Alignment = fyne.TextAlignTrailing
 	price.background = canvas.NewRectangle(color.Transparent)
-	price.background.CornerRadius = 3
+	price.background.CornerRadius = constants.FlashCornerRadius
 	price.ExtendBaseWidget(price)
 	return price
 }
@@ -53,7 +45,7 @@ func (price *priceText) SetPrice(value float64, flash bool) {
 		price.startFlash(rising)
 	}
 	price.last, price.hasLast = value, true
-	price.text.Text = fmt.Sprintf("%.2f", value)
+	price.text.Text = fmt.Sprintf(constants.FmtPrice, value)
 	price.Refresh()
 }
 
@@ -61,7 +53,7 @@ func (price *priceText) SetPrice(value float64, flash bool) {
 func (price *priceText) SetUnavailable() {
 	price.stopFlash()
 	price.hasLast = false
-	price.text.Text = "—"
+	price.text.Text = constants.PricePlaceholder
 	price.Refresh()
 }
 
@@ -77,14 +69,14 @@ func flashDirection(hasPrevious bool, last, value float64) (flash, rising bool) 
 // startFlash begins (or restarts) the fade-out of the flash background.
 func (price *priceText) startFlash(rising bool) {
 	price.stopFlash()
-	start := colorDown
+	start := constants.ColorDown
 	if rising {
-		start = colorUp
+		start = constants.ColorUp
 	}
-	start.A = flashAlpha
+	start.A = constants.FlashAlpha
 	end := start
 	end.A = 0
-	price.anim = canvas.NewColorRGBAAnimation(start, end, flashDuration, func(faded color.Color) {
+	price.anim = canvas.NewColorRGBAAnimation(start, end, constants.FlashDuration, func(faded color.Color) {
 		price.background.FillColor = faded
 		price.background.Refresh()
 	})
@@ -113,8 +105,8 @@ type priceTextRenderer struct{ price *priceText }
 func (renderer *priceTextRenderer) Layout(size fyne.Size) {
 	renderer.price.text.Resize(size)
 	textSize := fyne.MeasureText(renderer.price.text.Text, renderer.price.text.TextSize, renderer.price.text.TextStyle)
-	renderer.price.background.Resize(fyne.NewSize(textSize.Width+flashPad, textSize.Height))
-	renderer.price.background.Move(fyne.NewPos(size.Width-textSize.Width-flashPad, 0))
+	renderer.price.background.Resize(fyne.NewSize(textSize.Width+constants.FlashPad, textSize.Height))
+	renderer.price.background.Move(fyne.NewPos(size.Width-textSize.Width-constants.FlashPad, 0))
 }
 
 func (renderer *priceTextRenderer) MinSize() fyne.Size { return renderer.price.text.MinSize() }

@@ -6,6 +6,7 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
+	"github.com/MarioStoilov/simplestonks/internal/constants"
 )
 
 // buildHome builds the home screen: a top bar plus a grid of 1D-only cells, one
@@ -28,9 +29,9 @@ func (app *App) buildHome() fyne.CanvasObject {
 	}
 	app.homeTiles = tiles
 
-	cellSize := fyne.NewSize(300, 240)
+	cellSize := fyne.NewSize(constants.GridCellWidth, constants.GridCellHeight)
 	if app.editMode {
-		cellSize = fyne.NewSize(300, 280) // room for the control row
+		cellSize = fyne.NewSize(constants.GridCellWidth, constants.GridCellEditHeight) // room for the control row
 	}
 	grid := container.New(layout.NewGridWrapLayout(cellSize), objs...)
 	return container.NewBorder(app.buildTopBar(), nil, nil, nil, container.NewVScroll(grid))
@@ -41,12 +42,12 @@ func (app *App) buildHome() fyne.CanvasObject {
 func (app *App) buildTopBar() fyne.CanvasObject {
 	var right *fyne.Container
 	if app.editMode {
-		add := widget.NewButtonWithIcon("Add", theme.ContentAddIcon(), func() { app.showSearchDialog() })
+		add := widget.NewButtonWithIcon(constants.LabelAdd, theme.ContentAddIcon(), func() { app.showSearchDialog() })
 		add.Importance = widget.HighImportance
-		done := widget.NewButtonWithIcon("Done", theme.ConfirmIcon(), func() { app.setEditMode(false) })
+		done := widget.NewButtonWithIcon(constants.LabelDone, theme.ConfirmIcon(), func() { app.setEditMode(false) })
 		right = container.NewHBox(add, done)
 	} else {
-		edit := widget.NewButtonWithIcon("Edit", theme.DocumentCreateIcon(), func() { app.setEditMode(true) })
+		edit := widget.NewButtonWithIcon(constants.LabelEdit, theme.DocumentCreateIcon(), func() { app.setEditMode(true) })
 		info := widget.NewButtonWithIcon("", theme.InfoIcon(), func() { app.showAboutDialog() })
 		settings := widget.NewButtonWithIcon("", theme.SettingsIcon(), func() { app.showSettingsWindow() })
 		right = container.NewHBox(edit, info, settings)

@@ -249,8 +249,8 @@ Progress is recorded in `git log`; the short version:
   price, a semi-transparent green/red background flashes behind the number
   only, fading out; unchanged prices (closed market) never flash.
 - About dialog: an info button in the home top bar (next to Edit and the
-  settings cog) opens a modal with the logo, version (`appVersion` in
-  `internal/ui/app.go` — keep in sync with snapcraft.yaml on release),
+  settings cog) opens a modal with the logo, version (`constants.AppVersion` in
+  `internal/constants` — keep in sync with snapcraft.yaml on release),
   GitHub/license links, and the data disclaimer.
 - App logo: a minimalist line-chart SVG (green above the X axis, red below,
   with matching semi-transparent area fills) at `internal/ui/icon.svg` — a
@@ -271,8 +271,8 @@ Progress is recorded in `git log`; the short version:
 - **Published on the Snap Store** as `simplestonks`: 0.2.x releases proved out
   the `edge` channel (rev 2 surfaced the stale-log-path refresh bug, fixed in
   0.2.1/rev 3); v1.0.0 (`grade: stable`) is the first `stable` release. On a
-  release: bump `version` in snapcraft.yaml **and** `appVersion` in
-  `internal/ui/app.go`, `snapcraft pack`, `snapcraft upload
+  release: bump `version` in snapcraft.yaml **and** `constants.AppVersion` in
+  `internal/constants`, `snapcraft pack`, `snapcraft upload
   --release=stable,edge <snap>`.
 
 Immediate next candidates:

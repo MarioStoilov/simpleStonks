@@ -13,9 +13,8 @@ import (
 	"sync"
 
 	"github.com/MarioStoilov/simplestonks/internal/config"
+	"github.com/MarioStoilov/simplestonks/internal/constants"
 )
-
-const mib = 1024 * 1024
 
 // Logger is a leveled logger whose destination and level can be reconfigured at
 // runtime (e.g. on a config live-reload) without invalidating held references.
@@ -56,7 +55,7 @@ func (logger *Logger) Reconfigure(cfg config.Logging) error {
 		if path == "" {
 			path = config.DefaultLogPath()
 		}
-		rotating, err := newRotatingWriter(path, int64(cfg.MaxSizeMB)*mib, cfg.MaxArchives)
+		rotating, err := newRotatingWriter(path, int64(cfg.MaxSizeMB)*constants.BytesPerMiB, cfg.MaxArchives)
 		if err != nil {
 			return err
 		}

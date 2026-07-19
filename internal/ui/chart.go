@@ -11,21 +11,8 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
+	"github.com/MarioStoilov/simplestonks/internal/constants"
 	"github.com/MarioStoilov/simplestonks/internal/model"
-)
-
-const (
-	chartPadding = 4
-	axisTextSize = 12  // font size of the axis labels
-	axisGap      = 4   // gap between axis labels and the plot area
-	xTickSpacing = 80  // minimum horizontal pixels per time label
-	yTickSpacing = 48  // minimum vertical pixels per price label
-	maxYTicks    = 8   // cap on the number of y-axis reference values
-	dashLen      = 4   // dash length of the previous-close line
-	dashGap      = 4   // gap between dashes of the previous-close line
-	dotRadius    = 3.5 // radius of the hover marker dot
-	tipPad       = 4   // padding inside the hover tooltip
-	tipGap       = 8   // gap between the hover dot and its tooltip
 )
 
 // chart is a custom Fyne widget that plots a price series as a line, colored by
@@ -48,7 +35,7 @@ type chart struct {
 
 // newChart constructs an empty chart widget.
 func newChart() *chart {
-	chartWidget := &chart{line: colorNeutral}
+	chartWidget := &chart{line: constants.ColorNeutral}
 	chartWidget.ExtendBaseWidget(chartWidget)
 	return chartWidget
 }
@@ -93,20 +80,20 @@ func (chart *chart) MouseOut() {
 
 // CreateRenderer implements fyne.Widget.
 func (chart *chart) CreateRenderer() fyne.WidgetRenderer {
-	background := canvas.NewRectangle(color.NRGBA{R: 0x1e, G: 0x1e, B: 0x24, A: 0xff})
-	dot := canvas.NewCircle(colorNeutral)
+	background := canvas.NewRectangle(constants.ColorChartBg)
+	dot := canvas.NewCircle(constants.ColorNeutral)
 	dot.StrokeColor = theme.Color(theme.ColorNameForeground)
-	dot.StrokeWidth = 1
-	tipBg := canvas.NewRectangle(colorHover)
-	tipBg.CornerRadius = 4
+	dot.StrokeWidth = constants.HairlineWidth
+	tipBg := canvas.NewRectangle(constants.ColorHover)
+	tipBg.CornerRadius = constants.PanelCornerRadius
 	tipText := canvas.NewText("", theme.Color(theme.ColorNameForeground))
-	tipText.TextSize = axisTextSize
-	tipPct := canvas.NewText("", colorNeutral)
-	tipPct.TextSize = axisTextSize
-	timeBg := canvas.NewRectangle(colorHover)
-	timeBg.CornerRadius = 4
+	tipText.TextSize = constants.AxisTextSize
+	tipPct := canvas.NewText("", constants.ColorNeutral)
+	tipPct.TextSize = constants.AxisTextSize
+	timeBg := canvas.NewRectangle(constants.ColorHover)
+	timeBg.CornerRadius = constants.PanelCornerRadius
 	timeLbl := canvas.NewText("", theme.Color(theme.ColorNameForeground))
-	timeLbl.TextSize = axisTextSize
+	timeLbl.TextSize = constants.AxisTextSize
 	renderer := &chartRenderer{
 		chart: chart, background: background, dot: dot, tipBg: tipBg, tipText: tipText,
 		tipPct: tipPct, timeBg: timeBg, timeLbl: timeLbl,
@@ -142,7 +129,9 @@ func (renderer *chartRenderer) Layout(size fyne.Size) {
 	renderer.rebuild(size)
 }
 
-func (renderer *chartRenderer) MinSize() fyne.Size { return fyne.NewSize(120, 80) }
+func (renderer *chartRenderer) MinSize() fyne.Size {
+	return fyne.NewSize(constants.ChartMinWidth, constants.ChartMinHeight)
+}
 
 func (renderer *chartRenderer) Refresh() {
 	renderer.rebuild(renderer.chart.Size())
@@ -196,8 +185,8 @@ func (renderer *chartRenderer) rebuild(size fyne.Size) {
 		}
 	}
 
-	labelH := fyne.MeasureText("0", axisTextSize, fyne.TextStyle{}).Height
-	bottomMargin := labelH + axisGap
+	labelH := fyne.MeasureText("0", constants.AxisTextSize, fyne.TextStyle{}).Height
+	bottomMargin := labelH + constants.AxisGap
 	plotH := size.Height - bottomMargin
 
 	// Price (y) labels: as many evenly spaced reference values as the height
@@ -212,12 +201,12 @@ func (renderer *chartRenderer) rebuild(size fyne.Size) {
 	if low == high {
 		labels = []yLabel{{value: low, text: formatAxisPrice(low)}}
 	} else {
-		count := int(plotH/yTickSpacing) + 1
+		count := int(plotH/constants.YTickSpacing) + 1
 		if count < 2 {
 			count = 2
 		}
-		if count > maxYTicks {
-			count = maxYTicks
+		if count > constants.MaxYTicks {
+			count = constants.MaxYTicks
 		}
 		for _, value := range yTicks(low, high, count) {
 			labels = append(labels, yLabel{value: value, text: formatAxisPrice(value)})
@@ -230,19 +219,19 @@ func (renderer *chartRenderer) rebuild(size fyne.Size) {
 	}
 	var leftMargin float32
 	for idx := range labels {
-		labels[idx].width = fyne.MeasureText(labels[idx].text, axisTextSize, fyne.TextStyle{}).Width
+		labels[idx].width = fyne.MeasureText(labels[idx].text, constants.AxisTextSize, fyne.TextStyle{}).Width
 		if labels[idx].width > leftMargin {
 			leftMargin = labels[idx].width
 		}
 	}
-	leftMargin += axisGap
+	leftMargin += constants.AxisGap
 
 	plotW := size.Width - leftMargin
-	pts := plotPath(values, xFracs(series), plotW, plotH, chartPadding, low, high)
+	pts := plotPath(values, xFracs(series), plotW, plotH, constants.ChartPadding, low, high)
 	if pts == nil { // too small for margins: fall back to the bare line
 		leftMargin, bottomMargin = 0, 0
 		plotW, plotH = size.Width, size.Height
-		pts = plotPath(values, xFracs(series), plotW, plotH, chartPadding, low, high)
+		pts = plotPath(values, xFracs(series), plotW, plotH, constants.ChartPadding, low, high)
 	}
 
 	// Cache the plotted points (absolute coordinates) for the hover readout
@@ -254,11 +243,11 @@ func (renderer *chartRenderer) rebuild(size fyne.Size) {
 		for idx, point := range pts {
 			renderer.hoverPts[idx] = fyne.NewPos(point.X+leftMargin, point.Y)
 		}
-		segments := int((plotH-2*chartPadding)/(dashLen+dashGap)) + 1
+		segments := int((plotH-2*constants.ChartPadding)/(constants.DashLen+constants.DashGap)) + 1
 		renderer.vDashes = make([]*canvas.Line, 0, segments)
 		for segIdx := 0; segIdx < segments; segIdx++ {
-			segment := canvas.NewLine(colorAxis)
-			segment.StrokeWidth = 1
+			segment := canvas.NewLine(constants.ColorAxis)
+			segment.StrokeWidth = constants.HairlineWidth
 			segment.Hide()
 			renderer.vDashes = append(renderer.vDashes, segment)
 		}
@@ -266,15 +255,15 @@ func (renderer *chartRenderer) rebuild(size fyne.Size) {
 
 	// Dashed reference line at the previous interval's close (under the series).
 	if prevClose > 0 && pts != nil {
-		posY := yFor(prevClose, low, high, plotH, chartPadding)
-		right := leftMargin + plotW - chartPadding
-		for posX := leftMargin + chartPadding; posX < right; posX += dashLen + dashGap {
-			segEnd := posX + dashLen
+		posY := yFor(prevClose, low, high, plotH, constants.ChartPadding)
+		right := leftMargin + plotW - constants.ChartPadding
+		for posX := leftMargin + constants.ChartPadding; posX < right; posX += constants.DashLen + constants.DashGap {
+			segEnd := posX + constants.DashLen
 			if segEnd > right {
 				segEnd = right
 			}
-			segment := canvas.NewLine(colorAxis)
-			segment.StrokeWidth = 1
+			segment := canvas.NewLine(constants.ColorAxis)
+			segment.StrokeWidth = constants.HairlineWidth
 			segment.Position1 = fyne.NewPos(posX, posY)
 			segment.Position2 = fyne.NewPos(segEnd, posY)
 			objs = append(objs, segment)
@@ -283,7 +272,7 @@ func (renderer *chartRenderer) rebuild(size fyne.Size) {
 
 	for idx := 1; idx < len(pts); idx++ {
 		segment := canvas.NewLine(renderer.chart.line)
-		segment.StrokeWidth = 1.5
+		segment.StrokeWidth = constants.ChartLineWidth
 		segment.Position1 = fyne.NewPos(pts[idx-1].X+leftMargin, pts[idx-1].Y)
 		segment.Position2 = fyne.NewPos(pts[idx].X+leftMargin, pts[idx].Y)
 		objs = append(objs, segment)
@@ -293,8 +282,8 @@ func (renderer *chartRenderer) rebuild(size fyne.Size) {
 	}
 
 	newLabel := func(text string) *canvas.Text {
-		txt := canvas.NewText(text, colorAxis)
-		txt.TextSize = axisTextSize
+		txt := canvas.NewText(text, constants.ColorAxis)
+		txt.TextSize = constants.AxisTextSize
 		return txt
 	}
 	place := func(txt *canvas.Text, posX, posY float32) {
@@ -306,7 +295,7 @@ func (renderer *chartRenderer) rebuild(size fyne.Size) {
 	// centered on their value; ticks that would collide with the previous-close
 	// label make way for it.
 	labelY := func(value float64) float32 {
-		posY := yFor(value, low, high, plotH, chartPadding) - labelH/2
+		posY := yFor(value, low, high, plotH, constants.ChartPadding) - labelH/2
 		if posY < 0 {
 			posY = 0
 		}
@@ -326,12 +315,12 @@ func (renderer *chartRenderer) rebuild(size fyne.Size) {
 				continue
 			}
 		}
-		place(newLabel(lbl.text), leftMargin-axisGap-lbl.width, posY)
+		place(newLabel(lbl.text), leftMargin-constants.AxisGap-lbl.width, posY)
 	}
 
 	// Time (x) labels along the bottom, formatted per the series' range. An
 	// intraday series with a known session is labeled across the full window.
-	maxTicks := int(plotW / xTickSpacing)
+	maxTicks := int(plotW / constants.XTickSpacing)
 	var ticks []axisTick
 	if sessionWindow(series) {
 		ticks = sessionTicks(series.SessionStart, series.SessionEnd, maxTicks, time.Local)
@@ -340,15 +329,15 @@ func (renderer *chartRenderer) rebuild(size fyne.Size) {
 	}
 	for _, tick := range ticks {
 		txt := newLabel(tick.label)
-		width := fyne.MeasureText(tick.label, axisTextSize, fyne.TextStyle{}).Width
-		posX := leftMargin + chartPadding + tick.frac*(plotW-2*chartPadding) - width/2
+		width := fyne.MeasureText(tick.label, constants.AxisTextSize, fyne.TextStyle{}).Width
+		posX := leftMargin + constants.ChartPadding + tick.frac*(plotW-2*constants.ChartPadding) - width/2
 		if posX < leftMargin {
 			posX = leftMargin
 		}
 		if posX+width > size.Width {
 			posX = size.Width - width
 		}
-		place(txt, posX, plotH+axisGap)
+		place(txt, posX, plotH+constants.AxisGap)
 	}
 }
 
@@ -382,9 +371,9 @@ func (renderer *chartRenderer) updateHover() {
 
 	// Vertical dashed guide through the hovered point, spanning the plot.
 	segIdx := 0
-	for posY := float32(chartPadding); posY < renderer.plotH-chartPadding && segIdx < len(renderer.vDashes); posY += dashLen + dashGap {
-		segEnd := posY + dashLen
-		if maxY := renderer.plotH - chartPadding; segEnd > maxY {
+	for posY := float32(constants.ChartPadding); posY < renderer.plotH-constants.ChartPadding && segIdx < len(renderer.vDashes); posY += constants.DashLen + constants.DashGap {
+		segEnd := posY + constants.DashLen
+		if maxY := renderer.plotH - constants.ChartPadding; segEnd > maxY {
 			segEnd = maxY
 		}
 		segment := renderer.vDashes[segIdx]
@@ -399,14 +388,14 @@ func (renderer *chartRenderer) updateHover() {
 
 	// Marker dot on the hovered data point.
 	renderer.dot.FillColor = owner.line
-	renderer.dot.Position1 = fyne.NewPos(point.X-dotRadius, point.Y-dotRadius)
-	renderer.dot.Position2 = fyne.NewPos(point.X+dotRadius, point.Y+dotRadius)
+	renderer.dot.Position1 = fyne.NewPos(point.X-constants.DotRadius, point.Y-constants.DotRadius)
+	renderer.dot.Position2 = fyne.NewPos(point.X+constants.DotRadius, point.Y+constants.DotRadius)
 	renderer.dot.Show()
 
 	// Time/date of the hovered point, boxed on the x axis under the guide.
 	renderer.timeLbl.Text = series.Candles[idx].Time.In(time.Local).Format(hoverTimeFormat(series.Range))
-	labelSize := fyne.MeasureText(renderer.timeLbl.Text, axisTextSize, fyne.TextStyle{})
-	lblWidth, lblHeight := labelSize.Width+2*tipPad, labelSize.Height+2
+	labelSize := fyne.MeasureText(renderer.timeLbl.Text, constants.AxisTextSize, fyne.TextStyle{})
+	lblWidth, lblHeight := labelSize.Width+2*constants.TipPad, labelSize.Height+2
 	lblX := point.X - lblWidth/2
 	if lblX < 0 {
 		lblX = 0
@@ -418,28 +407,28 @@ func (renderer *chartRenderer) updateHover() {
 	renderer.timeBg.Resize(fyne.NewSize(lblWidth, lblHeight))
 	renderer.timeBg.Move(fyne.NewPos(lblX, lblY))
 	renderer.timeBg.Show()
-	renderer.timeLbl.Move(fyne.NewPos(lblX+tipPad, lblY+1))
+	renderer.timeLbl.Move(fyne.NewPos(lblX+constants.TipPad, lblY+1))
 	renderer.timeLbl.Show()
 
 	// Tooltip: the price, and under it the % change versus the previous close
 	// (the dashed reference line), green for above and red for below.
 	renderer.tipText.Text = formatAxisPrice(renderer.hoverVals[idx])
-	priceSize := fyne.MeasureText(renderer.tipText.Text, axisTextSize, fyne.TextStyle{})
+	priceSize := fyne.MeasureText(renderer.tipText.Text, constants.AxisTextSize, fyne.TextStyle{})
 	tipWidth, tipHeight := priceSize.Width, priceSize.Height
 	showPct := series.PreviousClose > 0
 	if showPct {
 		pct := (renderer.hoverVals[idx] - series.PreviousClose) / series.PreviousClose * 100
 		col, sign := changeStyle(pct)
-		renderer.tipPct.Text = fmt.Sprintf("%s%.2f%%", sign, pct)
+		renderer.tipPct.Text = fmt.Sprintf(constants.FmtPercentChange, sign, pct)
 		renderer.tipPct.Color = col
-		pctSize := fyne.MeasureText(renderer.tipPct.Text, axisTextSize, fyne.TextStyle{})
+		pctSize := fyne.MeasureText(renderer.tipPct.Text, constants.AxisTextSize, fyne.TextStyle{})
 		if pctSize.Width > tipWidth {
 			tipWidth = pctSize.Width
 		}
 		tipHeight += pctSize.Height
 	}
-	boxWidth := tipWidth + 2*tipPad
-	boxHeight := tipHeight + 2*tipPad
+	boxWidth := tipWidth + 2*constants.TipPad
+	boxHeight := tipHeight + 2*constants.TipPad
 	boxX := point.X - boxWidth/2
 	if boxX < 0 {
 		boxX = 0
@@ -447,17 +436,17 @@ func (renderer *chartRenderer) updateHover() {
 	if boxX+boxWidth > size.Width {
 		boxX = size.Width - boxWidth
 	}
-	boxY := point.Y - dotRadius - tipGap - boxHeight // above the dot ...
+	boxY := point.Y - constants.DotRadius - constants.TipGap - boxHeight // above the dot ...
 	if boxY < 0 {
-		boxY = point.Y + dotRadius + tipGap // ... or below when clipped at the top
+		boxY = point.Y + constants.DotRadius + constants.TipGap // ... or below when clipped at the top
 	}
 	renderer.tipBg.Resize(fyne.NewSize(boxWidth, boxHeight))
 	renderer.tipBg.Move(fyne.NewPos(boxX, boxY))
 	renderer.tipBg.Show()
-	renderer.tipText.Move(fyne.NewPos(boxX+tipPad, boxY+tipPad))
+	renderer.tipText.Move(fyne.NewPos(boxX+constants.TipPad, boxY+constants.TipPad))
 	renderer.tipText.Show()
 	if showPct {
-		renderer.tipPct.Move(fyne.NewPos(boxX+tipPad, boxY+tipPad+priceSize.Height))
+		renderer.tipPct.Move(fyne.NewPos(boxX+constants.TipPad, boxY+constants.TipPad+priceSize.Height))
 		renderer.tipPct.Show()
 	} else {
 		renderer.tipPct.Hide()
@@ -473,11 +462,11 @@ func (renderer *chartRenderer) updateHover() {
 func hoverTimeFormat(rng model.Range) string {
 	switch rng {
 	case model.Range1D:
-		return "15:04"
+		return constants.TimeFmtClock
 	case model.Range5D, model.Range1W, model.Range1M:
-		return "Mon, 02 Jan"
+		return constants.TimeFmtWeekdayDate
 	default: // YTD, 1Y, 5Y, ALL
-		return "02 Jan 2006"
+		return constants.TimeFmtFullDate
 	}
 }
 
@@ -535,20 +524,20 @@ func xTicks(series model.Series, max int, loc *time.Location) []axisTick {
 func xAxisFormat(rng model.Range) string {
 	switch rng {
 	case model.Range1D:
-		return "15:04"
+		return constants.TimeFmtClock
 	case model.Range5D, model.Range1W:
-		return "Mon 02"
+		return constants.TimeFmtWeekdayDay
 	case model.Range1M:
-		return "02 Jan"
+		return constants.TimeFmtDayMonth
 	case model.RangeYTD, model.Range1Y:
-		return "Jan"
+		return constants.TimeFmtMonth
 	default: // 5Y, ALL
-		return "2006"
+		return constants.TimeFmtYear
 	}
 }
 
 // formatAxisPrice formats a y-axis price label.
-func formatAxisPrice(value float64) string { return fmt.Sprintf("%.2f", value) }
+func formatAxisPrice(value float64) string { return fmt.Sprintf(constants.FmtPrice, value) }
 
 // closesOf extracts the closing prices from a series.
 func closesOf(series model.Series) []float64 {

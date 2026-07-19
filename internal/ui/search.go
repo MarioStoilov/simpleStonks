@@ -14,12 +14,10 @@ import (
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/widget"
 
+	"github.com/MarioStoilov/simplestonks/internal/constants"
 	"github.com/MarioStoilov/simplestonks/internal/model"
 	"github.com/MarioStoilov/simplestonks/internal/provider"
 )
-
-// searchDebounce is how long to wait after the last keystroke before searching.
-const searchDebounce = 300 * time.Millisecond
 
 // showSearchDialog opens the live-search add dialog: typing queries the provider
 // (debounced) and shows suggestions annotated with full name and market; picking
@@ -29,15 +27,15 @@ func (app *App) showSearchDialog() {
 		return
 	}
 	entry := widget.NewEntry()
-	entry.SetPlaceHolder("Search name or symbol — e.g. Apple or AAPL")
-	status := widget.NewLabel("Start typing to search…")
+	entry.SetPlaceHolder(constants.PlaceholderSearch)
+	status := widget.NewLabel(constants.MsgSearchPrompt)
 	results := container.NewVBox()
 	scroll := container.NewVScroll(results)
-	scroll.SetMinSize(fyne.NewSize(440, 280))
+	scroll.SetMinSize(fyne.NewSize(constants.SearchScrollMinWidth, constants.SearchScrollMinHeight))
 
 	content := container.NewBorder(entry, status, nil, nil, scroll)
-	dlg := dialog.NewCustom("Add index", "Close", content, app.win)
-	dlg.Resize(fyne.NewSize(500, 440))
+	dlg := dialog.NewCustom(constants.TitleAddIndex, constants.LabelClose, content, app.win)
+	dlg.Resize(fyne.NewSize(constants.SearchDialogWidth, constants.SearchDialogHeight))
 
 	controller := &searchController{
 		provider: app.provider,
@@ -76,13 +74,13 @@ func (controller *searchController) onChanged(query string) {
 		controller.timer.Stop()
 	}
 	if query == "" {
-		controller.status.SetText("Start typing to search…")
+		controller.status.SetText(constants.MsgSearchPrompt)
 		controller.clear()
 		return
 	}
-	controller.status.SetText("Searching…")
-	controller.timer = time.AfterFunc(searchDebounce, func() {
-		ctx, cancel := context.WithTimeout(context.Background(), fetchTimeout)
+	controller.status.SetText(constants.MsgSearching)
+	controller.timer = time.AfterFunc(constants.SearchDebounce, func() {
+		ctx, cancel := context.WithTimeout(context.Background(), constants.FetchTimeout)
 		defer cancel()
 		res, err := controller.provider.Search(ctx, query)
 		fyne.Do(func() {
@@ -103,13 +101,13 @@ func (controller *searchController) render(res []model.SearchResult, err error) 
 	controller.clear()
 	switch {
 	case err != nil:
-		controller.status.SetText("Search failed (offline?)")
+		controller.status.SetText(constants.MsgSearchFailed)
 		return
 	case len(res) == 0:
-		controller.status.SetText("No matches")
+		controller.status.SetText(constants.MsgNoMatches)
 		return
 	}
-	controller.status.SetText(fmt.Sprintf("%d result(s)", len(res)))
+	controller.status.SetText(fmt.Sprintf(constants.FmtResultCount, len(res)))
 	for _, result := range res {
 		result := result
 		controller.results.Add(newResultRow(result, func() { controller.onSelect(result) }))
@@ -133,21 +131,21 @@ func newResultRow(result model.SearchResult, onTap func()) *resultRow {
 
 	titleText := result.Symbol
 	if result.Name != "" {
-		titleText += "  ·  " + result.Name
+		titleText += constants.SepTitle + result.Name
 	}
 	title := widget.NewLabelWithStyle(titleText, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 
 	sub := result.Exchange
 	if result.Type != "" {
 		if sub != "" {
-			sub += " · "
+			sub += constants.SepMeta
 		}
 		sub += result.Type
 	}
 	subtitle := widget.NewLabel(sub)
 
 	row.background = canvas.NewRectangle(color.Transparent)
-	row.background.CornerRadius = 4
+	row.background.CornerRadius = constants.PanelCornerRadius
 	row.root = container.NewStack(row.background, container.NewPadded(container.NewVBox(title, subtitle)))
 	return row
 }
@@ -162,7 +160,7 @@ func (row *resultRow) Tapped(*fyne.PointEvent) {
 
 // Hoverable: generic highlight while the pointer is over the row.
 func (row *resultRow) MouseIn(*desktop.MouseEvent) {
-	row.background.FillColor = colorHover
+	row.background.FillColor = constants.ColorHover
 	row.background.Refresh()
 }
 

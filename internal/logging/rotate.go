@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+
+	"github.com/MarioStoilov/simplestonks/internal/constants"
 )
 
 // rotatingWriter is an io.WriteCloser that appends to a log file and rotates it
@@ -23,7 +25,7 @@ type rotatingWriter struct {
 // newRotatingWriter opens (creating as needed) the log file and its directory.
 func newRotatingWriter(path string, maxSizeBytes int64, maxArchives int) (*rotatingWriter, error) {
 	writer := &rotatingWriter{path: path, maxSize: maxSizeBytes, maxArchives: maxArchives}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), constants.DirPerm); err != nil {
 		return nil, err
 	}
 	if err := writer.open(); err != nil {
@@ -34,7 +36,7 @@ func newRotatingWriter(path string, maxSizeBytes int64, maxArchives int) (*rotat
 
 // open opens the log file for appending and records its current size.
 func (writer *rotatingWriter) open() error {
-	file, err := os.OpenFile(writer.path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+	file, err := os.OpenFile(writer.path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, constants.FilePerm)
 	if err != nil {
 		return err
 	}
@@ -99,7 +101,7 @@ func (writer *rotatingWriter) rotate() error {
 
 // archiveName returns the path of the idx-th archive (1 = newest).
 func (writer *rotatingWriter) archiveName(idx int) string {
-	return fmt.Sprintf("%s.%d", writer.path, idx)
+	return fmt.Sprintf(constants.FmtLogArchive, writer.path, idx)
 }
 
 // Close closes the underlying file.

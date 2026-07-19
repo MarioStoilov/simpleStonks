@@ -9,21 +9,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/MarioStoilov/simplestonks/internal/constants"
 	"github.com/MarioStoilov/simplestonks/internal/model"
 )
-
-// yahooBaseURL is the keyless Yahoo Finance chart endpoint. It returns both a
-// meta block (current price, previous close, currency) and OHLC candles, which
-// together cover Quote and History.
-const yahooBaseURL = "https://query1.finance.yahoo.com/v8/finance/chart/"
-
-// yahooSearchURL is the keyless Yahoo Finance search endpoint, used to back the
-// add-symbol live search.
-const yahooSearchURL = "https://query1.finance.yahoo.com/v1/finance/search"
-
-// yahooUserAgent is sent with every request; Yahoo tends to reject requests
-// carrying Go's default user agent.
-const yahooUserAgent = "simplestonks/0.1 (+https://github.com/MarioStoilov/simpleStonks)"
 
 // Yahoo is the default, keyless QuoteProvider backed by the Yahoo Finance
 // chart and search endpoints.
@@ -37,9 +25,9 @@ type Yahoo struct {
 // with a sane default timeout when nil.
 func NewYahoo(client *http.Client) *Yahoo {
 	if client == nil {
-		client = &http.Client{Timeout: 10 * time.Second}
+		client = &http.Client{Timeout: constants.HTTPClientTimeout}
 	}
-	return &Yahoo{client: client, baseURL: yahooBaseURL, searchURL: yahooSearchURL}
+	return &Yahoo{client: client, baseURL: constants.YahooChartBaseURL, searchURL: constants.YahooSearchURL}
 }
 
 // get issues a GET with the Yahoo-friendly user agent.
@@ -48,7 +36,7 @@ func (yahoo *Yahoo) get(ctx context.Context, endpoint string) (*http.Response, e
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", yahooUserAgent)
+	req.Header.Set("User-Agent", constants.YahooUserAgent)
 	return yahoo.client.Do(req)
 }
 
@@ -106,8 +94,8 @@ func (yahoo *Yahoo) Search(ctx context.Context, query string) ([]model.SearchRes
 	}
 	endpoint := yahoo.searchURL + "?" + url.Values{
 		"q":           {query},
-		"quotesCount": {"10"},
-		"newsCount":   {"0"},
+		"quotesCount": {constants.YahooSearchQuotesCount},
+		"newsCount":   {constants.YahooSearchNewsCount},
 	}.Encode()
 
 	resp, err := yahoo.get(ctx, endpoint)

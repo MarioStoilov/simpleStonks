@@ -18,6 +18,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/MarioStoilov/simplestonks/internal/config"
+	"github.com/MarioStoilov/simplestonks/internal/constants"
 	"github.com/MarioStoilov/simplestonks/internal/model"
 	"github.com/MarioStoilov/simplestonks/internal/provider"
 )
@@ -30,16 +31,6 @@ var iconSVG []byte
 
 // appIcon is the logo as a Fyne resource, used as the icon of every window.
 var appIcon = fyne.NewStaticResource("icon.svg", iconSVG)
-
-// appID is the Fyne application ID; it also namespaces Fyne's own storage.
-const appID = "com.github.mariostoilov.simplestonks"
-
-// appVersion is the released application version, shown in the About dialog.
-// Keep it in sync with the `version` key in snap/snapcraft.yaml.
-const appVersion = "1.0.1"
-
-// fetchTimeout bounds a single provider request.
-const fetchTimeout = 15 * time.Second
 
 type screenKind int
 
@@ -83,14 +74,14 @@ func New(prov provider.QuoteProvider, store *config.Store) *App {
 	// Declare that the app follows Fyne's fyne.Do threading model: every
 	// cross-goroutine UI update is marshalled onto the UI thread via fyne.Do.
 	fyneapp.SetMetadata(fyne.AppMetadata{
-		ID:         appID,
-		Name:       "simpleStonks",
-		Version:    appVersion,
+		ID:         constants.AppID,
+		Name:       constants.AppName,
+		Version:    constants.AppVersion,
 		Icon:       appIcon,
 		Migrations: map[string]bool{"fyneDo": true},
 	})
 	return &App{
-		fyne:     fyneapp.NewWithID(appID),
+		fyne:     fyneapp.NewWithID(constants.AppID),
 		provider: prov,
 		store:    store,
 		cfg:      store.Get(),
@@ -100,10 +91,10 @@ func New(prov provider.QuoteProvider, store *config.Store) *App {
 // Run builds the home screen and starts the event loop. It blocks until close.
 func (app *App) Run() {
 	app.applyBackground()
-	app.win = app.fyne.NewWindow("simpleStonks")
+	app.win = app.fyne.NewWindow(constants.AppName)
 	app.screen = screenHome
 	app.win.SetContent(app.buildHome())
-	app.win.Resize(fyne.NewSize(1000, 640))
+	app.win.Resize(fyne.NewSize(constants.MainWindowWidth, constants.MainWindowHeight))
 
 	// Rebuild the current screen whenever the config changes (our edits or an
 	// external file edit). Reloads arrive on the watcher goroutine, so marshal
@@ -180,7 +171,7 @@ func (app *App) startRefresh(tick func()) {
 	}
 	interval := app.cfg.RefreshInterval
 	if interval <= 0 {
-		interval = 30 * time.Second
+		interval = constants.DefaultRefreshInterval
 	}
 	stop := make(chan struct{})
 	app.stopCh = stop
@@ -209,7 +200,7 @@ func (app *App) stopRefresh() {
 // loadTile1D fetches a tile's 1D history and applies it on the UI goroutine.
 func loadTile1D(prov provider.QuoteProvider, cell *tile) {
 	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), fetchTimeout)
+		ctx, cancel := context.WithTimeout(context.Background(), constants.FetchTimeout)
 		defer cancel()
 		series, err := prov.History(ctx, cell.symbol, model.Range1D)
 		fyne.Do(func() {

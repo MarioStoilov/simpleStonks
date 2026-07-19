@@ -4,6 +4,8 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/widget"
+
+	"github.com/MarioStoilov/simplestonks/internal/constants"
 )
 
 // hoverTip wraps a content object and shows a small text popup while the pointer
@@ -35,7 +37,7 @@ func (tip *hoverTip) MouseIn(event *desktop.MouseEvent) {
 		return
 	}
 	tip.popup = widget.NewPopUp(widget.NewLabel(tip.text), tipCanvas)
-	tip.popup.ShowAtPosition(event.AbsolutePosition.Add(fyne.NewPos(10, 10)))
+	tip.popup.ShowAtPosition(event.AbsolutePosition.Add(fyne.NewPos(constants.TooltipOffset, constants.TooltipOffset)))
 }
 
 func (tip *hoverTip) MouseMoved(*desktop.MouseEvent) {}

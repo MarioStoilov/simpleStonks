@@ -9,11 +9,9 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
-)
 
-// debounce is how long the watcher coalesces filesystem events before reloading.
-// Editors and atomic saves emit several events per write; this collapses them.
-const debounce = 150 * time.Millisecond
+	"github.com/MarioStoilov/simplestonks/internal/constants"
+)
 
 // Store holds the live configuration and keeps it in sync with the config file
 // in both directions: UI edits go through Update (which persists), and external
@@ -52,7 +50,7 @@ func Open() (*Store, error) {
 	// The config directory may not exist yet on first run; create it so it can
 	// be watched before the first save.
 	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, constants.DirPerm); err != nil {
 		return nil, err
 	}
 
@@ -136,9 +134,9 @@ func (store *Store) watch() {
 				continue
 			}
 			if timer == nil {
-				timer = time.NewTimer(debounce)
+				timer = time.NewTimer(constants.ConfigReloadDebounce)
 			} else {
-				timer.Reset(debounce)
+				timer.Reset(constants.ConfigReloadDebounce)
 			}
 			timerC = timer.C
 		case err, ok := <-store.watcher.Errors:
