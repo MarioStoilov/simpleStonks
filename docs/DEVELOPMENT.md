@@ -237,11 +237,14 @@ Progress is recorded in `git log`; the short version:
   change needed).
 - Friendly instrument names (Yahoo meta long/short name) shown under the symbol
   on home tiles, sidebar cells, and the detail header.
-- Chart hover readout (dot on the nearest data point + price tooltip) on all
-  charts, and a button-like hover highlight on clickable tiles (home grid +
-  detail sidebar; suppressed in edit mode, where tiles don't navigate). The
-  mini chart forwards its hover state to its tile so the highlight covers the
-  whole cell.
+- Chart hover readout — the detail view's expanded chart only (not grid tiles
+  or the search preview): a dot on the nearest data point, a dashed vertical
+  guide with the point's time/date boxed on the x axis (clock time for 1D,
+  dates for longer ranges), and a tooltip with the price plus its green/red
+  % change versus the previous close. Also a button-like hover highlight on
+  clickable tiles (home grid + detail sidebar; suppressed in edit mode, where
+  tiles don't navigate); the mini chart forwards its hover state to its tile
+  so the highlight covers the whole cell.
 - Live price flash (`priceText` widget): when a refresh changes a displayed
   price, a semi-transparent green/red background flashes behind the number
   only, fading out; unchanged prices (closed market) never flash.

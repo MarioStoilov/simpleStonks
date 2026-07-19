@@ -35,6 +35,7 @@ func (a *App) buildDetail() fyne.CanvasObject {
 	sidebar.SetMinSize(fyne.NewSize(190, 0))
 
 	a.detailChart = newChart()
+	a.detailChart.hoverReadout = true // price/time readout only on the big chart
 	a.detailName = canvas.NewText("", colorAxis)
 	a.detailName.TextSize = nameTextSize
 	a.detailPrice = newPriceText()

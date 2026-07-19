@@ -334,3 +334,25 @@ func TestFormatAxisPrice(t *testing.T) {
 		t.Errorf("got %q, want %q", got, "5432.10")
 	}
 }
+
+func TestHoverTimeFormatPerRange(t *testing.T) {
+	at := time.Date(2026, 7, 17, 15, 4, 0, 0, time.UTC) // a Friday
+	cases := []struct {
+		r    model.Range
+		want string
+	}{
+		{model.Range1D, "15:04"},
+		{model.Range5D, "Fri, 17 Jul"},
+		{model.Range1W, "Fri, 17 Jul"},
+		{model.Range1M, "Fri, 17 Jul"},
+		{model.RangeYTD, "17 Jul 2026"},
+		{model.Range1Y, "17 Jul 2026"},
+		{model.Range5Y, "17 Jul 2026"},
+		{model.RangeAll, "17 Jul 2026"},
+	}
+	for _, c := range cases {
+		if got := at.Format(hoverTimeFormat(c.r)); got != c.want {
+			t.Errorf("range %s: label = %q, want %q", c.r, got, c.want)
+		}
+	}
+}

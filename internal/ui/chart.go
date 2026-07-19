@@ -29,12 +29,16 @@ const (
 )
 
 // chart is a custom Fyne widget that plots a price series as a line, colored by
-// the caller (up/down). Hovering the plot marks the nearest data point with a
-// dot and shows its price in a tooltip.
+// the caller (up/down). With hoverReadout enabled (the detail view's expanded
+// chart), hovering the plot marks the nearest data point with a dot, a dashed
+// vertical guide, its time/date on the x axis, and a tooltip showing the price
+// plus its % change versus the previous close.
 type chart struct {
 	widget.BaseWidget
 	series model.Series
 	line   color.Color
+
+	hoverReadout bool // enables the hover marker/guide/tooltip
 
 	renderer *chartRenderer // for lightweight hover updates
 	hovering bool
@@ -97,8 +101,15 @@ func (c *chart) CreateRenderer() fyne.WidgetRenderer {
 	tipBg.CornerRadius = 4
 	tipText := canvas.NewText("", theme.Color(theme.ColorNameForeground))
 	tipText.TextSize = axisTextSize
+	tipPct := canvas.NewText("", colorNeutral)
+	tipPct.TextSize = axisTextSize
+	timeBg := canvas.NewRectangle(colorHover)
+	timeBg.CornerRadius = 4
+	timeLbl := canvas.NewText("", theme.Color(theme.ColorNameForeground))
+	timeLbl.TextSize = axisTextSize
 	r := &chartRenderer{
 		chart: c, bg: bg, dot: dot, tipBg: tipBg, tipText: tipText,
+		tipPct: tipPct, timeBg: timeBg, timeLbl: timeLbl,
 		objects: []fyne.CanvasObject{bg},
 	}
 	c.renderer = r
@@ -110,13 +121,20 @@ type chartRenderer struct {
 	bg      *canvas.Rectangle
 	objects []fyne.CanvasObject
 
-	// Hover readout state: the plotted points (absolute coordinates) and their
-	// values, cached by rebuild, plus the marker/tooltip canvas objects.
-	hoverPts  []fyne.Position
-	hoverVals []float64
-	dot       *canvas.Circle
-	tipBg     *canvas.Rectangle
-	tipText   *canvas.Text
+	// Hover readout state (only populated when chart.hoverReadout is set):
+	// the plotted points (absolute coordinates) and their values, cached by
+	// rebuild, plus the marker/guide/tooltip canvas objects.
+	hoverPts   []fyne.Position
+	hoverVals  []float64
+	plotH      float32        // plot-area height of the last rebuild
+	vDashes    []*canvas.Line // pooled segments of the vertical guide
+	dot        *canvas.Circle
+	tipBg      *canvas.Rectangle
+	tipText    *canvas.Text // hovered price
+	tipPct     *canvas.Text // % change versus the previous close
+	timeBg     *canvas.Rectangle
+	timeLbl    *canvas.Text // hovered time/date on the x axis
+	hoverShown bool
 }
 
 func (r *chartRenderer) Layout(size fyne.Size) {
@@ -140,10 +158,13 @@ func (r *chartRenderer) Destroy() {}
 // margin (time labels); margins collapse to zero when there is nothing to draw.
 func (r *chartRenderer) rebuild(size fyne.Size) {
 	objs := []fyne.CanvasObject{r.bg}
-	r.hoverPts, r.hoverVals = nil, nil
+	r.hoverPts, r.hoverVals, r.vDashes = nil, nil, nil
 	defer func() {
-		if len(r.hoverPts) > 0 { // keep the hover marker/tooltip on top
-			objs = append(objs, r.tipBg, r.tipText, r.dot)
+		if len(r.hoverPts) > 0 { // keep the hover guide/marker/tooltip on top
+			for _, ln := range r.vDashes {
+				objs = append(objs, ln)
+			}
+			objs = append(objs, r.timeBg, r.timeLbl, r.tipBg, r.tipText, r.tipPct, r.dot)
 		}
 		r.objects = objs
 	}()
@@ -223,12 +244,22 @@ func (r *chartRenderer) rebuild(size fyne.Size) {
 		pts = plotPath(values, xFracs(s), plotW, plotH, chartPadding, lo, hi)
 	}
 
-	// Cache the plotted points (absolute coordinates) for the hover readout.
-	if pts != nil {
+	// Cache the plotted points (absolute coordinates) for the hover readout
+	// and pool the vertical guide's dash segments for the plot height.
+	r.plotH = plotH
+	if pts != nil && r.chart.hoverReadout {
 		r.hoverVals = values
 		r.hoverPts = make([]fyne.Position, len(pts))
 		for i, p := range pts {
 			r.hoverPts[i] = fyne.NewPos(p.X+leftMargin, p.Y)
+		}
+		n := int((plotH-2*chartPadding)/(dashLen+dashGap)) + 1
+		r.vDashes = make([]*canvas.Line, 0, n)
+		for k := 0; k < n; k++ {
+			ln := canvas.NewLine(colorAxis)
+			ln.StrokeWidth = 1
+			ln.Hide()
+			r.vDashes = append(r.vDashes, ln)
 		}
 	}
 
@@ -320,34 +351,94 @@ func (r *chartRenderer) rebuild(size fyne.Size) {
 	}
 }
 
-// updateHover repositions the hover marker dot and its price tooltip for the
-// current pointer position — a lightweight path that avoids rebuilding the
-// chart. Both are hidden when the pointer leaves or there is nothing plotted.
+// updateHover repositions the hover readout — marker dot, vertical dashed
+// guide, x-axis time label, and the price/% tooltip — for the current pointer
+// position. It is a lightweight path that avoids rebuilding the chart, and
+// hides everything when the pointer leaves or there is nothing plotted.
 func (r *chartRenderer) updateHover() {
 	c := r.chart
 	if !c.hovering || len(r.hoverPts) == 0 {
+		if !r.hoverShown {
+			return
+		}
+		r.hoverShown = false
 		r.dot.Hide()
 		r.tipBg.Hide()
 		r.tipText.Hide()
-		canvas.Refresh(r.dot)
-		canvas.Refresh(r.tipBg)
-		canvas.Refresh(r.tipText)
+		r.tipPct.Hide()
+		r.timeBg.Hide()
+		r.timeLbl.Hide()
+		for _, ln := range r.vDashes {
+			ln.Hide()
+		}
+		canvas.Refresh(c)
 		return
 	}
 	i := nearestPoint(r.hoverPts, c.hoverAt.X)
 	p := r.hoverPts[i]
+	s := c.series
+	size := c.Size()
 
+	// Vertical dashed guide through the hovered point, spanning the plot.
+	k := 0
+	for y := float32(chartPadding); y < r.plotH-chartPadding && k < len(r.vDashes); y += dashLen + dashGap {
+		end := y + dashLen
+		if m := r.plotH - chartPadding; end > m {
+			end = m
+		}
+		ln := r.vDashes[k]
+		ln.Position1 = fyne.NewPos(p.X, y)
+		ln.Position2 = fyne.NewPos(p.X, end)
+		ln.Show()
+		k++
+	}
+	for ; k < len(r.vDashes); k++ {
+		r.vDashes[k].Hide()
+	}
+
+	// Marker dot on the hovered data point.
 	r.dot.FillColor = c.line
 	r.dot.Position1 = fyne.NewPos(p.X-dotRadius, p.Y-dotRadius)
 	r.dot.Position2 = fyne.NewPos(p.X+dotRadius, p.Y+dotRadius)
 	r.dot.Show()
-	canvas.Refresh(r.dot)
 
+	// Time/date of the hovered point, boxed on the x axis under the guide.
+	r.timeLbl.Text = s.Candles[i].Time.In(time.Local).Format(hoverTimeFormat(s.Range))
+	ls := fyne.MeasureText(r.timeLbl.Text, axisTextSize, fyne.TextStyle{})
+	lw, lh := ls.Width+2*tipPad, ls.Height+2
+	lx := p.X - lw/2
+	if lx < 0 {
+		lx = 0
+	}
+	if lx+lw > size.Width {
+		lx = size.Width - lw
+	}
+	ly := r.plotH + (size.Height-r.plotH-lh)/2 // centered in the axis strip
+	r.timeBg.Resize(fyne.NewSize(lw, lh))
+	r.timeBg.Move(fyne.NewPos(lx, ly))
+	r.timeBg.Show()
+	r.timeLbl.Move(fyne.NewPos(lx+tipPad, ly+1))
+	r.timeLbl.Show()
+
+	// Tooltip: the price, and under it the % change versus the previous close
+	// (the dashed reference line), green for above and red for below.
 	r.tipText.Text = formatAxisPrice(r.hoverVals[i])
 	ts := fyne.MeasureText(r.tipText.Text, axisTextSize, fyne.TextStyle{})
-	w := ts.Width + 2*tipPad
-	h := ts.Height + 2*tipPad
-	size := c.Size()
+	tw, th := ts.Width, ts.Height
+	showPct := s.PreviousClose > 0
+	if showPct {
+		pct := (r.hoverVals[i] - s.PreviousClose) / s.PreviousClose * 100
+		col, sign := changeStyle(pct)
+		r.tipPct.Text = fmt.Sprintf("%s%.2f%%", sign, pct)
+		r.tipPct.Color = col
+		ps := fyne.MeasureText(r.tipPct.Text, axisTextSize, fyne.TextStyle{})
+		if ps.Width > tw {
+			tw = ps.Width
+		}
+		th += ps.Height
+	}
+	w := tw + 2*tipPad
+	h := th + 2*tipPad
 	x := p.X - w/2
 	if x < 0 {
 		x = 0
@@ -362,10 +453,31 @@ func (r *chartRenderer) updateHover() {
 	r.tipBg.Resize(fyne.NewSize(w, h))
 	r.tipBg.Move(fyne.NewPos(x, y))
 	r.tipBg.Show()
-	canvas.Refresh(r.tipBg)
 	r.tipText.Move(fyne.NewPos(x+tipPad, y+tipPad))
 	r.tipText.Show()
-	canvas.Refresh(r.tipText)
+	if showPct {
+		r.tipPct.Move(fyne.NewPos(x+tipPad, y+tipPad+ts.Height))
+		r.tipPct.Show()
+	} else {
+		r.tipPct.Hide()
+	}
+
+	r.hoverShown = true
+	canvas.Refresh(c)
+}
+
+// hoverTimeFormat maps a chart range to the format of the hover guide's
+// x-axis label: clock time intraday, calendar dates beyond, with the year for
+// multi-year spans.
+func hoverTimeFormat(r model.Range) string {
+	switch r {
+	case model.Range1D:
+		return "15:04"
+	case model.Range5D, model.Range1W, model.Range1M:
+		return "Mon, 02 Jan"
+	default: // YTD, 1Y, 5Y, ALL
+		return "02 Jan 2006"
+	}
 }
 
 // nearestPoint returns the index of the point whose x coordinate is closest

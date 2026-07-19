@@ -36,7 +36,7 @@ const appID = "com.github.mariostoilov.simplestonks"
 
 // appVersion is the released application version, shown in the About dialog.
 // Keep it in sync with the `version` key in snap/snapcraft.yaml.
-const appVersion = "1.0.0"
+const appVersion = "1.0.1"
 
 // fetchTimeout bounds a single provider request.
 const fetchTimeout = 15 * time.Second
