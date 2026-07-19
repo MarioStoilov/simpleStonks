@@ -17,9 +17,10 @@ import (
 // reflow to the available width, reload when the tracked list changes, and
 // refresh (with price flashes) on the periodic tick.
 type homeView struct {
-	quotes provider.QuoteProvider
-	store  *config.Store
-	onOpen func(symbol string) // opens the detail view
+	quotes         provider.QuoteProvider
+	store          *config.Store
+	onOpen         func(symbol string) // opens the detail view
+	onOpenSettings func()
 
 	root       *qt.QWidget
 	editButton *qt.QPushButton
@@ -63,6 +64,22 @@ func newHomeView(parent *qt.QWidget, quotes provider.QuoteProvider, store *confi
 		showSearchDialog(root, home.quotes, home.store)
 	})
 	bar.AddWidget(addButton.QWidget)
+	settingsButton := qt.NewQPushButton5("⚙", root)
+	settingsButton.SetStyleSheet(dialogButtonStyle(false))
+	settingsButton.SetCursor(qt.NewQCursor2(qt.PointingHandCursor))
+	settingsButton.OnClicked(func() {
+		if home.onOpenSettings != nil {
+			home.onOpenSettings()
+		}
+	})
+	bar.AddWidget(settingsButton.QWidget)
+	aboutButton := qt.NewQPushButton5("ⓘ", root)
+	aboutButton.SetStyleSheet(dialogButtonStyle(false))
+	aboutButton.SetCursor(qt.NewQCursor2(qt.PointingHandCursor))
+	aboutButton.OnClicked(func() {
+		showAboutDialog(root)
+	})
+	bar.AddWidget(aboutButton.QWidget)
 	rootLayout.AddLayout(bar.QLayout)
 
 	scroll := qt.NewQScrollArea(root)

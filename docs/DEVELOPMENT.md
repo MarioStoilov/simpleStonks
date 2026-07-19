@@ -253,7 +253,7 @@ Progress is recorded in `git log`; the short version:
   `internal/constants` — keep in sync with snapcraft.yaml on release),
   GitHub/license links, and the data disclaimer.
 - App logo: a minimalist line-chart SVG (green above the X axis, red below,
-  with matching semi-transparent area fills) at `internal/ui/icon.svg` — a
+  with matching semi-transparent area fills) at `internal/assets/icon.svg` — a
   single source embedded into the binary as the window/app icon (see
   `internal/ui/app.go`) and referenced by the `icon:` key in
   `snap/snapcraft.yaml`. Known limitation: on a native **Wayland** session dev

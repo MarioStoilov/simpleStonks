@@ -5,6 +5,7 @@ package qtui
 
 import (
 	"fmt"
+	"image/color"
 	"os"
 	"time"
 
@@ -74,6 +75,12 @@ func (app *App) Run() {
 	rootLayout.AddLayout(topBar.QLayout)
 
 	app.home = newHomeView(card, app.quotes, app.store)
+	app.home.onOpenSettings = func() {
+		showSettingsDialog(window, app.store, app.applyBackgroundStyle)
+		// Revert any unsaved appearance preview to the persisted values (a
+		// save also lands here, harmlessly re-applying the new config).
+		app.applyConfig(app.store.Get())
+	}
 	app.detail = newDetailView(card, app.quotes, app.store, func() {
 		app.stack.SetCurrentWidget(app.home.root)
 	})
@@ -143,6 +150,16 @@ func (app *App) Run() {
 	qt.QApplication_Exec()
 }
 
+// applyBackgroundStyle paints the card with a background color at an opacity
+// (also used by the settings dialog's live preview).
+func (app *App) applyBackgroundStyle(background color.NRGBA, opacity float64) {
+	app.card.SetStyleSheet(fmt.Sprintf(
+		"#card { background-color: %s; border-radius: %dpx; } QLabel { color: %s; }",
+		cssRGBA(background, alphaByte(opacity)),
+		int(constants.TileCornerRadius),
+		cssRGB(constants.ColorForeground)))
+}
+
 // applyConfig applies a config snapshot: background styling, tracked symbols,
 // and the refresh cadence. Runs on the UI thread.
 func (app *App) applyConfig(cfg config.Config) {
@@ -154,11 +171,7 @@ func (app *App) applyConfig(cfg config.Config) {
 	if opacity < 0 || opacity > 1 {
 		opacity = constants.DefaultBackgroundOpacity
 	}
-	app.card.SetStyleSheet(fmt.Sprintf(
-		"#card { background-color: %s; border-radius: %dpx; } QLabel { color: %s; }",
-		cssRGBA(background, alphaByte(opacity)),
-		int(constants.TileCornerRadius),
-		cssRGB(constants.ColorForeground)))
+	app.applyBackgroundStyle(background, opacity)
 
 	app.home.setSymbols(cfg.Symbols)
 	if app.detail != nil {

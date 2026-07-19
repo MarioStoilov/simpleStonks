@@ -9,7 +9,6 @@ package ui
 
 import (
 	"context"
-	_ "embed"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -17,20 +16,15 @@ import (
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/widget"
 
+	"github.com/MarioStoilov/simplestonks/internal/assets"
 	"github.com/MarioStoilov/simplestonks/internal/config"
 	"github.com/MarioStoilov/simplestonks/internal/constants"
 	"github.com/MarioStoilov/simplestonks/internal/model"
 	"github.com/MarioStoilov/simplestonks/internal/provider"
 )
 
-// iconSVG is the app logo, bundled into the binary. The same file is the snap
-// icon (referenced by snap/snapcraft.yaml).
-//
-//go:embed icon.svg
-var iconSVG []byte
-
 // appIcon is the logo as a Fyne resource, used as the icon of every window.
-var appIcon = fyne.NewStaticResource("icon.svg", iconSVG)
+var appIcon = fyne.NewStaticResource("icon.svg", assets.IconSVG)
 
 type screenKind int
 
