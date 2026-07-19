@@ -116,6 +116,14 @@ const (
 	FlashDuration = 900 * time.Millisecond
 )
 
+// --- Frontend events (Wails) ---
+
+const (
+	// EventConfigChanged notifies the frontend that the persisted config
+	// changed (UI edit or external file edit); it carries the new config.
+	EventConfigChanged = "configChanged"
+)
+
 // --- Formats (time layouts, numbers) ---
 
 const (
