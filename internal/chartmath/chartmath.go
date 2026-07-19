@@ -84,6 +84,30 @@ func HoverTimeFormat(rng model.Range) string {
 // FormatAxisPrice formats a y-axis price label.
 func FormatAxisPrice(value float64) string { return fmt.Sprintf(constants.FmtPrice, value) }
 
+// ValueBounds returns the [low, high] value scale for a plot of values,
+// widened to include the previous close (the dashed reference line) when
+// known. values must be non-empty.
+func ValueBounds(values []float64, previousClose float64) (low, high float64) {
+	low, high = values[0], values[0]
+	for _, value := range values {
+		if value < low {
+			low = value
+		}
+		if value > high {
+			high = value
+		}
+	}
+	if previousClose > 0 {
+		if previousClose < low {
+			low = previousClose
+		}
+		if previousClose > high {
+			high = previousClose
+		}
+	}
+	return low, high
+}
+
 // ClosesOf extracts the closing prices from a series.
 func ClosesOf(series model.Series) []float64 {
 	out := make([]float64, len(series.Candles))

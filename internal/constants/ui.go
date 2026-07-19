@@ -55,6 +55,18 @@ const (
 	// TooltipOffset shifts a hover tooltip away from the pointer.
 	TooltipOffset = 10
 
+	// ResizeGripMargin is how many pixels of a frameless window's edge act
+	// as an invisible resize grip.
+	ResizeGripMargin = 8
+
+	// SidebarTileHeight is the minimum height of the compact tiles in the
+	// detail view's sidebar.
+	SidebarTileHeight = 150
+
+	// ScrollBarWidth/ScrollBarMinHandle size the slim overlay scrollbars.
+	ScrollBarWidth     = 8
+	ScrollBarMinHandle = 24
+
 	// ChartPadding insets the plot area inside the chart widget.
 	ChartPadding = 4
 
@@ -127,6 +139,9 @@ var (
 
 	// ColorAxis colors chart axis labels and reference lines.
 	ColorAxis = color.NRGBA{R: 0x6e, G: 0x72, B: 0x7e, A: 0xff}
+
+	// ColorForeground is the default text color on the dark palette.
+	ColorForeground = color.NRGBA{R: 0xe6, G: 0xe6, B: 0xe6, A: 0xff}
 
 	// ColorChartBg is the chart plot background.
 	ColorChartBg = color.NRGBA{R: 0x1e, G: 0x1e, B: 0x24, A: 0xff}
