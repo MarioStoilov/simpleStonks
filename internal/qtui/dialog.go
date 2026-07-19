@@ -34,6 +34,12 @@ func newCardDialog(parent *qt.QWidget, title string) (*qt.QDialog, *qt.QVBoxLayo
 	bar := qt.NewQHBoxLayout2()
 	titleLabel := qt.NewQLabel5(title, card.QWidget)
 	titleLabel.SetStyleSheet("background: transparent; font-weight: 600;")
+	// Dragging is confined to the title label: a whole-dialog drag handler
+	// would swallow presses meant for interactive content (e.g. the About
+	// dialog's links, whose activation fires on release).
+	titleLabel.OnMousePressEvent(func(super func(event *qt.QMouseEvent), event *qt.QMouseEvent) {
+		dialog.WindowHandle().StartSystemMove()
+	})
 	bar.AddWidget(titleLabel.QWidget)
 	bar.AddStretch()
 	closeButton := qt.NewQPushButton5("✕", card.QWidget)
@@ -42,10 +48,6 @@ func newCardDialog(parent *qt.QWidget, title string) (*qt.QDialog, *qt.QVBoxLayo
 	closeButton.OnClicked(func() { dialog.Reject() })
 	bar.AddWidget(closeButton.QWidget)
 	body.AddLayout(bar.QLayout)
-
-	dialog.OnMousePressEvent(func(super func(event *qt.QMouseEvent), event *qt.QMouseEvent) {
-		dialog.WindowHandle().StartSystemMove()
-	})
 
 	return dialog, body
 }
