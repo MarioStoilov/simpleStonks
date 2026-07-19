@@ -19,9 +19,38 @@ body,
 
 body {
   margin: 0;
-  background: #171718; /* DefaultBackgroundColor */
+  background: #171718; /* DefaultBackgroundColor; overridden live from config */
   color: #e6e6e6;
   overflow: hidden;
   user-select: none;
   cursor: default;
+  border-radius: 6px; /* rounded corners against the transparent window */
+}
+
+/* Frameless-window drag regions (read by the Wails runtime). */
+.drag {
+  --wails-draggable: drag;
+}
+
+.no-drag {
+  --wails-draggable: no-drag;
+}
+
+/* Slim dark scrollbars matching the widget look. */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2c303c; /* COLOR_HOVER */
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #303a52; /* COLOR_SELECTED */
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
 }

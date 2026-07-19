@@ -8,10 +8,10 @@ import (
 	"embed"
 	"log"
 	"log/slog"
-	"strconv"
-	"strings"
+	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
+	"github.com/wailsapp/wails/v3/pkg/events"
 
 	"github.com/MarioStoilov/simplestonks/internal/config"
 	"github.com/MarioStoilov/simplestonks/internal/constants"
@@ -61,12 +61,38 @@ func main() {
 		app.Event.Emit(constants.EventConfigChanged, cfg)
 	})
 
-	app.Window.NewWithOptions(application.WebviewWindowOptions{
+	// Frameless + transparent window: the page's body background (the config
+	// color at the config opacity, applied by the frontend) is all that
+	// renders behind the UI, giving the translucent widget look that
+	// motivated the Wails rewrite. The frontend supplies drag regions and
+	// window controls in place of the missing decorations.
+	window := app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title:            constants.AppName,
 		Width:            constants.MainWindowWidth,
 		Height:           constants.MainWindowHeight,
-		BackgroundColour: backgroundColour(store.Get()),
-		URL:              "/",
+		Frameless:        true,
+		BackgroundType:   application.BackgroundTypeTransparent,
+		BackgroundColour: application.NewRGBA(0, 0, 0, 0),
+		Linux: application.LinuxWindow{
+			// Software rendering for the webview: WebKitGTK's GPU path
+			// produces stale-buffer artifacts (and unreliable window alpha)
+			// on NVIDIA; this app's UI is light enough to paint on the CPU.
+			WebviewGpuPolicy: application.WebviewGpuPolicyNever,
+		},
+		URL: "/",
+	})
+
+	// Workaround: the GTK4/WebKitGTK backend of Wails v3-alpha only starts
+	// honoring the transparent window background after the surface has been
+	// resized once (observed on KWin/Wayland + NVIDIA). Nudge the size right
+	// after startup so transparency applies without a manual resize.
+	app.Event.OnApplicationEvent(events.Common.ApplicationStarted, func(event *application.ApplicationEvent) {
+		go func() {
+			time.Sleep(constants.WindowTransparencyNudgeDelay)
+			width, height := window.Size()
+			window.SetSize(width+1, height)
+			window.SetSize(width, height)
+		}()
 	})
 
 	slog.Info("simplestonks starting", "symbols", len(store.Get().Symbols))
@@ -91,27 +117,4 @@ func openLogger(logCfg config.Logging) *logging.Logger {
 		}
 	}
 	return logger
-}
-
-// backgroundColour converts the configured "#RRGGBB" background color (falling
-// back to the default on a malformed value) into the window background.
-func backgroundColour(cfg config.Config) application.RGBA {
-	packed, ok := parseHexRGB(cfg.Background.Color)
-	if !ok {
-		packed, _ = parseHexRGB(constants.DefaultBackgroundColor)
-	}
-	return application.NewRGB(uint8(packed>>16), uint8(packed>>8), uint8(packed))
-}
-
-// parseHexRGB parses a "#RRGGBB" string into a packed 0xRRGGBB value.
-func parseHexRGB(hex string) (uint32, bool) {
-	trimmed := strings.TrimPrefix(hex, "#")
-	if len(trimmed) != len("RRGGBB") {
-		return 0, false
-	}
-	packed, err := strconv.ParseUint(trimmed, 16, 32)
-	if err != nil {
-		return 0, false
-	}
-	return uint32(packed), true
 }

@@ -3,6 +3,7 @@
   import Chart from './Chart.svelte';
   import Price from './Price.svelte';
   import Tile from './Tile.svelte';
+  import WindowControls from './WindowControls.svelte';
   import {priceChange} from './lib/format';
   import {COLOR_DOWN, COLOR_NEUTRAL, COLOR_UP, MSG_UNAVAILABLE} from './lib/constants';
   import {RANGES, lastClose, loadHistory} from './lib/market';
@@ -94,8 +95,8 @@
     {/each}
   </aside>
   <section class="main">
-    <header class="head">
-      <button class="back" onclick={onback} aria-label="Back">←</button>
+    <header class="head drag">
+      <button class="back no-drag" onclick={onback} aria-label="Back">←</button>
       <div class="ident">
         <span class="symbol">{symbol}</span>
         {#if main?.series?.Name}<span class="name">{main.series.Name}</span>{/if}
@@ -108,6 +109,7 @@
           {failed ? MSG_UNAVAILABLE : (change?.text ?? '')}
         </span>
       </div>
+      <WindowControls />
     </header>
     <nav class="ranges">
       {#each RANGES as rangeOption (rangeOption)}

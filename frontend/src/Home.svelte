@@ -3,6 +3,7 @@
   import {Settings} from '../bindings/github.com/MarioStoilov/simplestonks/internal/service';
   import SearchDialog from './SearchDialog.svelte';
   import Tile from './Tile.svelte';
+  import WindowControls from './WindowControls.svelte';
   import {loadHistory} from './lib/market';
   import type {HistoryResult} from './lib/market';
 
@@ -57,9 +58,9 @@
 </script>
 
 <div class="home">
-  <div class="topbar">
+  <div class="topbar drag">
     <button
-      class="bar-btn"
+      class="bar-btn no-drag"
       class:active={editing}
       onclick={() => {
         editing = !editing;
@@ -68,14 +69,15 @@
       {editing ? 'Done' : 'Edit'}
     </button>
     <button
-      class="bar-btn"
+      class="bar-btn no-drag"
       onclick={() => {
         searchOpen = true;
       }}
     >
       + Add
     </button>
-    <button class="bar-btn" onclick={onopensettings} aria-label="Settings">⚙</button>
+    <button class="bar-btn no-drag" onclick={onopensettings} aria-label="Settings">⚙</button>
+    <WindowControls />
   </div>
   <div class="grid">
     {#each symbols as symbol, index (symbol)}

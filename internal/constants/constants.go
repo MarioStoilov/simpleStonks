@@ -114,6 +114,10 @@ const (
 
 	// FlashDuration is how long a price-update flash takes to fade out.
 	FlashDuration = 900 * time.Millisecond
+
+	// WindowTransparencyNudgeDelay is how long after startup the window is
+	// size-nudged to activate transparency (see the workaround in main.go).
+	WindowTransparencyNudgeDelay = 500 * time.Millisecond
 )
 
 // --- Frontend events (Wails) ---
