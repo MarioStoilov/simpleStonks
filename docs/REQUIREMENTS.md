@@ -22,7 +22,7 @@ and the list plus other settings are persisted to a config file.
 | Area | Decision |
 |------|----------|
 | Language / runtime | Go |
-| GUI toolkit | Fyne (pure Go, self-contained, snap-friendly) |
+| GUI toolkit | Qt 6 via miqt bindings (frameless translucent widget look; supersedes Fyne, which could not do transparent windows on Linux — see the ui_rewrite branches) |
 | Distribution | Snap Store (snapcraft) |
 | Data provider | Free/keyless. First implementation uses the Yahoo Finance chart endpoint (`v8/finance/chart`), behind a swappable provider interface. The swap capability is internal only — not advertised and not a committed feature. |
 | Chart ranges | **1D with live ticking** is the default. The full range toggles (**1D, 5D, 1W, 1M, YTD, 1Y, 5Y, ALL**) appear in the **detail view**; home-grid cells are 1D-only. |
@@ -128,7 +128,7 @@ Deferred (architected-for, not built in v1):
   tickers (e.g. `AAPL`).
 - **Live-tick interval:** configurable; default ~30–60s. Only meaningful for the 1D
   view during market hours.
-- **Platform:** Linux-primary (snap target). Fyne keeps cross-platform open, but no
+- **Platform:** Linux-primary (snap target). Qt keeps cross-platform open, but no
   extra effort is spent on other platforms in v1.
 - **License:** MIT (see `LICENSE`; the copyright notice carries the repo URL so
   attribution travels with forks/copies).
@@ -157,7 +157,7 @@ Implementation notes:
 - A malformed external edit is logged and ignored, keeping the last-good config;
   the UI is never left blank or crashed.
 - Reloads arrive on a background goroutine, so UI subscribers marshal their work
-  onto the UI thread (Fyne's `fyne.Do`); the `config` package has no UI
+  onto the UI thread (miqt's `mainthread.Wait`); the `config` package has no UI
   dependency.
 
 ## Symbol management (edit mode & live search)
@@ -266,9 +266,11 @@ simpleStonks/
 │   │   ├── provider.go             # interface + types (Quote, Candle, Range)
 │   │   └── yahoo.go
 │   ├── model/                      # domain types, range definitions
-│   └── ui/                         # Fyne UI: grid view, chart widget, settings, symbol mgmt
+│   ├── chartmath/                  # toolkit-neutral chart geometry/ticks (unit tested)
+│   ├── assets/                     # embedded logo shared by UI and snap metadata
+│   └── qtui/                       # Qt UI: grid, detail, dialogs, frameless chrome
 │       ├── app.go
-│       ├── gridview.go
+│       ├── home.go
 │       ├── chart.go
 │       └── settings.go
 ├── snap/snapcraft.yaml             # snap packaging
@@ -280,9 +282,9 @@ simpleStonks/
 └── CLAUDE.md
 ```
 
-The `provider` package's interface is the seam for swapping data sources. The `ui`
-package is split so that grid-vs-list layout and window-vs-widget form factor are
-pluggable modes rather than hardcoded choices.
+The `provider` package's interface is the seam for swapping data sources. The
+`qtui` package is split so that grid-vs-list layout and window-vs-widget form
+factor are pluggable modes rather than hardcoded choices.
 
 ## Implemented so far
 
@@ -306,8 +308,8 @@ The core MVP + polish scope is in place:
 The MVP is **shipped**: v1.0.0 is published on the Snap Store `stable` channel
 (name `simplestonks`, `grade: stable`, strict confinement; earlier 0.2.x
 revisions went through `edge`). Known limitation: the window titlebar icon
-stays generic under native Wayland (Fyne/Wayland limitation); the desktop
-entry/taskbar icon works.
+stays generic under native Wayland (apps cannot set their own window icon
+there); the desktop entry/taskbar icon works.
 
 Deferred features / polish:
 

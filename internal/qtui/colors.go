@@ -3,6 +3,8 @@ package qtui
 import (
 	"fmt"
 	"image/color"
+	"strconv"
+	"strings"
 
 	qt "github.com/mappu/miqt/qt6"
 
@@ -63,15 +65,16 @@ func changeStyle(change float64) (color.NRGBA, string) {
 	}
 }
 
-// parseHexColor parses "#RRGGBB" into an opaque color; reports ok=false on
-// malformed input.
+// parseHexColor parses "#RRGGBB" (the "#" and surrounding space optional,
+// case-insensitive) into an opaque color; reports ok=false on malformed input.
 func parseHexColor(hex string) (color.NRGBA, bool) {
-	if len(hex) != len("#RRGGBB") || hex[0] != '#' {
+	trimmed := strings.TrimPrefix(strings.TrimSpace(hex), "#")
+	if len(trimmed) != len("RRGGBB") {
 		return color.NRGBA{}, false
 	}
-	var red, green, blue uint8
-	if _, err := fmt.Sscanf(hex[1:], "%02x%02x%02x", &red, &green, &blue); err != nil {
+	packed, err := strconv.ParseUint(trimmed, 16, 32)
+	if err != nil {
 		return color.NRGBA{}, false
 	}
-	return color.NRGBA{R: red, G: green, B: blue, A: 0xff}, true
+	return color.NRGBA{R: uint8(packed >> 16), G: uint8(packed >> 8), B: uint8(packed), A: 0xff}, true
 }

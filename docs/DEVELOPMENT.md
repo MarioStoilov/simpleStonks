@@ -22,22 +22,24 @@ Anything not pushed does not exist on the other side.
 |------|-----------------|
 | Go | 1.23+ (module targets `go 1.23.5`) |
 | Git | any recent version |
-| C toolchain + GUI dev headers | required to build the Fyne UI (cgo) |
+| C toolchain + Qt 6 dev headers | required to build the Qt UI (cgo via miqt) |
 | snapcraft | only needed to build the snap package |
 
 ### System build dependencies (Linux)
 
-The Fyne UI links against OpenGL/X11/Wayland via cgo, so these OS packages are
-required to `go build ./...`. On Debian/Ubuntu:
+The Qt UI (miqt bindings) compiles against Qt 6 via cgo, so these OS packages
+are required to `go build ./...`. On Debian/Ubuntu:
 
 ```sh
-sudo apt install pkg-config gcc \
-  libgl1-mesa-dev xorg-dev libwayland-dev libxkbcommon-dev
+sudo apt install pkg-config gcc qt6-base-dev
 ```
 
-Without these, the non-UI packages (`config`, `logging`, `model`, `provider`)
-still build and test, but the `ui` package and the `cmd/simplestonks` binary do
-not.
+The runtime also wants `libqt6svg6` (the Qt SVG image plugin) so the About
+dialog can render the embedded logo. Without the dev packages, the non-UI
+packages (`config`, `logging`, `model`, `provider`, `chartmath`) still build
+and test, but the `qtui` package and the `cmd/simplestonks` binary do not.
+The first build compiles the miqt wrappers and takes several minutes; strip
+release binaries with `-ldflags="-s -w"`.
 
 For the snap build only:
 
@@ -254,13 +256,11 @@ Progress is recorded in `git log`; the short version:
   GitHub/license links, and the data disclaimer.
 - App logo: a minimalist line-chart SVG (green above the X axis, red below,
   with matching semi-transparent area fills) at `internal/assets/icon.svg` — a
-  single source embedded into the binary as the window/app icon (see
-  `internal/ui/app.go`) and referenced by the `icon:` key in
-  `snap/snapcraft.yaml`. Known limitation: on a native **Wayland** session dev
-  runs show a placeholder icon — Wayland forbids apps setting their own window
-  icon, and Fyne 2.8 no-ops `SetIcon` there and sets no Wayland `app_id` for a
-  `.desktop`-file match. The icon does show on X11/XWayland, Windows, macOS,
-  and in the packaged snap via its desktop entry
+  single source embedded into the binary (`internal/assets`), shown in the
+  About dialog, and referenced by the `icon:` key in `snap/snapcraft.yaml`.
+  Known limitation: on a native **Wayland** session dev runs show a
+  placeholder window icon — Wayland forbids apps setting their own window
+  icon. The packaged snap gets its icon via the desktop entry
   (`snap/gui/simplestonks.desktop`).
 - Snap packaging verified: `snapcraft pack` builds cleanly in LXD (needs the
   Wayland dev packages in `build-packages`; on hosts running Docker, allow
