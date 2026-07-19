@@ -5,6 +5,8 @@
   import type {Config} from '../bindings/github.com/MarioStoilov/simplestonks/internal/config';
   import Home from './Home.svelte';
   import Detail from './Detail.svelte';
+  import SettingsDialog from './SettingsDialog.svelte';
+  import {applyBackground} from './lib/background';
   import {DEFAULT_REFRESH_MS, EVENT_CONFIG_CHANGED} from './lib/constants';
 
   // App is the view shell: it owns the config snapshot (kept live through the
@@ -15,6 +17,14 @@
   let cfg = $state<Config | null>(null);
   let loadError: string = $state('');
   let view = $state<View>({kind: 'home'});
+  let settingsOpen = $state(false);
+
+  // Apply the persisted background whenever the config changes.
+  $effect(() => {
+    if (cfg) {
+      applyBackground(cfg.background);
+    }
+  });
 
   const NS_PER_MS = 1_000_000; // config.refreshInterval is a Go time.Duration (ns)
   const refreshMs = $derived(
@@ -56,7 +66,24 @@
       />
     {/key}
   {:else}
-    <Home symbols={cfg.symbols ?? []} {refreshMs} onopen={openDetail} />
+    <Home
+      symbols={cfg.symbols ?? []}
+      {refreshMs}
+      onopen={openDetail}
+      onopensettings={() => {
+        settingsOpen = true;
+      }}
+    />
+  {/if}
+  {#if settingsOpen}
+    <SettingsDialog
+      {cfg}
+      onclose={() => {
+        settingsOpen = false;
+        // Revert any unsaved appearance preview to the persisted values.
+        applyBackground(cfg?.background);
+      }}
+    />
   {/if}
 {:else if loadError}
   <p class="error">{loadError}</p>

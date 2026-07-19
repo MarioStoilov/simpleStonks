@@ -16,11 +16,23 @@ import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wails
 // @ts-ignore: Unused imports
 import * as config$0 from "../config/models.js";
 
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as $models from "./models.js";
+
 /**
  * AddSymbol appends a symbol to the tracked list, ignoring duplicates.
  */
 export function AddSymbol($symbol: string): $CancellablePromise<void> {
     return $Call.ByID(1276670043, $symbol);
+}
+
+/**
+ * DefaultLogPath returns the default log file location, shown by the settings
+ * view as the placeholder for a blank log-file field.
+ */
+export function DefaultLogPath(): $CancellablePromise<string> {
+    return $Call.ByID(919835194);
 }
 
 /**
@@ -43,4 +55,11 @@ export function MoveSymbol(index: number, delta: number): $CancellablePromise<vo
  */
 export function RemoveSymbol($symbol: string): $CancellablePromise<void> {
     return $Call.ByID(1797664500, $symbol);
+}
+
+/**
+ * Save persists the settings-view fields in a single config update.
+ */
+export function Save(edited: $models.UISettings): $CancellablePromise<void> {
+    return $Call.ByID(1546793717, edited);
 }

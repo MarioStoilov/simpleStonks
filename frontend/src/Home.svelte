@@ -13,10 +13,12 @@
     symbols,
     refreshMs,
     onopen,
+    onopensettings,
   }: {
     symbols: string[];
     refreshMs: number;
     onopen: (symbol: string) => void;
+    onopensettings: () => void;
   } = $props();
 
   let entries: Record<string, HistoryResult> = $state({});
@@ -73,6 +75,7 @@
     >
       + Add
     </button>
+    <button class="bar-btn" onclick={onopensettings} aria-label="Settings">⚙</button>
   </div>
   <div class="grid">
     {#each symbols as symbol, index (symbol)}

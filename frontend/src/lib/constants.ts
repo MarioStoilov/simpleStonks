@@ -55,5 +55,26 @@ export const TIP_ALREADY_TRACKED = 'Already tracking this index';
 export const SEP_TITLE = '  ·  ';
 export const SEP_META = ' · ';
 
+// Settings view (mirrors internal/constants text.go).
+export const TITLE_SETTINGS = 'simpleStonks — Settings';
+export const SECTION_GENERAL = 'General';
+export const SECTION_APPEARANCE = 'Appearance';
+export const SECTION_LOGGING = 'Logging';
+export const LABEL_DEFAULT_RANGE = 'Default range';
+export const LABEL_REFRESH_SECONDS = 'Refresh interval (seconds)';
+export const LABEL_BACKGROUND_COLOR = 'Background color';
+export const LABEL_BACKGROUND_OPACITY = 'Background opacity';
+export const LABEL_LOG_LEVEL = 'Log level';
+export const LABEL_LOG_FILE = 'Log file';
+export const LABEL_LOG_MAX_SIZE = 'Max size (MB)';
+export const LABEL_LOG_ARCHIVES = 'Archives kept';
+export const MSG_ERR_REFRESH_INTERVAL = 'refresh interval must be a whole number of seconds ≥ 1';
+export const MSG_ERR_LOG_MAX_SIZE = 'log max size must be a non-negative whole number of MB';
+export const MSG_ERR_LOG_ARCHIVES = 'log archives kept must be a non-negative whole number';
+
+// Background defaults (mirrors DefaultBackgroundColor/Opacity in storage constants).
+export const DEFAULT_BACKGROUND_COLOR = '#171718';
+export const DEFAULT_BACKGROUND_OPACITY = 1;
+
 // EventConfigChanged mirror (constants.EventConfigChanged on the Go side).
 export const EVENT_CONFIG_CHANGED = 'configChanged';

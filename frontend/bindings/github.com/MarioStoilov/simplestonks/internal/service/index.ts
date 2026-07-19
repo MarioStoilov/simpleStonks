@@ -7,3 +7,7 @@ export {
     Market,
     Settings
 };
+
+export type {
+    UISettings
+} from "./models.js";
