@@ -1,4 +1,6 @@
-// Command simplestonks is the entrypoint for the simpleStonks stock tracker.
+// Command simplestonks is the entrypoint for the simpleStonks stock tracker:
+// it bootstraps the config store, logger, and quote provider, then runs the
+// Qt UI.
 package main
 
 import (
@@ -8,7 +10,7 @@ import (
 	"github.com/MarioStoilov/simplestonks/internal/config"
 	"github.com/MarioStoilov/simplestonks/internal/logging"
 	"github.com/MarioStoilov/simplestonks/internal/provider"
-	"github.com/MarioStoilov/simplestonks/internal/ui"
+	"github.com/MarioStoilov/simplestonks/internal/qtui"
 )
 
 func main() {
@@ -46,5 +48,5 @@ func main() {
 
 	prov := provider.NewYahoo(nil)
 
-	ui.New(prov, store).Run()
+	qtui.New(prov, store).Run()
 }

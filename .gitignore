@@ -19,6 +19,11 @@ vendor/
 go.work
 go.work.sum
 
+# Tool caches / workspace leftovers from the ui_rewrite (Wails) branch
+.task/
+node_modules/
+/frontend/
+
 # Snapcraft build artifacts
 *.snap
 parts/
