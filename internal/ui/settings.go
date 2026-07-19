@@ -20,52 +20,53 @@ import (
 
 // addSymbol appends a symbol (ignoring duplicates) via the config store, which
 // persists it and triggers a UI rebuild through the subscription.
-func (a *App) addSymbol(symbol string) {
-	a.update(func(c *config.Config) {
-		for _, s := range c.Symbols {
-			if s == symbol {
+func (app *App) addSymbol(symbol string) {
+	app.update(func(conf *config.Config) {
+		for _, tracked := range conf.Symbols {
+			if tracked == symbol {
 				return
 			}
 		}
-		c.Symbols = append(c.Symbols, symbol)
+		conf.Symbols = append(conf.Symbols, symbol)
 	})
 }
 
-// moveSymbol swaps the symbol at index i with its neighbor delta positions away
-// (delta is -1 or +1), persisting the new order. Out-of-range moves are no-ops.
-func (a *App) moveSymbol(i, delta int) {
-	j := i + delta
-	a.update(func(c *config.Config) {
-		if i < 0 || i >= len(c.Symbols) || j < 0 || j >= len(c.Symbols) {
+// moveSymbol swaps the symbol at index idx with its neighbor delta positions
+// away (delta is -1 or +1), persisting the new order. Out-of-range moves are
+// no-ops.
+func (app *App) moveSymbol(idx, delta int) {
+	neighbor := idx + delta
+	app.update(func(conf *config.Config) {
+		if idx < 0 || idx >= len(conf.Symbols) || neighbor < 0 || neighbor >= len(conf.Symbols) {
 			return
 		}
-		c.Symbols[i], c.Symbols[j] = c.Symbols[j], c.Symbols[i]
+		conf.Symbols[idx], conf.Symbols[neighbor] = conf.Symbols[neighbor], conf.Symbols[idx]
 	})
 }
 
 // removeSymbol drops a symbol from the tracked list via the config store.
-func (a *App) removeSymbol(symbol string) {
-	a.update(func(c *config.Config) {
-		kept := make([]string, 0, len(c.Symbols))
-		for _, s := range c.Symbols {
-			if s != symbol {
-				kept = append(kept, s)
+func (app *App) removeSymbol(symbol string) {
+	app.update(func(conf *config.Config) {
+		kept := make([]string, 0, len(conf.Symbols))
+		for _, tracked := range conf.Symbols {
+			if tracked != symbol {
+				kept = append(kept, tracked)
 			}
 		}
-		c.Symbols = kept
+		conf.Symbols = kept
 	})
 }
 
 // update applies a config mutation through the store, surfacing any save error
 // on the main window.
-func (a *App) update(mutate func(*config.Config)) {
-	a.updateOn(a.win, mutate)
+func (app *App) update(mutate func(*config.Config)) {
+	app.updateOn(app.win, mutate)
 }
 
-// updateOn applies a config mutation, surfacing any save error on w.
-func (a *App) updateOn(w fyne.Window, mutate func(*config.Config)) {
-	if err := a.store.Update(mutate); err != nil && w != nil {
-		dialog.ShowError(err, w)
+// updateOn applies a config mutation, surfacing any save error on win.
+func (app *App) updateOn(win fyne.Window, mutate func(*config.Config)) {
+	if err := app.store.Update(mutate); err != nil && win != nil {
+		dialog.ShowError(err, win)
 	}
 }
 
@@ -79,9 +80,9 @@ var logLevels = []config.LogLevel{
 // so changes persist and apply live (including the logger, which main
 // reconfigures from the same store subscription). Appearance edits preview
 // live while the window is open and are reverted unless saved.
-func (a *App) showSettingsWindow() {
-	cfg := a.cfg // snapshot to populate the forms
-	w := a.fyne.NewWindow("simpleStonks — Settings")
+func (app *App) showSettingsWindow() {
+	cfg := app.cfg // snapshot to populate the forms
+	win := app.fyne.NewWindow("simpleStonks — Settings")
 
 	// General.
 	rangeSel := widget.NewSelect(rangeOptions(), nil)
@@ -109,19 +110,19 @@ func (a *App) showSettingsWindow() {
 	opacity.Step = 1
 	opacity.SetValue(cfg.Background.Opacity * 100)
 	preview := func() {
-		a.previewBackground(config.Background{
+		app.previewBackground(config.Background{
 			Color:   formatHexColor(bgCol),
 			Opacity: opacity.Value / 100,
 		})
 	}
 	pick := widget.NewButton("Choose…", func() {
-		picker := dialog.NewColorPicker("Background color", "", func(c color.Color) {
-			bgCol = color.NRGBAModel.Convert(c).(color.NRGBA)
+		picker := dialog.NewColorPicker("Background color", "", func(picked color.Color) {
+			bgCol = color.NRGBAModel.Convert(picked).(color.NRGBA)
 			bgCol.A = 0xff
 			swatch.FillColor = bgCol
 			swatch.Refresh()
 			preview()
-		}, w)
+		}, win)
 		picker.Advanced = true
 		picker.SetColor(bgCol)
 		picker.Show()
@@ -160,53 +161,53 @@ func (a *App) showSettingsWindow() {
 	}
 	content := container.NewStack()
 	btns := make([]*widget.Button, len(sections))
-	selectSection := func(i int) {
-		for j, b := range btns {
-			if j == i {
-				b.Importance = widget.HighImportance
+	selectSection := func(selected int) {
+		for btnIdx, btn := range btns {
+			if btnIdx == selected {
+				btn.Importance = widget.HighImportance
 			} else {
-				b.Importance = widget.MediumImportance
+				btn.Importance = widget.MediumImportance
 			}
-			b.Refresh()
+			btn.Refresh()
 		}
-		content.Objects = []fyne.CanvasObject{sections[i].view}
+		content.Objects = []fyne.CanvasObject{sections[selected].view}
 		content.Refresh()
 	}
 	sidebar := container.NewVBox()
-	for i, s := range sections {
-		i := i
-		btns[i] = widget.NewButton(s.name, func() { selectSection(i) })
-		sidebar.Add(btns[i])
+	for idx, section := range sections {
+		idx := idx
+		btns[idx] = widget.NewButton(section.name, func() { selectSection(idx) })
+		sidebar.Add(btns[idx])
 	}
 	selectSection(0)
 
 	save := widget.NewButton("Save", func() {
 		interval, sizeMB, keep, err := parseSettingsForm(refresh.Text, maxSize.Text, archives.Text)
 		if err != nil {
-			dialog.ShowError(err, w)
+			dialog.ShowError(err, win)
 			return
 		}
-		a.updateOn(w, func(c *config.Config) {
-			c.DefaultRange = model.Range(rangeSel.Selected)
-			c.RefreshInterval = interval
-			c.Background = config.Background{Color: formatHexColor(bgCol), Opacity: opacity.Value / 100}
-			c.Logging.Level = config.LogLevel(levelSel.Selected)
-			c.Logging.File = strings.TrimSpace(logFile.Text)
-			c.Logging.MaxSizeMB = sizeMB
-			c.Logging.MaxArchives = keep
+		app.updateOn(win, func(conf *config.Config) {
+			conf.DefaultRange = model.Range(rangeSel.Selected)
+			conf.RefreshInterval = interval
+			conf.Background = config.Background{Color: formatHexColor(bgCol), Opacity: opacity.Value / 100}
+			conf.Logging.Level = config.LogLevel(levelSel.Selected)
+			conf.Logging.File = strings.TrimSpace(logFile.Text)
+			conf.Logging.MaxSizeMB = sizeMB
+			conf.Logging.MaxArchives = keep
 		})
-		w.Close()
+		win.Close()
 	})
 	save.Importance = widget.HighImportance
-	cancel := widget.NewButton("Cancel", func() { w.Close() })
+	cancel := widget.NewButton("Cancel", func() { win.Close() })
 	buttons := container.NewHBox(layout.NewSpacer(), cancel, save)
 
 	// Closing without saving reverts any live appearance preview.
-	w.SetOnClosed(func() { a.applyBackground() })
+	win.SetOnClosed(func() { app.applyBackground() })
 
-	w.SetContent(container.NewBorder(nil, buttons, sidebar, nil, container.NewVScroll(content)))
-	w.Resize(fyne.NewSize(600, 420))
-	w.Show()
+	win.SetContent(container.NewBorder(nil, buttons, sidebar, nil, container.NewVScroll(content)))
+	win.Resize(fyne.NewSize(600, 420))
+	win.Show()
 }
 
 // parseSettingsForm validates the free-text settings fields, returning the
@@ -229,16 +230,16 @@ func parseSettingsForm(refreshSecs, maxSizeMB, archives string) (time.Duration, 
 
 func rangeOptions() []string {
 	out := make([]string, len(model.Ranges))
-	for i, r := range model.Ranges {
-		out[i] = string(r)
+	for idx, rng := range model.Ranges {
+		out[idx] = string(rng)
 	}
 	return out
 }
 
 func levelOptions() []string {
 	out := make([]string, len(logLevels))
-	for i, l := range logLevels {
-		out[i] = string(l)
+	for idx, level := range logLevels {
+		out[idx] = string(level)
 	}
 	return out
 }

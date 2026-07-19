@@ -7,7 +7,7 @@ func TestDefaultLogFileResolvedAtRuntime(t *testing.T) {
 	// "resolve DefaultLogPath() at runtime". A stored absolute path goes stale
 	// across snap refreshes (it contains the revision directory) and broke
 	// startup on the first refresh (0.1.0 -> 0.2.0).
-	if f := Default().Logging.File; f != "" {
-		t.Errorf("Default().Logging.File = %q, want empty (runtime-resolved)", f)
+	if file := Default().Logging.File; file != "" {
+		t.Errorf("Default().Logging.File = %q, want empty (runtime-resolved)", file)
 	}
 }

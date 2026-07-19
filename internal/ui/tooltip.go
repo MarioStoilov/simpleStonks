@@ -17,32 +17,32 @@ type hoverTip struct {
 }
 
 func newHoverTip(content fyne.CanvasObject, text string) *hoverTip {
-	h := &hoverTip{content: content, text: text}
-	h.ExtendBaseWidget(h)
-	return h
+	tip := &hoverTip{content: content, text: text}
+	tip.ExtendBaseWidget(tip)
+	return tip
 }
 
-func (h *hoverTip) CreateRenderer() fyne.WidgetRenderer {
-	return widget.NewSimpleRenderer(h.content)
+func (tip *hoverTip) CreateRenderer() fyne.WidgetRenderer {
+	return widget.NewSimpleRenderer(tip.content)
 }
 
-func (h *hoverTip) MouseIn(ev *desktop.MouseEvent) {
-	if h.text == "" {
+func (tip *hoverTip) MouseIn(event *desktop.MouseEvent) {
+	if tip.text == "" {
 		return
 	}
-	c := fyne.CurrentApp().Driver().CanvasForObject(h)
-	if c == nil {
+	tipCanvas := fyne.CurrentApp().Driver().CanvasForObject(tip)
+	if tipCanvas == nil {
 		return
 	}
-	h.popup = widget.NewPopUp(widget.NewLabel(h.text), c)
-	h.popup.ShowAtPosition(ev.AbsolutePosition.Add(fyne.NewPos(10, 10)))
+	tip.popup = widget.NewPopUp(widget.NewLabel(tip.text), tipCanvas)
+	tip.popup.ShowAtPosition(event.AbsolutePosition.Add(fyne.NewPos(10, 10)))
 }
 
-func (h *hoverTip) MouseMoved(*desktop.MouseEvent) {}
+func (tip *hoverTip) MouseMoved(*desktop.MouseEvent) {}
 
-func (h *hoverTip) MouseOut() {
-	if h.popup != nil {
-		h.popup.Hide()
-		h.popup = nil
+func (tip *hoverTip) MouseOut() {
+	if tip.popup != nil {
+		tip.popup.Hide()
+		tip.popup = nil
 	}
 }

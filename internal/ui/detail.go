@@ -16,55 +16,55 @@ import (
 // buildDetail builds the detail screen: a left sidebar of all symbols (current
 // one highlighted) and a main area with the expanded chart, price/change header,
 // and the range toggles.
-func (a *App) buildDetail() fyne.CanvasObject {
-	a.rng = a.cfg.DefaultRange
+func (app *App) buildDetail() fyne.CanvasObject {
+	app.rng = app.cfg.DefaultRange
 
-	side := make([]*tile, 0, len(a.cfg.Symbols))
-	sideObjs := make([]fyne.CanvasObject, 0, len(a.cfg.Symbols))
-	for _, sym := range a.cfg.Symbols {
-		sym := sym
-		t := newTile(sym, false, func() { a.showDetail(sym) }, nil)
-		if sym == a.selected {
-			t.SetSelected(true)
+	side := make([]*tile, 0, len(app.cfg.Symbols))
+	sideObjs := make([]fyne.CanvasObject, 0, len(app.cfg.Symbols))
+	for _, symbol := range app.cfg.Symbols {
+		symbol := symbol
+		cell := newTile(symbol, false, func() { app.showDetail(symbol) }, nil)
+		if symbol == app.selected {
+			cell.SetSelected(true)
 		}
-		side = append(side, t)
-		sideObjs = append(sideObjs, t)
+		side = append(side, cell)
+		sideObjs = append(sideObjs, cell)
 	}
-	a.sideTiles = side
+	app.sideTiles = side
 	sidebar := container.NewVScroll(container.NewVBox(sideObjs...))
 	sidebar.SetMinSize(fyne.NewSize(190, 0))
 
-	a.detailChart = newChart()
-	a.detailChart.hoverReadout = true // price/time readout only on the big chart
-	a.detailName = canvas.NewText("", colorAxis)
-	a.detailName.TextSize = nameTextSize
-	a.detailPrice = newPriceText()
-	a.detailChange = canvas.NewText("", colorNeutral)
+	app.detailChart = newChart()
+	app.detailChart.hoverReadout = true // price/time readout only on the big chart
+	app.detailName = canvas.NewText("", colorAxis)
+	app.detailName.TextSize = nameTextSize
+	app.detailPrice = newPriceText()
+	app.detailChange = canvas.NewText("", colorNeutral)
 
-	back := widget.NewButtonWithIcon("", theme.NavigateBackIcon(), func() { a.showHome() })
-	title := widget.NewLabelWithStyle(a.selected, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+	back := widget.NewButtonWithIcon("", theme.NavigateBackIcon(), func() { app.showHome() })
+	title := widget.NewLabelWithStyle(app.selected, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 	header := container.NewBorder(nil, nil,
-		container.NewHBox(back, container.NewVBox(title, a.detailName)),
-		container.NewHBox(a.detailPrice, a.detailChange),
+		container.NewHBox(back, container.NewVBox(title, app.detailName)),
+		container.NewHBox(app.detailPrice, app.detailChange),
 	)
-	top := container.NewVBox(header, a.buildRangeToggles())
-	main := container.NewBorder(top, nil, nil, nil, a.detailChart)
+	top := container.NewVBox(header, app.buildRangeToggles())
+	main := container.NewBorder(top, nil, nil, nil, app.detailChart)
 
 	return container.NewBorder(nil, nil, sidebar, nil, main)
 }
 
 // buildRangeToggles builds the 1D..ALL range buttons, highlighting the active one.
-func (a *App) buildRangeToggles() fyne.CanvasObject {
-	a.rangeBtns = make(map[model.Range]*widget.Button, len(model.Ranges))
+func (app *App) buildRangeToggles() fyne.CanvasObject {
+	app.rangeBtns = make(map[model.Range]*widget.Button, len(model.Ranges))
 	box := container.NewHBox()
-	for _, r := range model.Ranges {
-		r := r
-		b := widget.NewButton(string(r), func() { a.setRange(r) })
-		if r == a.rng {
-			b.Importance = widget.HighImportance
+	for _, rng := range model.Ranges {
+		rng := rng
+		btn := widget.NewButton(string(rng), func() { app.setRange(rng) })
+		if rng == app.rng {
+			btn.Importance = widget.HighImportance
 		}
-		a.rangeBtns[r] = b
-		box.Add(b)
+		app.rangeBtns[rng] = btn
+		box.Add(btn)
 	}
 	return container.NewHScroll(box)
 }
@@ -72,48 +72,48 @@ func (a *App) buildRangeToggles() fyne.CanvasObject {
 // setRange switches the detail chart's range, restyles the toggles, reloads the
 // main chart, and restarts the refresh loop (whose behavior depends on whether
 // the new range is intraday).
-func (a *App) setRange(r model.Range) {
-	if a.rng == r {
+func (app *App) setRange(rng model.Range) {
+	if app.rng == rng {
 		return
 	}
-	a.rng = r
-	for rr, b := range a.rangeBtns {
-		if rr == r {
-			b.Importance = widget.HighImportance
+	app.rng = rng
+	for btnRange, btn := range app.rangeBtns {
+		if btnRange == rng {
+			btn.Importance = widget.HighImportance
 		} else {
-			b.Importance = widget.MediumImportance
+			btn.Importance = widget.MediumImportance
 		}
-		b.Refresh()
+		btn.Refresh()
 	}
-	a.stopRefresh()
-	a.loadMain()
-	a.startRefresh(a.detailTick())
+	app.stopRefresh()
+	app.loadMain()
+	app.startRefresh(app.detailTick())
 }
 
 // loadDetail kicks off the initial fetches for the detail screen: the main chart
 // at the current range and each sidebar cell at 1D.
-func (a *App) loadDetail() {
-	a.loadMain()
-	for _, t := range a.sideTiles {
-		loadTile1D(a.provider, t)
+func (app *App) loadDetail() {
+	app.loadMain()
+	for _, cell := range app.sideTiles {
+		loadTile1D(app.provider, cell)
 	}
 }
 
 // detailTick returns the periodic refresh for the detail screen: sidebar cells
 // (1D) always, and the main chart only when its range is intraday.
-func (a *App) detailTick() func() {
-	prov := a.provider
-	side := a.sideTiles
-	intraday := a.rng.Intraday()
-	chart := a.detailChart
-	name := a.detailName
-	price := a.detailPrice
-	change := a.detailChange
-	symbol := a.selected
-	rng := a.rng
+func (app *App) detailTick() func() {
+	prov := app.provider
+	side := app.sideTiles
+	intraday := app.rng.Intraday()
+	chart := app.detailChart
+	name := app.detailName
+	price := app.detailPrice
+	change := app.detailChange
+	symbol := app.selected
+	rng := app.rng
 	return func() {
-		for _, t := range side {
-			loadTile1D(prov, t)
+		for _, cell := range side {
+			loadTile1D(prov, cell)
 		}
 		if intraday {
 			loadMainChart(prov, chart, name, price, change, symbol, rng, true)
@@ -122,8 +122,8 @@ func (a *App) detailTick() func() {
 }
 
 // loadMain reloads the main chart for the current selection and range.
-func (a *App) loadMain() {
-	loadMainChart(a.provider, a.detailChart, a.detailName, a.detailPrice, a.detailChange, a.selected, a.rng, false)
+func (app *App) loadMain() {
+	loadMainChart(app.provider, app.detailChart, app.detailName, app.detailPrice, app.detailChange, app.selected, app.rng, false)
 }
 
 // loadMainChart fetches a symbol's history at a range and applies it to the
@@ -133,9 +133,9 @@ func loadMainChart(prov provider.QuoteProvider, chart *chart, name *canvas.Text,
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), fetchTimeout)
 		defer cancel()
-		s, err := prov.History(ctx, symbol, rng)
+		series, err := prov.History(ctx, symbol, rng)
 		fyne.Do(func() {
-			if err != nil || len(s.Candles) == 0 {
+			if err != nil || len(series.Candles) == 0 {
 				price.SetUnavailable()
 				change.Text = "unavailable"
 				change.Color = colorNeutral
@@ -144,10 +144,10 @@ func loadMainChart(prov provider.QuoteProvider, chart *chart, name *canvas.Text,
 				chart.SetSeries(model.Series{})
 				return
 			}
-			last := s.Candles[len(s.Candles)-1].Close
-			col, text := priceChangeText(last, s.PreviousClose)
-			if name != nil && s.Name != "" && s.Name != name.Text {
-				name.Text = s.Name
+			last := series.Candles[len(series.Candles)-1].Close
+			col, text := priceChangeText(last, series.PreviousClose)
+			if name != nil && series.Name != "" && series.Name != name.Text {
+				name.Text = series.Name
 				name.Refresh()
 			}
 			price.SetPrice(last, flash)
@@ -155,7 +155,7 @@ func loadMainChart(prov provider.QuoteProvider, chart *chart, name *canvas.Text,
 			change.Color = col
 			change.Refresh()
 			chart.SetColor(col)
-			chart.SetSeries(s)
+			chart.SetSeries(series)
 		})
 	}()
 }

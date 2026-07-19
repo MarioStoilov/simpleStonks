@@ -11,27 +11,27 @@ import (
 
 func readFile(t *testing.T, path string) string {
 	t.Helper()
-	b, err := os.ReadFile(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return ""
 		}
 		t.Fatalf("read %s: %v", path, err)
 	}
-	return string(b)
+	return string(data)
 }
 
 func TestLevelFiltering(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "app.log")
-	lg, err := New(config.Logging{Level: config.LogInfo, File: path, MaxSizeMB: 10, MaxArchives: 1})
+	fileLogger, err := New(config.Logging{Level: config.LogInfo, File: path, MaxSizeMB: 10, MaxArchives: 1})
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
-	defer lg.Close()
+	defer fileLogger.Close()
 
-	lg.Slog().Debug("debug-should-be-filtered")
-	lg.Slog().Info("info-should-appear")
-	lg.Slog().Error("error-should-appear")
+	fileLogger.Slog().Debug("debug-should-be-filtered")
+	fileLogger.Slog().Info("info-should-appear")
+	fileLogger.Slog().Error("error-should-appear")
 
 	out := readFile(t, path)
 	if strings.Contains(out, "debug-should-be-filtered") {
@@ -44,13 +44,13 @@ func TestLevelFiltering(t *testing.T) {
 
 func TestSilentWritesNothing(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "app.log")
-	lg, err := New(config.Logging{Level: config.LogSilent, File: path})
+	fileLogger, err := New(config.Logging{Level: config.LogSilent, File: path})
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
-	defer lg.Close()
+	defer fileLogger.Close()
 
-	lg.Slog().Error("must-not-be-written")
+	fileLogger.Slog().Error("must-not-be-written")
 
 	if out := readFile(t, path); out != "" {
 		t.Errorf("silent logger wrote output:\n%s", out)
@@ -62,24 +62,24 @@ func TestReconfigureSwitchesDestination(t *testing.T) {
 	pathA := filepath.Join(dir, "a.log")
 	pathB := filepath.Join(dir, "b.log")
 
-	lg, err := New(config.Logging{Level: config.LogInfo, File: pathA, MaxSizeMB: 10, MaxArchives: 1})
+	fileLogger, err := New(config.Logging{Level: config.LogInfo, File: pathA, MaxSizeMB: 10, MaxArchives: 1})
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
-	defer lg.Close()
+	defer fileLogger.Close()
 
-	lg.Slog().Info("first-into-a")
+	fileLogger.Slog().Info("first-into-a")
 
-	if err := lg.Reconfigure(config.Logging{Level: config.LogInfo, File: pathB, MaxSizeMB: 10, MaxArchives: 1}); err != nil {
+	if err := fileLogger.Reconfigure(config.Logging{Level: config.LogInfo, File: pathB, MaxSizeMB: 10, MaxArchives: 1}); err != nil {
 		t.Fatalf("Reconfigure: %v", err)
 	}
-	lg.Slog().Info("second-into-b")
+	fileLogger.Slog().Info("second-into-b")
 
-	a, b := readFile(t, pathA), readFile(t, pathB)
-	if !strings.Contains(a, "first-into-a") || strings.Contains(a, "second-into-b") {
-		t.Errorf("file A has wrong content:\n%s", a)
+	contentA, contentB := readFile(t, pathA), readFile(t, pathB)
+	if !strings.Contains(contentA, "first-into-a") || strings.Contains(contentA, "second-into-b") {
+		t.Errorf("file A has wrong content:\n%s", contentA)
 	}
-	if !strings.Contains(b, "second-into-b") || strings.Contains(b, "first-into-a") {
-		t.Errorf("file B has wrong content:\n%s", b)
+	if !strings.Contains(contentB, "second-into-b") || strings.Contains(contentB, "first-into-a") {
+		t.Errorf("file B has wrong content:\n%s", contentB)
 	}
 }

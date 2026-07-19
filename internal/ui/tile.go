@@ -31,140 +31,140 @@ type tile struct {
 	selected bool
 	hovered  bool
 
-	bg     *canvas.Rectangle
-	name   *canvas.Text // friendly name, filled in once a series arrives
-	price  *priceText
-	change *canvas.Text
-	chart  *chart // nil when showChart is false
-	root   fyne.CanvasObject
+	background *canvas.Rectangle
+	name       *canvas.Text // friendly name, filled in once a series arrives
+	price      *priceText
+	change     *canvas.Text
+	chart      *chart // nil when showChart is false
+	root       fyne.CanvasObject
 }
 
 // newTile builds a tile. onTap fires when the cell (outside its buttons) is
 // clicked; onRemove, when non-nil, adds a small remove button.
 func newTile(symbol string, showChart bool, onTap, onRemove func()) *tile {
-	t := &tile{symbol: symbol, onTap: onTap}
-	t.ExtendBaseWidget(t)
+	cell := &tile{symbol: symbol, onTap: onTap}
+	cell.ExtendBaseWidget(cell)
 
 	symLbl := widget.NewLabelWithStyle(symbol, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
-	t.name = canvas.NewText("", colorAxis)
-	t.name.TextSize = nameTextSize
-	t.price = newPriceText()
-	t.change = canvas.NewText("", colorNeutral)
+	cell.name = canvas.NewText("", colorAxis)
+	cell.name.TextSize = nameTextSize
+	cell.price = newPriceText()
+	cell.change = canvas.NewText("", colorNeutral)
 
-	var right fyne.CanvasObject = t.price
+	var right fyne.CanvasObject = cell.price
 	if onRemove != nil {
-		rm := widget.NewButtonWithIcon("", theme.ContentClearIcon(), onRemove)
-		rm.Importance = widget.LowImportance
-		right = container.NewHBox(t.price, rm)
+		removeBtn := widget.NewButtonWithIcon("", theme.ContentClearIcon(), onRemove)
+		removeBtn.Importance = widget.LowImportance
+		right = container.NewHBox(cell.price, removeBtn)
 	}
 	header := container.NewBorder(nil, nil, symLbl, right)
 
 	var content fyne.CanvasObject
 	if showChart {
-		t.chart = newChart()
+		cell.chart = newChart()
 		// The chart is the topmost hoverable over most of the cell, so it
 		// forwards its hover state to keep the tile's effect seamless.
-		t.chart.onHover = t.setHovered
-		content = container.NewBorder(container.NewVBox(header, t.name, t.change), nil, nil, nil, t.chart)
+		cell.chart.onHover = cell.setHovered
+		content = container.NewBorder(container.NewVBox(header, cell.name, cell.change), nil, nil, nil, cell.chart)
 	} else {
-		content = container.NewVBox(header, t.name, t.change)
+		content = container.NewVBox(header, cell.name, cell.change)
 	}
 
-	t.bg = canvas.NewRectangle(colorCardBg)
-	t.bg.CornerRadius = 6
-	t.root = container.NewStack(t.bg, container.NewPadded(content))
-	return t
+	cell.background = canvas.NewRectangle(colorCardBg)
+	cell.background.CornerRadius = 6
+	cell.root = container.NewStack(cell.background, container.NewPadded(content))
+	return cell
 }
 
 // CreateRenderer implements fyne.Widget.
-func (t *tile) CreateRenderer() fyne.WidgetRenderer { return widget.NewSimpleRenderer(t.root) }
+func (cell *tile) CreateRenderer() fyne.WidgetRenderer { return widget.NewSimpleRenderer(cell.root) }
 
 // Tapped implements fyne.Tappable.
-func (t *tile) Tapped(*fyne.PointEvent) {
-	if t.onTap != nil {
-		t.onTap()
+func (cell *tile) Tapped(*fyne.PointEvent) {
+	if cell.onTap != nil {
+		cell.onTap()
 	}
 }
 
 // MouseIn implements desktop.Hoverable.
-func (t *tile) MouseIn(*desktop.MouseEvent) { t.setHovered(true) }
+func (cell *tile) MouseIn(*desktop.MouseEvent) { cell.setHovered(true) }
 
 // MouseMoved implements desktop.Hoverable.
-func (t *tile) MouseMoved(*desktop.MouseEvent) {}
+func (cell *tile) MouseMoved(*desktop.MouseEvent) {}
 
 // MouseOut implements desktop.Hoverable.
-func (t *tile) MouseOut() { t.setHovered(false) }
+func (cell *tile) MouseOut() { cell.setHovered(false) }
 
 // setHovered applies the button-like hover highlight, signalling that the
 // tile is clickable — so it is skipped for non-tappable (edit mode) tiles.
-func (t *tile) setHovered(h bool) {
-	if t.onTap == nil || t.hovered == h {
+func (cell *tile) setHovered(hovered bool) {
+	if cell.onTap == nil || cell.hovered == hovered {
 		return
 	}
-	t.hovered = h
-	t.updateBg()
+	cell.hovered = hovered
+	cell.updateBg()
 }
 
 // SetSelected highlights the tile (used for the current sidebar entry).
-func (t *tile) SetSelected(sel bool) {
-	t.selected = sel
-	t.updateBg()
+func (cell *tile) SetSelected(selected bool) {
+	cell.selected = selected
+	cell.updateBg()
 }
 
 // updateBg resolves the background from the selection/hover state.
-func (t *tile) updateBg() {
+func (cell *tile) updateBg() {
 	switch {
-	case t.selected:
-		t.bg.FillColor = colorSelected
-	case t.hovered:
-		t.bg.FillColor = colorHover
+	case cell.selected:
+		cell.background.FillColor = colorSelected
+	case cell.hovered:
+		cell.background.FillColor = colorHover
 	default:
-		t.bg.FillColor = colorCardBg
+		cell.background.FillColor = colorCardBg
 	}
-	t.bg.Refresh()
+	cell.background.Refresh()
 }
 
 // setSeries renders a fetched series onto the tile.
-func (t *tile) setSeries(s model.Series) {
-	last, prev, ok := latestAndPrev(s)
+func (cell *tile) setSeries(series model.Series) {
+	last, prev, ok := latestAndPrev(series)
 	if !ok {
-		t.setError(fmt.Errorf("no data"))
+		cell.setError(fmt.Errorf("no data"))
 		return
 	}
 	col, text := priceChangeText(last, prev)
-	if s.Name != "" && s.Name != t.name.Text {
-		t.name.Text = s.Name
-		t.name.Refresh()
+	if series.Name != "" && series.Name != cell.name.Text {
+		cell.name.Text = series.Name
+		cell.name.Refresh()
 	}
-	t.price.SetPrice(last, true) // flashes only when a shown price changes
-	t.change.Text = text
-	t.change.Color = col
-	t.change.Refresh()
-	if t.chart != nil {
-		t.chart.SetColor(col)
-		t.chart.SetSeries(s)
+	cell.price.SetPrice(last, true) // flashes only when a shown price changes
+	cell.change.Text = text
+	cell.change.Color = col
+	cell.change.Refresh()
+	if cell.chart != nil {
+		cell.chart.SetColor(col)
+		cell.chart.SetSeries(series)
 	}
 }
 
 // setError puts the tile into an unavailable state and logs the cause.
-func (t *tile) setError(err error) {
-	t.price.SetUnavailable()
-	t.change.Text = "unavailable"
-	t.change.Color = colorNeutral
-	t.change.Refresh()
-	if t.chart != nil {
-		t.chart.SetColor(colorNeutral)
-		t.chart.SetSeries(model.Series{})
+func (cell *tile) setError(err error) {
+	cell.price.SetUnavailable()
+	cell.change.Text = "unavailable"
+	cell.change.Color = colorNeutral
+	cell.change.Refresh()
+	if cell.chart != nil {
+		cell.chart.SetColor(colorNeutral)
+		cell.chart.SetSeries(model.Series{})
 	}
-	slog.Warn("tile update failed", "symbol", t.symbol, "err", err)
+	slog.Warn("tile update failed", "symbol", cell.symbol, "err", err)
 }
 
 // latestAndPrev returns the last close and the reference previous close.
-func latestAndPrev(s model.Series) (last, prev float64, ok bool) {
-	if len(s.Candles) == 0 {
+func latestAndPrev(series model.Series) (last, prev float64, ok bool) {
+	if len(series.Candles) == 0 {
 		return 0, 0, false
 	}
-	return s.Candles[len(s.Candles)-1].Close, s.PreviousClose, true
+	return series.Candles[len(series.Candles)-1].Close, series.PreviousClose, true
 }
 
 // priceChangeText formats the "+1.23 (+0.45%)" change string and its color.

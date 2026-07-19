@@ -21,28 +21,28 @@ const mib = 1024 * 1024
 // runtime (e.g. on a config live-reload) without invalidating held references.
 type Logger struct {
 	handler *switchHandler
-	sl      *slog.Logger
+	slogger *slog.Logger
 
-	mu     sync.Mutex
+	mutex  sync.Mutex
 	writer io.Closer // current rotating writer, if any
 }
 
 // New builds a Logger for the given configuration.
 func New(cfg config.Logging) (*Logger, error) {
-	l := &Logger{handler: &switchHandler{inner: discardHandler{}}}
-	l.sl = slog.New(l.handler)
-	if err := l.Reconfigure(cfg); err != nil {
+	logger := &Logger{handler: &switchHandler{inner: discardHandler{}}}
+	logger.slogger = slog.New(logger.handler)
+	if err := logger.Reconfigure(cfg); err != nil {
 		return nil, err
 	}
-	return l, nil
+	return logger, nil
 }
 
 // Slog returns the stable *slog.Logger. It keeps working across Reconfigure.
-func (l *Logger) Slog() *slog.Logger { return l.sl }
+func (logger *Logger) Slog() *slog.Logger { return logger.slogger }
 
 // Reconfigure swaps the logger's level and destination to match cfg, closing the
 // previous writer. It is safe to call concurrently with logging on l.Slog().
-func (l *Logger) Reconfigure(cfg config.Logging) error {
+func (logger *Logger) Reconfigure(cfg config.Logging) error {
 	level, silent := slogLevel(cfg.Level)
 
 	var (
@@ -56,20 +56,20 @@ func (l *Logger) Reconfigure(cfg config.Logging) error {
 		if path == "" {
 			path = config.DefaultLogPath()
 		}
-		rw, err := newRotatingWriter(path, int64(cfg.MaxSizeMB)*mib, cfg.MaxArchives)
+		rotating, err := newRotatingWriter(path, int64(cfg.MaxSizeMB)*mib, cfg.MaxArchives)
 		if err != nil {
 			return err
 		}
-		newHandler = slog.NewTextHandler(rw, &slog.HandlerOptions{Level: level})
-		newWriter = rw
+		newHandler = slog.NewTextHandler(rotating, &slog.HandlerOptions{Level: level})
+		newWriter = rotating
 	}
 
-	l.handler.set(newHandler)
+	logger.handler.set(newHandler)
 
-	l.mu.Lock()
-	old := l.writer
-	l.writer = newWriter
-	l.mu.Unlock()
+	logger.mutex.Lock()
+	old := logger.writer
+	logger.writer = newWriter
+	logger.mutex.Unlock()
 	if old != nil {
 		_ = old.Close()
 	}
@@ -77,14 +77,14 @@ func (l *Logger) Reconfigure(cfg config.Logging) error {
 }
 
 // Close releases the current writer.
-func (l *Logger) Close() error {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	if l.writer == nil {
+func (logger *Logger) Close() error {
+	logger.mutex.Lock()
+	defer logger.mutex.Unlock()
+	if logger.writer == nil {
 		return nil
 	}
-	err := l.writer.Close()
-	l.writer = nil
+	err := logger.writer.Close()
+	logger.writer = nil
 	return err
 }
 

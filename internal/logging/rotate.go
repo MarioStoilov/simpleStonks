@@ -15,100 +15,101 @@ type rotatingWriter struct {
 	maxSize     int64 // bytes; <= 0 disables rotation
 	maxArchives int   // number of archive files to retain
 
-	mu   sync.Mutex
-	file *os.File
-	size int64
+	mutex sync.Mutex
+	file  *os.File
+	size  int64
 }
 
 // newRotatingWriter opens (creating as needed) the log file and its directory.
 func newRotatingWriter(path string, maxSizeBytes int64, maxArchives int) (*rotatingWriter, error) {
-	w := &rotatingWriter{path: path, maxSize: maxSizeBytes, maxArchives: maxArchives}
+	writer := &rotatingWriter{path: path, maxSize: maxSizeBytes, maxArchives: maxArchives}
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return nil, err
 	}
-	if err := w.open(); err != nil {
+	if err := writer.open(); err != nil {
 		return nil, err
 	}
-	return w, nil
+	return writer, nil
 }
 
 // open opens the log file for appending and records its current size.
-func (w *rotatingWriter) open() error {
-	f, err := os.OpenFile(w.path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+func (writer *rotatingWriter) open() error {
+	file, err := os.OpenFile(writer.path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
 	if err != nil {
 		return err
 	}
-	info, err := f.Stat()
+	info, err := file.Stat()
 	if err != nil {
-		_ = f.Close()
+		_ = file.Close()
 		return err
 	}
-	w.file = f
-	w.size = info.Size()
+	writer.file = file
+	writer.size = info.Size()
 	return nil
 }
 
-// Write appends p, rotating first if it would push the file past the threshold.
-func (w *rotatingWriter) Write(p []byte) (int, error) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	if w.maxSize > 0 && w.size > 0 && w.size+int64(len(p)) > w.maxSize {
-		if err := w.rotate(); err != nil {
+// Write appends data, rotating first if it would push the file past the
+// threshold.
+func (writer *rotatingWriter) Write(data []byte) (int, error) {
+	writer.mutex.Lock()
+	defer writer.mutex.Unlock()
+	if writer.maxSize > 0 && writer.size > 0 && writer.size+int64(len(data)) > writer.maxSize {
+		if err := writer.rotate(); err != nil {
 			return 0, err
 		}
 	}
-	n, err := w.file.Write(p)
-	w.size += int64(n)
-	return n, err
+	written, err := writer.file.Write(data)
+	writer.size += int64(written)
+	return written, err
 }
 
 // rotate closes the current file, shifts the archives, and reopens a fresh log.
-// Caller must hold w.mu.
-func (w *rotatingWriter) rotate() error {
-	if err := w.file.Close(); err != nil {
+// Caller must hold writer.mutex.
+func (writer *rotatingWriter) rotate() error {
+	if err := writer.file.Close(); err != nil {
 		return err
 	}
-	if w.maxArchives <= 0 {
+	if writer.maxArchives <= 0 {
 		// Retain no archives: discard the current file and start fresh.
-		if err := os.Remove(w.path); err != nil && !os.IsNotExist(err) {
+		if err := os.Remove(writer.path); err != nil && !os.IsNotExist(err) {
 			return err
 		}
-		return w.open()
+		return writer.open()
 	}
 	// Drop the archive that would fall off the end of the retention window.
-	if err := os.Remove(w.archiveName(w.maxArchives)); err != nil && !os.IsNotExist(err) {
+	if err := os.Remove(writer.archiveName(writer.maxArchives)); err != nil && !os.IsNotExist(err) {
 		return err
 	}
 	// Shift existing archives up: .(n-1) -> .n, ..., .1 -> .2
-	for i := w.maxArchives - 1; i >= 1; i-- {
-		src := w.archiveName(i)
+	for idx := writer.maxArchives - 1; idx >= 1; idx-- {
+		src := writer.archiveName(idx)
 		if _, err := os.Stat(src); err != nil {
 			continue // gap in the sequence; nothing to move
 		}
-		if err := os.Rename(src, w.archiveName(i+1)); err != nil {
+		if err := os.Rename(src, writer.archiveName(idx+1)); err != nil {
 			return err
 		}
 	}
 	// Current log becomes the newest archive.
-	if err := os.Rename(w.path, w.archiveName(1)); err != nil {
+	if err := os.Rename(writer.path, writer.archiveName(1)); err != nil {
 		return err
 	}
-	return w.open()
+	return writer.open()
 }
 
-// archiveName returns the path of the i-th archive (1 = newest).
-func (w *rotatingWriter) archiveName(i int) string {
-	return fmt.Sprintf("%s.%d", w.path, i)
+// archiveName returns the path of the idx-th archive (1 = newest).
+func (writer *rotatingWriter) archiveName(idx int) string {
+	return fmt.Sprintf("%s.%d", writer.path, idx)
 }
 
 // Close closes the underlying file.
-func (w *rotatingWriter) Close() error {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	if w.file == nil {
+func (writer *rotatingWriter) Close() error {
+	writer.mutex.Lock()
+	defer writer.mutex.Unlock()
+	if writer.file == nil {
 		return nil
 	}
-	err := w.file.Close()
-	w.file = nil
+	err := writer.file.Close()
+	writer.file = nil
 	return err
 }

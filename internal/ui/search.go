@@ -24,8 +24,8 @@ const searchDebounce = 300 * time.Millisecond
 // showSearchDialog opens the live-search add dialog: typing queries the provider
 // (debounced) and shows suggestions annotated with full name and market; picking
 // one adds it to the tracked list.
-func (a *App) showSearchDialog() {
-	if a.win == nil {
+func (app *App) showSearchDialog() {
+	if app.win == nil {
 		return
 	}
 	entry := widget.NewEntry()
@@ -36,23 +36,23 @@ func (a *App) showSearchDialog() {
 	scroll.SetMinSize(fyne.NewSize(440, 280))
 
 	content := container.NewBorder(entry, status, nil, nil, scroll)
-	d := dialog.NewCustom("Add index", "Close", content, a.win)
-	d.Resize(fyne.NewSize(500, 440))
+	dlg := dialog.NewCustom("Add index", "Close", content, app.win)
+	dlg.Resize(fyne.NewSize(500, 440))
 
-	sc := &searchController{
-		provider: a.provider,
+	controller := &searchController{
+		provider: app.provider,
 		results:  results,
 		status:   status,
 		// Selecting a result opens a preview; adding from there closes the
 		// whole search dialog.
-		onSelect: func(r model.SearchResult) {
-			a.showResultPreview(r, func() { d.Hide() })
+		onSelect: func(result model.SearchResult) {
+			app.showResultPreview(result, func() { dlg.Hide() })
 		},
 	}
-	entry.OnChanged = sc.onChanged
+	entry.OnChanged = controller.onChanged
 
-	d.Show()
-	a.win.Canvas().Focus(entry)
+	dlg.Show()
+	app.win.Canvas().Focus(entry)
 }
 
 // searchController manages the debounced live search inside the add dialog. All
@@ -68,53 +68,53 @@ type searchController struct {
 	gen   int
 }
 
-func (sc *searchController) onChanged(q string) {
-	q = strings.TrimSpace(q)
-	sc.gen++
-	gen := sc.gen
-	if sc.timer != nil {
-		sc.timer.Stop()
+func (controller *searchController) onChanged(query string) {
+	query = strings.TrimSpace(query)
+	controller.gen++
+	gen := controller.gen
+	if controller.timer != nil {
+		controller.timer.Stop()
 	}
-	if q == "" {
-		sc.status.SetText("Start typing to search…")
-		sc.clear()
+	if query == "" {
+		controller.status.SetText("Start typing to search…")
+		controller.clear()
 		return
 	}
-	sc.status.SetText("Searching…")
-	sc.timer = time.AfterFunc(searchDebounce, func() {
+	controller.status.SetText("Searching…")
+	controller.timer = time.AfterFunc(searchDebounce, func() {
 		ctx, cancel := context.WithTimeout(context.Background(), fetchTimeout)
 		defer cancel()
-		res, err := sc.provider.Search(ctx, q)
+		res, err := controller.provider.Search(ctx, query)
 		fyne.Do(func() {
-			if gen != sc.gen {
+			if gen != controller.gen {
 				return // superseded by a newer keystroke
 			}
-			sc.render(res, err)
+			controller.render(res, err)
 		})
 	})
 }
 
-func (sc *searchController) clear() {
-	sc.results.Objects = nil
-	sc.results.Refresh()
+func (controller *searchController) clear() {
+	controller.results.Objects = nil
+	controller.results.Refresh()
 }
 
-func (sc *searchController) render(res []model.SearchResult, err error) {
-	sc.clear()
+func (controller *searchController) render(res []model.SearchResult, err error) {
+	controller.clear()
 	switch {
 	case err != nil:
-		sc.status.SetText("Search failed (offline?)")
+		controller.status.SetText("Search failed (offline?)")
 		return
 	case len(res) == 0:
-		sc.status.SetText("No matches")
+		controller.status.SetText("No matches")
 		return
 	}
-	sc.status.SetText(fmt.Sprintf("%d result(s)", len(res)))
-	for _, r := range res {
-		r := r
-		sc.results.Add(newResultRow(r, func() { sc.onSelect(r) }))
+	controller.status.SetText(fmt.Sprintf("%d result(s)", len(res)))
+	for _, result := range res {
+		result := result
+		controller.results.Add(newResultRow(result, func() { controller.onSelect(result) }))
 	}
-	sc.results.Refresh()
+	controller.results.Refresh()
 }
 
 // resultRow renders one search suggestion (bold symbol + name over the
@@ -122,53 +122,53 @@ func (sc *searchController) render(res []model.SearchResult, err error) {
 // is no per-row add button.
 type resultRow struct {
 	widget.BaseWidget
-	bg    *canvas.Rectangle
-	root  fyne.CanvasObject
-	onTap func()
+	background *canvas.Rectangle
+	root       fyne.CanvasObject
+	onTap      func()
 }
 
-func newResultRow(r model.SearchResult, onTap func()) *resultRow {
+func newResultRow(result model.SearchResult, onTap func()) *resultRow {
 	row := &resultRow{onTap: onTap}
 	row.ExtendBaseWidget(row)
 
-	titleText := r.Symbol
-	if r.Name != "" {
-		titleText += "  ·  " + r.Name
+	titleText := result.Symbol
+	if result.Name != "" {
+		titleText += "  ·  " + result.Name
 	}
 	title := widget.NewLabelWithStyle(titleText, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 
-	sub := r.Exchange
-	if r.Type != "" {
+	sub := result.Exchange
+	if result.Type != "" {
 		if sub != "" {
 			sub += " · "
 		}
-		sub += r.Type
+		sub += result.Type
 	}
 	subtitle := widget.NewLabel(sub)
 
-	row.bg = canvas.NewRectangle(color.Transparent)
-	row.bg.CornerRadius = 4
-	row.root = container.NewStack(row.bg, container.NewPadded(container.NewVBox(title, subtitle)))
+	row.background = canvas.NewRectangle(color.Transparent)
+	row.background.CornerRadius = 4
+	row.root = container.NewStack(row.background, container.NewPadded(container.NewVBox(title, subtitle)))
 	return row
 }
 
-func (r *resultRow) CreateRenderer() fyne.WidgetRenderer { return widget.NewSimpleRenderer(r.root) }
+func (row *resultRow) CreateRenderer() fyne.WidgetRenderer { return widget.NewSimpleRenderer(row.root) }
 
-func (r *resultRow) Tapped(*fyne.PointEvent) {
-	if r.onTap != nil {
-		r.onTap()
+func (row *resultRow) Tapped(*fyne.PointEvent) {
+	if row.onTap != nil {
+		row.onTap()
 	}
 }
 
 // Hoverable: generic highlight while the pointer is over the row.
-func (r *resultRow) MouseIn(*desktop.MouseEvent) {
-	r.bg.FillColor = colorHover
-	r.bg.Refresh()
+func (row *resultRow) MouseIn(*desktop.MouseEvent) {
+	row.background.FillColor = colorHover
+	row.background.Refresh()
 }
 
-func (r *resultRow) MouseMoved(*desktop.MouseEvent) {}
+func (row *resultRow) MouseMoved(*desktop.MouseEvent) {}
 
-func (r *resultRow) MouseOut() {
-	r.bg.FillColor = color.Transparent
-	r.bg.Refresh()
+func (row *resultRow) MouseOut() {
+	row.background.FillColor = color.Transparent
+	row.background.Refresh()
 }

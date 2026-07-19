@@ -16,7 +16,7 @@ const repoURL = "https://github.com/MarioStoilov/simpleStonks"
 
 // showAboutDialog opens a modal with the app's logo, version, source and
 // license links, and the data-source disclaimer.
-func (a *App) showAboutDialog() {
+func (app *App) showAboutDialog() {
 	logo := canvas.NewImageFromResource(appIcon)
 	logo.FillMode = canvas.ImageFillContain
 	logo.SetMinSize(fyne.NewSize(72, 72))
@@ -49,7 +49,7 @@ func (a *App) showAboutDialog() {
 		links,
 		disclaimer,
 	)
-	d := dialog.NewCustom("About simpleStonks", "Close", content, a.win)
-	d.Resize(fyne.NewSize(460, 0))
-	d.Show()
+	dlg := dialog.NewCustom("About simpleStonks", "Close", content, app.win)
+	dlg.Resize(fyne.NewSize(460, 0))
+	dlg.Show()
 }

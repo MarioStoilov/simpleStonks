@@ -22,22 +22,22 @@ func TestRotatingWriterRotatesAtThreshold(t *testing.T) {
 	path := filepath.Join(dir, "app.log")
 
 	// 100-byte threshold, keep at most 2 archives.
-	w, err := newRotatingWriter(path, 100, 2)
+	writer, err := newRotatingWriter(path, 100, 2)
 	if err != nil {
 		t.Fatalf("newRotatingWriter: %v", err)
 	}
-	defer w.Close()
+	defer writer.Close()
 
 	line := strings.Repeat("x", 60) + "\n" // 61 bytes; two lines exceed 100
-	for i := 0; i < 10; i++ {
-		if _, err := w.Write([]byte(line)); err != nil {
-			t.Fatalf("write %d: %v", i, err)
+	for idx := 0; idx < 10; idx++ {
+		if _, err := writer.Write([]byte(line)); err != nil {
+			t.Fatalf("write %d: %v", idx, err)
 		}
 	}
 
 	// Retention must be enforced: never more than maxArchives archives.
-	if n := countArchives(t, path); n > 2 {
-		t.Fatalf("kept %d archives, want <= 2", n)
+	if count := countArchives(t, path); count > 2 {
+		t.Fatalf("kept %d archives, want <= 2", count)
 	}
 	// Rotation must have happened at least once.
 	if _, err := os.Stat(path + ".1"); err != nil {
@@ -57,21 +57,21 @@ func TestRotatingWriterNoArchives(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "app.log")
 
-	w, err := newRotatingWriter(path, 50, 0) // keep zero archives
+	writer, err := newRotatingWriter(path, 50, 0) // keep zero archives
 	if err != nil {
 		t.Fatalf("newRotatingWriter: %v", err)
 	}
-	defer w.Close()
+	defer writer.Close()
 
 	line := strings.Repeat("y", 40) + "\n"
-	for i := 0; i < 6; i++ {
-		if _, err := w.Write([]byte(line)); err != nil {
-			t.Fatalf("write %d: %v", i, err)
+	for idx := 0; idx < 6; idx++ {
+		if _, err := writer.Write([]byte(line)); err != nil {
+			t.Fatalf("write %d: %v", idx, err)
 		}
 	}
 
-	if n := countArchives(t, path); n != 0 {
-		t.Fatalf("kept %d archives with maxArchives=0, want 0", n)
+	if count := countArchives(t, path); count != 0 {
+		t.Fatalf("kept %d archives with maxArchives=0, want 0", count)
 	}
 	if _, err := os.Stat(path); err != nil {
 		t.Fatalf("live log should still exist: %v", err)

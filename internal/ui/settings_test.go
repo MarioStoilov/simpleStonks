@@ -36,10 +36,10 @@ func TestParseSettingsFormInvalid(t *testing.T) {
 		{"archives not a number", "30", "5", "n"},
 		{"empty refresh", "", "5", "3"},
 	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			if _, _, _, err := parseSettingsForm(c.refresh, c.size, c.archives); err == nil {
-				t.Errorf("expected error for %q/%q/%q, got nil", c.refresh, c.size, c.archives)
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			if _, _, _, err := parseSettingsForm(testCase.refresh, testCase.size, testCase.archives); err == nil {
+				t.Errorf("expected error for %q/%q/%q, got nil", testCase.refresh, testCase.size, testCase.archives)
 			}
 		})
 	}

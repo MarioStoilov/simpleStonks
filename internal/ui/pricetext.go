@@ -25,9 +25,9 @@ const flashPad = 3
 // for a drop, fading out. The flash covers only the number itself.
 type priceText struct {
 	widget.BaseWidget
-	text *canvas.Text
-	bg   *canvas.Rectangle
-	anim *fyne.Animation
+	text       *canvas.Text
+	background *canvas.Rectangle
+	anim       *fyne.Animation
 
 	last    float64
 	hasLast bool
@@ -35,98 +35,98 @@ type priceText struct {
 
 // newPriceText builds an empty ("—") price display.
 func newPriceText() *priceText {
-	p := &priceText{}
-	p.text = canvas.NewText("—", theme.Color(theme.ColorNameForeground))
-	p.text.TextStyle = fyne.TextStyle{Bold: true}
-	p.text.Alignment = fyne.TextAlignTrailing
-	p.bg = canvas.NewRectangle(color.Transparent)
-	p.bg.CornerRadius = 3
-	p.ExtendBaseWidget(p)
-	return p
+	price := &priceText{}
+	price.text = canvas.NewText("—", theme.Color(theme.ColorNameForeground))
+	price.text.TextStyle = fyne.TextStyle{Bold: true}
+	price.text.Alignment = fyne.TextAlignTrailing
+	price.background = canvas.NewRectangle(color.Transparent)
+	price.background.CornerRadius = 3
+	price.ExtendBaseWidget(price)
+	return price
 }
 
-// SetPrice displays v. When flash is set, a change versus the previously
+// SetPrice displays value. When flash is set, a change versus the previously
 // shown price flashes the number's background (green rise, red drop); an
 // unchanged price — e.g. polling a closed market — never flashes.
-func (p *priceText) SetPrice(v float64, flash bool) {
-	if do, rising := flashDirection(flash && p.hasLast, p.last, v); do {
-		p.startFlash(rising)
+func (price *priceText) SetPrice(value float64, flash bool) {
+	if shouldFlash, rising := flashDirection(flash && price.hasLast, price.last, value); shouldFlash {
+		price.startFlash(rising)
 	}
-	p.last, p.hasLast = v, true
-	p.text.Text = fmt.Sprintf("%.2f", v)
-	p.Refresh()
+	price.last, price.hasLast = value, true
+	price.text.Text = fmt.Sprintf("%.2f", value)
+	price.Refresh()
 }
 
 // SetUnavailable shows the placeholder and forgets the last price.
-func (p *priceText) SetUnavailable() {
-	p.stopFlash()
-	p.hasLast = false
-	p.text.Text = "—"
-	p.Refresh()
+func (price *priceText) SetUnavailable() {
+	price.stopFlash()
+	price.hasLast = false
+	price.text.Text = "—"
+	price.Refresh()
 }
 
 // flashDirection reports whether a price update should flash and whether it is
-// a rise. ok gates on having a previous price to compare against.
-func flashDirection(ok bool, last, v float64) (flash, rising bool) {
-	if !ok || v == last {
+// a rise. hasPrevious gates on having a previous price to compare against.
+func flashDirection(hasPrevious bool, last, value float64) (flash, rising bool) {
+	if !hasPrevious || value == last {
 		return false, false
 	}
-	return true, v > last
+	return true, value > last
 }
 
 // startFlash begins (or restarts) the fade-out of the flash background.
-func (p *priceText) startFlash(rising bool) {
-	p.stopFlash()
-	from := colorDown
+func (price *priceText) startFlash(rising bool) {
+	price.stopFlash()
+	start := colorDown
 	if rising {
-		from = colorUp
+		start = colorUp
 	}
-	from.A = flashAlpha
-	to := from
-	to.A = 0
-	p.anim = canvas.NewColorRGBAAnimation(from, to, flashDuration, func(c color.Color) {
-		p.bg.FillColor = c
-		p.bg.Refresh()
+	start.A = flashAlpha
+	end := start
+	end.A = 0
+	price.anim = canvas.NewColorRGBAAnimation(start, end, flashDuration, func(faded color.Color) {
+		price.background.FillColor = faded
+		price.background.Refresh()
 	})
-	p.anim.Start()
+	price.anim.Start()
 }
 
 // stopFlash cancels any running flash and clears the background.
-func (p *priceText) stopFlash() {
-	if p.anim != nil {
-		p.anim.Stop()
-		p.anim = nil
+func (price *priceText) stopFlash() {
+	if price.anim != nil {
+		price.anim.Stop()
+		price.anim = nil
 	}
-	p.bg.FillColor = color.Transparent
-	p.bg.Refresh()
+	price.background.FillColor = color.Transparent
+	price.background.Refresh()
 }
 
 // CreateRenderer implements fyne.Widget.
-func (p *priceText) CreateRenderer() fyne.WidgetRenderer {
-	return &priceTextRenderer{p: p}
+func (price *priceText) CreateRenderer() fyne.WidgetRenderer {
+	return &priceTextRenderer{price: price}
 }
 
 // priceTextRenderer spans the text across the widget and keeps the flash
 // rectangle exactly behind the right-aligned number.
-type priceTextRenderer struct{ p *priceText }
+type priceTextRenderer struct{ price *priceText }
 
-func (r *priceTextRenderer) Layout(size fyne.Size) {
-	r.p.text.Resize(size)
-	ts := fyne.MeasureText(r.p.text.Text, r.p.text.TextSize, r.p.text.TextStyle)
-	r.p.bg.Resize(fyne.NewSize(ts.Width+flashPad, ts.Height))
-	r.p.bg.Move(fyne.NewPos(size.Width-ts.Width-flashPad, 0))
+func (renderer *priceTextRenderer) Layout(size fyne.Size) {
+	renderer.price.text.Resize(size)
+	textSize := fyne.MeasureText(renderer.price.text.Text, renderer.price.text.TextSize, renderer.price.text.TextStyle)
+	renderer.price.background.Resize(fyne.NewSize(textSize.Width+flashPad, textSize.Height))
+	renderer.price.background.Move(fyne.NewPos(size.Width-textSize.Width-flashPad, 0))
 }
 
-func (r *priceTextRenderer) MinSize() fyne.Size { return r.p.text.MinSize() }
+func (renderer *priceTextRenderer) MinSize() fyne.Size { return renderer.price.text.MinSize() }
 
-func (r *priceTextRenderer) Refresh() {
-	r.Layout(r.p.Size())
-	r.p.text.Refresh()
-	r.p.bg.Refresh()
+func (renderer *priceTextRenderer) Refresh() {
+	renderer.Layout(renderer.price.Size())
+	renderer.price.text.Refresh()
+	renderer.price.background.Refresh()
 }
 
-func (r *priceTextRenderer) Objects() []fyne.CanvasObject {
-	return []fyne.CanvasObject{r.p.bg, r.p.text}
+func (renderer *priceTextRenderer) Objects() []fyne.CanvasObject {
+	return []fyne.CanvasObject{renderer.price.background, renderer.price.text}
 }
 
-func (r *priceTextRenderer) Destroy() { r.p.stopFlash() }
+func (renderer *priceTextRenderer) Destroy() { renderer.price.stopFlash() }

@@ -11,78 +11,78 @@ import (
 // buildHome builds the home screen: a top bar plus a grid of 1D-only cells, one
 // per tracked symbol. In view mode, clicking a cell opens its detail view; in
 // edit mode, cells expose reorder/remove controls instead of navigating.
-func (a *App) buildHome() fyne.CanvasObject {
-	tiles := make([]*tile, 0, len(a.cfg.Symbols))
-	objs := make([]fyne.CanvasObject, 0, len(a.cfg.Symbols))
-	for i, sym := range a.cfg.Symbols {
-		i, sym := i, sym
-		if a.editMode {
-			t := newTile(sym, true, nil, nil) // no navigation while editing
-			tiles = append(tiles, t)
-			objs = append(objs, container.NewBorder(nil, a.editControls(i, sym), nil, nil, t))
+func (app *App) buildHome() fyne.CanvasObject {
+	tiles := make([]*tile, 0, len(app.cfg.Symbols))
+	objs := make([]fyne.CanvasObject, 0, len(app.cfg.Symbols))
+	for idx, symbol := range app.cfg.Symbols {
+		idx, symbol := idx, symbol
+		if app.editMode {
+			cell := newTile(symbol, true, nil, nil) // no navigation while editing
+			tiles = append(tiles, cell)
+			objs = append(objs, container.NewBorder(nil, app.editControls(idx, symbol), nil, nil, cell))
 		} else {
-			t := newTile(sym, true, func() { a.showDetail(sym) }, nil)
-			tiles = append(tiles, t)
-			objs = append(objs, t)
+			cell := newTile(symbol, true, func() { app.showDetail(symbol) }, nil)
+			tiles = append(tiles, cell)
+			objs = append(objs, cell)
 		}
 	}
-	a.homeTiles = tiles
+	app.homeTiles = tiles
 
 	cellSize := fyne.NewSize(300, 240)
-	if a.editMode {
+	if app.editMode {
 		cellSize = fyne.NewSize(300, 280) // room for the control row
 	}
 	grid := container.New(layout.NewGridWrapLayout(cellSize), objs...)
-	return container.NewBorder(a.buildTopBar(), nil, nil, nil, container.NewVScroll(grid))
+	return container.NewBorder(app.buildTopBar(), nil, nil, nil, container.NewVScroll(grid))
 }
 
 // buildTopBar shows the mode-appropriate actions: Edit + settings in view mode;
 // Add (live search) + Done in edit mode.
-func (a *App) buildTopBar() fyne.CanvasObject {
+func (app *App) buildTopBar() fyne.CanvasObject {
 	var right *fyne.Container
-	if a.editMode {
-		add := widget.NewButtonWithIcon("Add", theme.ContentAddIcon(), func() { a.showSearchDialog() })
+	if app.editMode {
+		add := widget.NewButtonWithIcon("Add", theme.ContentAddIcon(), func() { app.showSearchDialog() })
 		add.Importance = widget.HighImportance
-		done := widget.NewButtonWithIcon("Done", theme.ConfirmIcon(), func() { a.setEditMode(false) })
+		done := widget.NewButtonWithIcon("Done", theme.ConfirmIcon(), func() { app.setEditMode(false) })
 		right = container.NewHBox(add, done)
 	} else {
-		edit := widget.NewButtonWithIcon("Edit", theme.DocumentCreateIcon(), func() { a.setEditMode(true) })
-		info := widget.NewButtonWithIcon("", theme.InfoIcon(), func() { a.showAboutDialog() })
-		settings := widget.NewButtonWithIcon("", theme.SettingsIcon(), func() { a.showSettingsWindow() })
+		edit := widget.NewButtonWithIcon("Edit", theme.DocumentCreateIcon(), func() { app.setEditMode(true) })
+		info := widget.NewButtonWithIcon("", theme.InfoIcon(), func() { app.showAboutDialog() })
+		settings := widget.NewButtonWithIcon("", theme.SettingsIcon(), func() { app.showSettingsWindow() })
 		right = container.NewHBox(edit, info, settings)
 	}
 	return container.NewBorder(nil, nil, nil, right)
 }
 
 // editControls is the per-cell reorder/remove row shown in edit mode.
-func (a *App) editControls(i int, symbol string) fyne.CanvasObject {
-	up := widget.NewButtonWithIcon("", theme.MoveUpIcon(), func() { a.moveSymbol(i, -1) })
-	if i == 0 {
-		up.Disable()
+func (app *App) editControls(idx int, symbol string) fyne.CanvasObject {
+	upBtn := widget.NewButtonWithIcon("", theme.MoveUpIcon(), func() { app.moveSymbol(idx, -1) })
+	if idx == 0 {
+		upBtn.Disable()
 	}
-	down := widget.NewButtonWithIcon("", theme.MoveDownIcon(), func() { a.moveSymbol(i, +1) })
-	if i == len(a.cfg.Symbols)-1 {
-		down.Disable()
+	downBtn := widget.NewButtonWithIcon("", theme.MoveDownIcon(), func() { app.moveSymbol(idx, +1) })
+	if idx == len(app.cfg.Symbols)-1 {
+		downBtn.Disable()
 	}
-	remove := widget.NewButtonWithIcon("", theme.DeleteIcon(), func() { a.removeSymbol(symbol) })
+	remove := widget.NewButtonWithIcon("", theme.DeleteIcon(), func() { app.removeSymbol(symbol) })
 	remove.Importance = widget.DangerImportance
-	return container.NewHBox(up, down, layout.NewSpacer(), remove)
+	return container.NewHBox(upBtn, downBtn, layout.NewSpacer(), remove)
 }
 
 // loadHome kicks off the initial 1D fetch for every home tile.
-func (a *App) loadHome() {
-	for _, t := range a.homeTiles {
-		loadTile1D(a.provider, t)
+func (app *App) loadHome() {
+	for _, cell := range app.homeTiles {
+		loadTile1D(app.provider, cell)
 	}
 }
 
 // homeTick returns the periodic refresh for the home screen (all cells are 1D).
-func (a *App) homeTick() func() {
-	prov := a.provider
-	tiles := a.homeTiles
+func (app *App) homeTick() func() {
+	prov := app.provider
+	tiles := app.homeTiles
 	return func() {
-		for _, t := range tiles {
-			loadTile1D(prov, t)
+		for _, cell := range tiles {
+			loadTile1D(prov, cell)
 		}
 	}
 }

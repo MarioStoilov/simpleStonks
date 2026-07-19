@@ -36,15 +36,15 @@ func main() {
 	slog.SetDefault(logger.Slog())
 
 	// Apply logging changes live when the config file is reloaded.
-	store.Subscribe(func(c config.Config) {
-		if err := logger.Reconfigure(c.Logging); err != nil {
+	store.Subscribe(func(cfg config.Config) {
+		if err := logger.Reconfigure(cfg.Logging); err != nil {
 			slog.Error("logging reconfigure failed", "err", err)
 		}
 	})
 
 	slog.Info("simplestonks starting", "symbols", len(store.Get().Symbols))
 
-	p := provider.NewYahoo(nil)
+	prov := provider.NewYahoo(nil)
 
-	ui.New(p, store).Run()
+	ui.New(prov, store).Run()
 }

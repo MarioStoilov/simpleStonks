@@ -25,7 +25,7 @@ type QuoteProvider interface {
 	Quote(ctx context.Context, symbol string) (model.Quote, error)
 
 	// History returns the price series for a symbol over the given range.
-	History(ctx context.Context, symbol string, r model.Range) (model.Series, error)
+	History(ctx context.Context, symbol string, rng model.Range) (model.Series, error)
 
 	// Search returns instruments matching a free-text query (name or symbol),
 	// for the add-symbol live search. An empty query yields no results.

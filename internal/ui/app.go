@@ -79,7 +79,7 @@ type App struct {
 }
 
 // New constructs the application with the given data provider and config store.
-func New(p provider.QuoteProvider, store *config.Store) *App {
+func New(prov provider.QuoteProvider, store *config.Store) *App {
 	// Declare that the app follows Fyne's fyne.Do threading model: every
 	// cross-goroutine UI update is marshalled onto the UI thread via fyne.Do.
 	fyneapp.SetMetadata(fyne.AppMetadata{
@@ -91,107 +91,107 @@ func New(p provider.QuoteProvider, store *config.Store) *App {
 	})
 	return &App{
 		fyne:     fyneapp.NewWithID(appID),
-		provider: p,
+		provider: prov,
 		store:    store,
 		cfg:      store.Get(),
 	}
 }
 
 // Run builds the home screen and starts the event loop. It blocks until close.
-func (a *App) Run() {
-	a.applyBackground()
-	a.win = a.fyne.NewWindow("simpleStonks")
-	a.screen = screenHome
-	a.win.SetContent(a.buildHome())
-	a.win.Resize(fyne.NewSize(1000, 640))
+func (app *App) Run() {
+	app.applyBackground()
+	app.win = app.fyne.NewWindow("simpleStonks")
+	app.screen = screenHome
+	app.win.SetContent(app.buildHome())
+	app.win.Resize(fyne.NewSize(1000, 640))
 
 	// Rebuild the current screen whenever the config changes (our edits or an
 	// external file edit). Reloads arrive on the watcher goroutine, so marshal
 	// onto the UI thread.
-	a.store.Subscribe(func(cfg config.Config) {
+	app.store.Subscribe(func(cfg config.Config) {
 		fyne.Do(func() {
-			a.cfg = cfg
-			a.applyBackground()
-			a.rebuildCurrent()
+			app.cfg = cfg
+			app.applyBackground()
+			app.rebuildCurrent()
 		})
 	})
 
 	// Start fetching once the app is running, and stop polling on close.
-	a.fyne.Lifecycle().SetOnStarted(func() { a.startData() })
-	a.win.SetOnClosed(a.stopRefresh)
+	app.fyne.Lifecycle().SetOnStarted(func() { app.startData() })
+	app.win.SetOnClosed(app.stopRefresh)
 
-	a.win.ShowAndRun()
+	app.win.ShowAndRun()
 }
 
 // showHome switches to the home grid.
-func (a *App) showHome() {
-	a.screen = screenHome
-	a.win.SetContent(a.buildHome())
-	a.startData()
+func (app *App) showHome() {
+	app.screen = screenHome
+	app.win.SetContent(app.buildHome())
+	app.startData()
 }
 
 // setEditMode toggles home-grid edit mode and rebuilds the home screen.
-func (a *App) setEditMode(on bool) {
-	a.editMode = on
-	a.screen = screenHome
-	a.win.SetContent(a.buildHome())
-	a.startData()
+func (app *App) setEditMode(enabled bool) {
+	app.editMode = enabled
+	app.screen = screenHome
+	app.win.SetContent(app.buildHome())
+	app.startData()
 }
 
 // showDetail switches to (or re-selects within) the detail view for a symbol.
-func (a *App) showDetail(symbol string) {
-	a.screen = screenDetail
-	a.selected = symbol
-	a.win.SetContent(a.buildDetail())
-	a.startData()
+func (app *App) showDetail(symbol string) {
+	app.screen = screenDetail
+	app.selected = symbol
+	app.win.SetContent(app.buildDetail())
+	app.startData()
 }
 
 // rebuildCurrent rebuilds whichever screen is active after a config change,
 // falling back to home if the detailed symbol is no longer tracked.
-func (a *App) rebuildCurrent() {
-	if a.screen == screenDetail && containsStr(a.cfg.Symbols, a.selected) {
-		a.win.SetContent(a.buildDetail())
+func (app *App) rebuildCurrent() {
+	if app.screen == screenDetail && containsStr(app.cfg.Symbols, app.selected) {
+		app.win.SetContent(app.buildDetail())
 	} else {
-		a.screen = screenHome
-		a.win.SetContent(a.buildHome())
+		app.screen = screenHome
+		app.win.SetContent(app.buildHome())
 	}
-	a.startData()
+	app.startData()
 }
 
 // startData (re)starts the initial load and refresh loop for the current screen.
 // Must be called on the UI goroutine.
-func (a *App) startData() {
-	a.stopRefresh()
-	switch a.screen {
+func (app *App) startData() {
+	app.stopRefresh()
+	switch app.screen {
 	case screenDetail:
-		a.loadDetail()
-		a.startRefresh(a.detailTick())
+		app.loadDetail()
+		app.startRefresh(app.detailTick())
 	default:
-		a.loadHome()
-		a.startRefresh(a.homeTick())
+		app.loadHome()
+		app.startRefresh(app.homeTick())
 	}
 }
 
 // startRefresh runs tick on the configured interval until stopped. tick captures
 // everything it needs, so it never reads shared App state from the goroutine.
-func (a *App) startRefresh(tick func()) {
+func (app *App) startRefresh(tick func()) {
 	if tick == nil {
 		return
 	}
-	interval := a.cfg.RefreshInterval
+	interval := app.cfg.RefreshInterval
 	if interval <= 0 {
 		interval = 30 * time.Second
 	}
 	stop := make(chan struct{})
-	a.stopCh = stop
+	app.stopCh = stop
 	go func() {
-		t := time.NewTicker(interval)
-		defer t.Stop()
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
 		for {
 			select {
 			case <-stop:
 				return
-			case <-t.C:
+			case <-ticker.C:
 				tick()
 			}
 		}
@@ -199,33 +199,33 @@ func (a *App) startRefresh(tick func()) {
 }
 
 // stopRefresh stops the polling loop if one is running.
-func (a *App) stopRefresh() {
-	if a.stopCh != nil {
-		close(a.stopCh)
-		a.stopCh = nil
+func (app *App) stopRefresh() {
+	if app.stopCh != nil {
+		close(app.stopCh)
+		app.stopCh = nil
 	}
 }
 
 // loadTile1D fetches a tile's 1D history and applies it on the UI goroutine.
-func loadTile1D(prov provider.QuoteProvider, t *tile) {
+func loadTile1D(prov provider.QuoteProvider, cell *tile) {
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), fetchTimeout)
 		defer cancel()
-		s, err := prov.History(ctx, t.symbol, model.Range1D)
+		series, err := prov.History(ctx, cell.symbol, model.Range1D)
 		fyne.Do(func() {
 			if err != nil {
-				t.setError(err)
+				cell.setError(err)
 				return
 			}
-			t.setSeries(s)
+			cell.setSeries(series)
 		})
 	}()
 }
 
-// containsStr reports whether ss contains s.
-func containsStr(ss []string, s string) bool {
-	for _, v := range ss {
-		if v == s {
+// containsStr reports whether candidates contains target.
+func containsStr(candidates []string, target string) bool {
+	for _, candidate := range candidates {
+		if candidate == target {
 			return true
 		}
 	}

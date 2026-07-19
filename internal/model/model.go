@@ -27,7 +27,7 @@ var Ranges = []Range{
 
 // Intraday reports whether a range is fine-grained enough to warrant
 // live-tick polling (currently only the 1D view).
-func (r Range) Intraday() bool { return r == Range1D }
+func (rng Range) Intraday() bool { return rng == Range1D }
 
 // Candle is a single OHLC data point in a price series.
 type Candle struct {
@@ -76,13 +76,13 @@ type Quote struct {
 }
 
 // Change returns the absolute price change versus the previous close.
-func (q Quote) Change() float64 { return q.Price - q.PreviousClose }
+func (quote Quote) Change() float64 { return quote.Price - quote.PreviousClose }
 
 // ChangePercent returns the percent change versus the previous close.
 // It returns 0 when the previous close is unknown to avoid divide-by-zero.
-func (q Quote) ChangePercent() float64 {
-	if q.PreviousClose == 0 {
+func (quote Quote) ChangePercent() float64 {
+	if quote.PreviousClose == 0 {
 		return 0
 	}
-	return (q.Price - q.PreviousClose) / q.PreviousClose * 100
+	return (quote.Price - quote.PreviousClose) / quote.PreviousClose * 100
 }

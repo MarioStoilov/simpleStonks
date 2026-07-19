@@ -40,6 +40,12 @@ from the UI, and the list plus other settings are persisted to a config file.
   which is installed as slog's default. Log through `slog` (levels: silent →
   debug); logging config (level, file, rotation) lives in the config file and is
   live-reloaded.
+- **Naming: no one- or two-character identifiers.** Receivers, parameters,
+  locals, loop variables, and struct fields must use descriptive names of at
+  least three characters (e.g. `app *App` not `a *App`, `series, err :=` not
+  `s, err :=`, `for _, value :=` not `for _, v :=`, `idx` not `i`). Allowed
+  exceptions: the comma-ok idiom (`v, ok :=` keeps `ok`) and the standard
+  `t *testing.T`.
 - Match the style, naming, and structure of existing code.
 
 ## Testing

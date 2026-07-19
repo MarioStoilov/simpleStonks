@@ -27,9 +27,9 @@ type Store struct {
 	path    string
 	watcher *fsnotify.Watcher
 
-	mu   sync.RWMutex
-	cfg  Config
-	subs []func(Config)
+	mutex sync.RWMutex
+	cfg   Config
+	subs  []func(Config)
 
 	done chan struct{}
 }
@@ -56,83 +56,83 @@ func Open() (*Store, error) {
 		return nil, err
 	}
 
-	w, err := fsnotify.NewWatcher()
+	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return nil, err
 	}
 	// Watch the directory, not the file: atomic saves (write-tmp + rename)
 	// replace the file, which a file-level watch would stop following.
-	if err := w.Add(dir); err != nil {
-		_ = w.Close()
+	if err := watcher.Add(dir); err != nil {
+		_ = watcher.Close()
 		return nil, err
 	}
 
-	s := &Store{path: path, watcher: w, cfg: cfg, done: make(chan struct{})}
-	go s.watch()
-	return s, nil
+	store := &Store{path: path, watcher: watcher, cfg: cfg, done: make(chan struct{})}
+	go store.watch()
+	return store, nil
 }
 
 // Get returns a snapshot of the current configuration.
-func (s *Store) Get() Config {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.cfg
+func (store *Store) Get() Config {
+	store.mutex.RLock()
+	defer store.mutex.RUnlock()
+	return store.cfg
 }
 
-// Subscribe registers fn to be called whenever the configuration changes,
+// Subscribe registers callback to be called whenever the configuration changes,
 // whether from Update or an external file edit.
-func (s *Store) Subscribe(fn func(Config)) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.subs = append(s.subs, fn)
+func (store *Store) Subscribe(callback func(Config)) {
+	store.mutex.Lock()
+	defer store.mutex.Unlock()
+	store.subs = append(store.subs, callback)
 }
 
 // Update applies mutate to the current config, persists it, and notifies
 // subscribers. It is the entry point for UI-initiated changes.
-func (s *Store) Update(mutate func(*Config)) error {
-	s.mu.Lock()
-	next := s.cfg.clone()
+func (store *Store) Update(mutate func(*Config)) error {
+	store.mutex.Lock()
+	next := store.cfg.clone()
 	mutate(&next)
-	if reflect.DeepEqual(next, s.cfg) {
-		s.mu.Unlock()
+	if reflect.DeepEqual(next, store.cfg) {
+		store.mutex.Unlock()
 		return nil
 	}
 	if err := Save(next); err != nil {
-		s.mu.Unlock()
+		store.mutex.Unlock()
 		return err
 	}
-	s.cfg = next
-	subs := append([]func(Config){}, s.subs...)
-	s.mu.Unlock()
+	store.cfg = next
+	subs := append([]func(Config){}, store.subs...)
+	store.mutex.Unlock()
 
-	for _, fn := range subs {
-		fn(next)
+	for _, callback := range subs {
+		callback(next)
 	}
 	return nil
 }
 
 // Close stops watching and releases resources.
-func (s *Store) Close() error {
-	close(s.done)
-	return s.watcher.Close()
+func (store *Store) Close() error {
+	close(store.done)
+	return store.watcher.Close()
 }
 
 // watch coalesces filesystem events for the config file and reloads on change.
-func (s *Store) watch() {
+func (store *Store) watch() {
 	var timer *time.Timer
 	var timerC <-chan time.Time
 	for {
 		select {
-		case <-s.done:
+		case <-store.done:
 			if timer != nil {
 				timer.Stop()
 			}
 			return
-		case event, ok := <-s.watcher.Events:
+		case event, ok := <-store.watcher.Events:
 			if !ok {
 				return
 			}
-			if filepath.Clean(event.Name) != s.path {
+			if filepath.Clean(event.Name) != store.path {
 				continue
 			}
 			if timer == nil {
@@ -141,13 +141,13 @@ func (s *Store) watch() {
 				timer.Reset(debounce)
 			}
 			timerC = timer.C
-		case err, ok := <-s.watcher.Errors:
+		case err, ok := <-store.watcher.Errors:
 			if !ok {
 				return
 			}
 			log.Printf("config: watch error: %v", err)
 		case <-timerC:
-			s.reload()
+			store.reload()
 		}
 	}
 }
@@ -155,22 +155,22 @@ func (s *Store) watch() {
 // reload reads the file and, if the config changed, updates it and notifies
 // subscribers. A malformed file is logged and ignored, keeping the last-good
 // config in memory.
-func (s *Store) reload() {
+func (store *Store) reload() {
 	next, err := Load()
 	if err != nil {
 		log.Printf("config: reload skipped: %v", err)
 		return
 	}
-	s.mu.Lock()
-	if reflect.DeepEqual(next, s.cfg) {
-		s.mu.Unlock()
+	store.mutex.Lock()
+	if reflect.DeepEqual(next, store.cfg) {
+		store.mutex.Unlock()
 		return
 	}
-	s.cfg = next
-	subs := append([]func(Config){}, s.subs...)
-	s.mu.Unlock()
+	store.cfg = next
+	subs := append([]func(Config){}, store.subs...)
+	store.mutex.Unlock()
 
-	for _, fn := range subs {
-		fn(next)
+	for _, callback := range subs {
+		callback(next)
 	}
 }

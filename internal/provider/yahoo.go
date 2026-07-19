@@ -43,40 +43,40 @@ func NewYahoo(client *http.Client) *Yahoo {
 }
 
 // get issues a GET with the Yahoo-friendly user agent.
-func (y *Yahoo) get(ctx context.Context, endpoint string) (*http.Response, error) {
+func (yahoo *Yahoo) get(ctx context.Context, endpoint string) (*http.Response, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("User-Agent", yahooUserAgent)
-	return y.client.Do(req)
+	return yahoo.client.Do(req)
 }
 
 // Name implements QuoteProvider.
-func (y *Yahoo) Name() string { return "yahoo" }
+func (yahoo *Yahoo) Name() string { return "yahoo" }
 
 // Quote implements QuoteProvider. It reads the latest price and previous close
 // from the 1D chart's meta block.
-func (y *Yahoo) Quote(ctx context.Context, symbol string) (model.Quote, error) {
-	res, err := y.fetchChart(ctx, symbol, "1d", "1m")
+func (yahoo *Yahoo) Quote(ctx context.Context, symbol string) (model.Quote, error) {
+	res, err := yahoo.fetchChart(ctx, symbol, "1d", "1m")
 	if err != nil {
 		return model.Quote{}, err
 	}
-	m := res.Meta
+	meta := res.Meta
 	return model.Quote{
-		Symbol:        symbolOr(m.Symbol, symbol),
-		Price:         m.RegularMarketPrice,
-		PreviousClose: m.previousCloseRef(),
-		Currency:      m.Currency,
-		AsOf:          time.Unix(m.RegularMarketTime, 0).UTC(),
+		Symbol:        symbolOr(meta.Symbol, symbol),
+		Price:         meta.RegularMarketPrice,
+		PreviousClose: meta.previousCloseRef(),
+		Currency:      meta.Currency,
+		AsOf:          time.Unix(meta.RegularMarketTime, 0).UTC(),
 	}, nil
 }
 
 // History implements QuoteProvider. It maps the range to Yahoo's range+interval
 // parameters and decodes the returned timestamps and OHLC arrays.
-func (y *Yahoo) History(ctx context.Context, symbol string, r model.Range) (model.Series, error) {
-	rng, interval := yahooParams(r)
-	res, err := y.fetchChart(ctx, symbol, rng, interval)
+func (yahoo *Yahoo) History(ctx context.Context, symbol string, rng model.Range) (model.Series, error) {
+	chartRange, interval := yahooParams(rng)
+	res, err := yahoo.fetchChart(ctx, symbol, chartRange, interval)
 	if err != nil {
 		return model.Series{}, err
 	}
@@ -84,33 +84,33 @@ func (y *Yahoo) History(ctx context.Context, symbol string, r model.Range) (mode
 	if err != nil {
 		return model.Series{}, fmt.Errorf("yahoo: %s: %w", symbol, err)
 	}
-	s := model.Series{
+	series := model.Series{
 		Symbol:        symbolOr(res.Meta.Symbol, symbol),
 		Name:          res.Meta.displayName(),
-		Range:         r,
+		Range:         rng,
 		Currency:      res.Meta.Currency,
 		Candles:       candles,
 		PreviousClose: res.Meta.previousCloseRef(),
 	}
-	if p := res.Meta.CurrentTradingPeriod.Regular; p.Start > 0 && p.End > p.Start {
-		s.SessionStart = time.Unix(p.Start, 0).UTC()
-		s.SessionEnd = time.Unix(p.End, 0).UTC()
+	if period := res.Meta.CurrentTradingPeriod.Regular; period.Start > 0 && period.End > period.Start {
+		series.SessionStart = time.Unix(period.Start, 0).UTC()
+		series.SessionEnd = time.Unix(period.End, 0).UTC()
 	}
-	return s, nil
+	return series, nil
 }
 
 // Search implements QuoteProvider using Yahoo's search endpoint.
-func (y *Yahoo) Search(ctx context.Context, query string) ([]model.SearchResult, error) {
+func (yahoo *Yahoo) Search(ctx context.Context, query string) ([]model.SearchResult, error) {
 	if strings.TrimSpace(query) == "" {
 		return nil, nil
 	}
-	endpoint := y.searchURL + "?" + url.Values{
+	endpoint := yahoo.searchURL + "?" + url.Values{
 		"q":           {query},
 		"quotesCount": {"10"},
 		"newsCount":   {"0"},
 	}.Encode()
 
-	resp, err := y.get(ctx, endpoint)
+	resp, err := yahoo.get(ctx, endpoint)
 	if err != nil {
 		return nil, fmt.Errorf("yahoo: search %q: %w", query, err)
 	}
@@ -125,15 +125,15 @@ func (y *Yahoo) Search(ctx context.Context, query string) ([]model.SearchResult,
 	}
 
 	out := make([]model.SearchResult, 0, len(body.Quotes))
-	for _, q := range body.Quotes {
-		if q.Symbol == "" {
+	for _, quote := range body.Quotes {
+		if quote.Symbol == "" {
 			continue
 		}
 		out = append(out, model.SearchResult{
-			Symbol:   q.Symbol,
-			Name:     firstNonEmpty(q.LongName, q.ShortName),
-			Exchange: firstNonEmpty(q.ExchDisp, q.Exchange),
-			Type:     firstNonEmpty(q.TypeDisp, q.QuoteType),
+			Symbol:   quote.Symbol,
+			Name:     firstNonEmpty(quote.LongName, quote.ShortName),
+			Exchange: firstNonEmpty(quote.ExchDisp, quote.Exchange),
+			Type:     firstNonEmpty(quote.TypeDisp, quote.QuoteType),
 		})
 	}
 	return out, nil
@@ -141,16 +141,16 @@ func (y *Yahoo) Search(ctx context.Context, query string) ([]model.SearchResult,
 
 // fetchChart requests the chart endpoint for a symbol and returns the first
 // result, mapping transport and API-level failures to errors.
-func (y *Yahoo) fetchChart(ctx context.Context, symbol, rng, interval string) (*yahooResult, error) {
+func (yahoo *Yahoo) fetchChart(ctx context.Context, symbol, rng, interval string) (*yahooResult, error) {
 	if symbol == "" {
 		return nil, fmt.Errorf("yahoo: empty symbol")
 	}
-	endpoint := y.baseURL + url.PathEscape(symbol) + "?" + url.Values{
+	endpoint := yahoo.baseURL + url.PathEscape(symbol) + "?" + url.Values{
 		"range":    {rng},
 		"interval": {interval},
 	}.Encode()
 
-	resp, err := y.get(ctx, endpoint)
+	resp, err := yahoo.get(ctx, endpoint)
 	if err != nil {
 		return nil, fmt.Errorf("yahoo: %s: %w", symbol, err)
 	}
@@ -229,21 +229,21 @@ type yahooMeta struct {
 }
 
 // displayName is the friendly instrument name, preferring the long form.
-func (m yahooMeta) displayName() string {
-	if m.LongName != "" {
-		return m.LongName
+func (meta yahooMeta) displayName() string {
+	if meta.LongName != "" {
+		return meta.LongName
 	}
-	return m.ShortName
+	return meta.ShortName
 }
 
 // previousCloseRef is the close used as the % change reference for a range.
 // chartPreviousClose is the close just before the range starts; previousClose
 // is the fallback for endpoints that omit it.
-func (m yahooMeta) previousCloseRef() float64 {
-	if m.ChartPreviousClose != 0 {
-		return m.ChartPreviousClose
+func (meta yahooMeta) previousCloseRef() float64 {
+	if meta.ChartPreviousClose != 0 {
+		return meta.ChartPreviousClose
 	}
-	return m.PreviousClose
+	return meta.PreviousClose
 }
 
 // yahooQuote holds the OHLCV arrays. Pointers distinguish a genuine gap (null,
@@ -261,20 +261,20 @@ func (res *yahooResult) candles() ([]model.Candle, error) {
 	if len(res.Indicators.Quote) == 0 {
 		return nil, fmt.Errorf("no quote indicators")
 	}
-	q := res.Indicators.Quote[0]
+	quote := res.Indicators.Quote[0]
 	out := make([]model.Candle, 0, len(res.Timestamp))
-	for i := range res.Timestamp {
-		c := fptrAt(q.Close, i)
-		if c == nil {
+	for idx := range res.Timestamp {
+		closeVal := fptrAt(quote.Close, idx)
+		if closeVal == nil {
 			continue // gap in the data
 		}
 		out = append(out, model.Candle{
-			Time:   time.Unix(res.Timestamp[i], 0).UTC(),
-			Open:   fvalAt(q.Open, i),
-			High:   fvalAt(q.High, i),
-			Low:    fvalAt(q.Low, i),
-			Close:  *c,
-			Volume: ivalAt(q.Volume, i),
+			Time:   time.Unix(res.Timestamp[idx], 0).UTC(),
+			Open:   fvalAt(quote.Open, idx),
+			High:   fvalAt(quote.High, idx),
+			Low:    fvalAt(quote.Low, idx),
+			Close:  *closeVal,
+			Volume: ivalAt(quote.Volume, idx),
 		})
 	}
 	return out, nil
@@ -283,8 +283,8 @@ func (res *yahooResult) candles() ([]model.Candle, error) {
 // yahooParams maps a model.Range to Yahoo's (range, interval) query parameters.
 // Yahoo has no exact 1W range, so it is approximated with a 5d range at a
 // coarser interval.
-func yahooParams(r model.Range) (rng, interval string) {
-	switch r {
+func yahooParams(chartRange model.Range) (rng, interval string) {
+	switch chartRange {
 	case model.Range1D:
 		return "1d", "1m"
 	case model.Range5D:
@@ -316,34 +316,34 @@ func symbolOr(meta, requested string) string {
 
 // firstNonEmpty returns the first non-empty string, or "".
 func firstNonEmpty(vals ...string) string {
-	for _, v := range vals {
-		if v != "" {
-			return v
+	for _, value := range vals {
+		if value != "" {
+			return value
 		}
 	}
 	return ""
 }
 
-// fptrAt returns the *float64 at index i, or nil if out of range.
-func fptrAt(s []*float64, i int) *float64 {
-	if i < len(s) {
-		return s[i]
+// fptrAt returns the *float64 at index idx, or nil if out of range.
+func fptrAt(values []*float64, idx int) *float64 {
+	if idx < len(values) {
+		return values[idx]
 	}
 	return nil
 }
 
-// fvalAt dereferences the float at index i, treating missing/null as 0.
-func fvalAt(s []*float64, i int) float64 {
-	if p := fptrAt(s, i); p != nil {
-		return *p
+// fvalAt dereferences the float at index idx, treating missing/null as 0.
+func fvalAt(values []*float64, idx int) float64 {
+	if ptr := fptrAt(values, idx); ptr != nil {
+		return *ptr
 	}
 	return 0
 }
 
-// ivalAt dereferences the int at index i, treating missing/null as 0.
-func ivalAt(s []*int64, i int) int64 {
-	if i < len(s) && s[i] != nil {
-		return *s[i]
+// ivalAt dereferences the int at index idx, treating missing/null as 0.
+func ivalAt(values []*int64, idx int) int64 {
+	if idx < len(values) && values[idx] != nil {
+		return *values[idx]
 	}
 	return 0
 }

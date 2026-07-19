@@ -11,39 +11,39 @@ import (
 // underlying destination and level change on reconfigure, so a reference held
 // elsewhere (or installed as slog's default) keeps working across changes.
 type switchHandler struct {
-	mu    sync.RWMutex
+	mutex sync.RWMutex
 	inner slog.Handler
 }
 
-func (s *switchHandler) set(h slog.Handler) {
-	s.mu.Lock()
-	s.inner = h
-	s.mu.Unlock()
+func (handler *switchHandler) set(next slog.Handler) {
+	handler.mutex.Lock()
+	handler.inner = next
+	handler.mutex.Unlock()
 }
 
-func (s *switchHandler) current() slog.Handler {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.inner
+func (handler *switchHandler) current() slog.Handler {
+	handler.mutex.RLock()
+	defer handler.mutex.RUnlock()
+	return handler.inner
 }
 
-func (s *switchHandler) Enabled(ctx context.Context, level slog.Level) bool {
-	return s.current().Enabled(ctx, level)
+func (handler *switchHandler) Enabled(ctx context.Context, level slog.Level) bool {
+	return handler.current().Enabled(ctx, level)
 }
 
-func (s *switchHandler) Handle(ctx context.Context, r slog.Record) error {
-	return s.current().Handle(ctx, r)
+func (handler *switchHandler) Handle(ctx context.Context, record slog.Record) error {
+	return handler.current().Handle(ctx, record)
 }
 
 // WithAttrs and WithGroup delegate to the current inner handler. Loggers derived
 // through these bind to the destination in effect at derivation time and do not
 // hot-swap; the root logger (used as the default) does.
-func (s *switchHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
-	return s.current().WithAttrs(attrs)
+func (handler *switchHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	return handler.current().WithAttrs(attrs)
 }
 
-func (s *switchHandler) WithGroup(name string) slog.Handler {
-	return s.current().WithGroup(name)
+func (handler *switchHandler) WithGroup(name string) slog.Handler {
+	return handler.current().WithGroup(name)
 }
 
 // discardHandler drops every record; used for the silent level.

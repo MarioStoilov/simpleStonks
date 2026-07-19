@@ -22,9 +22,9 @@ func TestNearestPoint(t *testing.T) {
 		{21, 2},  // just right of it
 		{100, 2}, // right of the last point clamps to it
 	}
-	for _, c := range cases {
-		if got := nearestPoint(pts, c.x); got != c.want {
-			t.Errorf("nearestPoint(%v) = %d, want %d", c.x, got, c.want)
+	for _, testCase := range cases {
+		if got := nearestPoint(pts, testCase.x); got != testCase.want {
+			t.Errorf("nearestPoint(%v) = %d, want %d", testCase.x, got, testCase.want)
 		}
 	}
 }
@@ -59,9 +59,9 @@ func TestPlotPathPadding(t *testing.T) {
 
 func TestPlotPathFlatSeriesCentered(t *testing.T) {
 	pts := plotPath([]float64{5, 5, 5}, evenFracs(3), 100, 50, 0, 5, 5)
-	for i, p := range pts {
-		if p.Y != 25 {
-			t.Errorf("flat series point %d y = %v, want 25 (mid)", i, p.Y)
+	for idx, point := range pts {
+		if point.Y != 25 {
+			t.Errorf("flat series point %d y = %v, want 25 (mid)", idx, point.Y)
 		}
 	}
 }
@@ -87,7 +87,7 @@ func TestPlotPathWidenedScale(t *testing.T) {
 	// scale fraction (10-5)/(20-5)=1/3 up, i.e. y = 50 * 2/3.
 	pts := plotPath([]float64{10, 20}, evenFracs(2), 100, 50, 0, 5, 20)
 	want := float32(50) * 2 / 3
-	if d := pts[0].Y - want; d < -0.001 || d > 0.001 {
+	if diff := pts[0].Y - want; diff < -0.001 || diff > 0.001 {
 		t.Errorf("widened-scale min y = %v, want ~%v", pts[0].Y, want)
 	}
 	if pts[1].Y != 0 {
@@ -96,20 +96,20 @@ func TestPlotPathWidenedScale(t *testing.T) {
 }
 
 func TestYFor(t *testing.T) {
-	if y := yFor(10, 10, 20, 50, 0); y != 50 {
-		t.Errorf("lo maps to y=%v, want 50 (bottom)", y)
+	if posY := yFor(10, 10, 20, 50, 0); posY != 50 {
+		t.Errorf("lo maps to y=%v, want 50 (bottom)", posY)
 	}
-	if y := yFor(20, 10, 20, 50, 0); y != 0 {
-		t.Errorf("hi maps to y=%v, want 0 (top)", y)
+	if posY := yFor(20, 10, 20, 50, 0); posY != 0 {
+		t.Errorf("hi maps to y=%v, want 0 (top)", posY)
 	}
-	if y := yFor(15, 10, 20, 50, 0); y != 25 {
-		t.Errorf("mid maps to y=%v, want 25", y)
+	if posY := yFor(15, 10, 20, 50, 0); posY != 25 {
+		t.Errorf("mid maps to y=%v, want 25", posY)
 	}
-	if y := yFor(7, 7, 7, 50, 0); y != 25 {
-		t.Errorf("flat scale maps to y=%v, want 25 (centered)", y)
+	if posY := yFor(7, 7, 7, 50, 0); posY != 25 {
+		t.Errorf("flat scale maps to y=%v, want 25 (centered)", posY)
 	}
-	if y := yFor(20, 10, 20, 50, 5); y != 5 {
-		t.Errorf("hi with padding maps to y=%v, want 5", y)
+	if posY := yFor(20, 10, 20, 50, 5); posY != 5 {
+		t.Errorf("hi with padding maps to y=%v, want 5", posY)
 	}
 }
 
@@ -119,9 +119,9 @@ func TestYTicks(t *testing.T) {
 	if len(got) != len(want) {
 		t.Fatalf("got %d ticks, want %d", len(got), len(want))
 	}
-	for i := range want {
-		if got[i] != want[i] {
-			t.Errorf("tick %d = %v, want %v", i, got[i], want[i])
+	for idx := range want {
+		if got[idx] != want[idx] {
+			t.Errorf("tick %d = %v, want %v", idx, got[idx], want[idx])
 		}
 	}
 	if yTicks(10, 10, 3) != nil {
@@ -136,43 +136,43 @@ func TestYTicks(t *testing.T) {
 // cover only the first part of the day (a live, partially traded session).
 func sessionSeries(candleTimes ...time.Time) model.Series {
 	day := time.Date(2026, 7, 17, 0, 0, 0, 0, time.UTC)
-	s := model.Series{
+	series := model.Series{
 		Range:        model.Range1D,
 		SessionStart: day.Add(9*time.Hour + 30*time.Minute),
 		SessionEnd:   day.Add(16 * time.Hour),
 	}
-	for _, at := range candleTimes {
-		s.Candles = append(s.Candles, model.Candle{Time: at, Close: 100})
+	for _, candleTime := range candleTimes {
+		series.Candles = append(series.Candles, model.Candle{Time: candleTime, Close: 100})
 	}
-	return s
+	return series
 }
 
 func TestXFracsSessionScalesToFullWindow(t *testing.T) {
 	// Session is 6.5h; candles cover only the first 3.25h → last frac is 0.5.
-	s := sessionSeries(
+	series := sessionSeries(
 		time.Date(2026, 7, 17, 9, 30, 0, 0, time.UTC),
 		time.Date(2026, 7, 17, 12, 45, 0, 0, time.UTC),
 	)
-	fr := xFracs(s)
-	if len(fr) != 2 {
-		t.Fatalf("got %d fracs, want 2", len(fr))
+	fracs := xFracs(series)
+	if len(fracs) != 2 {
+		t.Fatalf("got %d fracs, want 2", len(fracs))
 	}
-	if fr[0] != 0 {
-		t.Errorf("session-start frac = %v, want 0", fr[0])
+	if fracs[0] != 0 {
+		t.Errorf("session-start frac = %v, want 0", fracs[0])
 	}
-	if fr[1] != 0.5 {
-		t.Errorf("mid-session frac = %v, want 0.5 (half the window)", fr[1])
+	if fracs[1] != 0.5 {
+		t.Errorf("mid-session frac = %v, want 0.5 (half the window)", fracs[1])
 	}
 }
 
 func TestXFracsClampsOutsideSession(t *testing.T) {
-	s := sessionSeries(
+	series := sessionSeries(
 		time.Date(2026, 7, 17, 9, 0, 0, 0, time.UTC),   // pre-market
 		time.Date(2026, 7, 17, 16, 30, 0, 0, time.UTC), // post-market
 	)
-	fr := xFracs(s)
-	if fr[0] != 0 || fr[1] != 1 {
-		t.Errorf("fracs = %v, want [0 1] (clamped to the session)", fr)
+	fracs := xFracs(series)
+	if fracs[0] != 0 || fracs[1] != 1 {
+		t.Errorf("fracs = %v, want [0 1] (clamped to the session)", fracs)
 	}
 }
 
@@ -182,30 +182,30 @@ func TestXFracsPreviousDayFallsBackToEvenSpacing(t *testing.T) {
 	// width instead of collapsing onto the left edge of the future window —
 	// once the session opens and its candles arrive, window mode takes over
 	// again (covered by TestXFracsSessionScalesToFullWindow).
-	s := sessionSeries(
+	series := sessionSeries(
 		time.Date(2026, 7, 16, 9, 30, 0, 0, time.UTC),
 		time.Date(2026, 7, 16, 12, 45, 0, 0, time.UTC),
 		time.Date(2026, 7, 16, 16, 0, 0, 0, time.UTC),
 	)
-	if sessionWindow(s) {
+	if sessionWindow(series) {
 		t.Fatal("sessionWindow = true for previous-day candles, want false")
 	}
-	fr := xFracs(s)
+	fracs := xFracs(series)
 	want := []float32{0, 0.5, 1}
-	for i := range want {
-		if fr[i] != want[i] {
-			t.Errorf("frac %d = %v, want %v", i, fr[i], want[i])
+	for idx := range want {
+		if fracs[idx] != want[idx] {
+			t.Errorf("frac %d = %v, want %v", idx, fracs[idx], want[idx])
 		}
 	}
 }
 
 func TestXFracsFallsBackToEvenSpacing(t *testing.T) {
 	// No session window (e.g. a 1M series): candles are spaced evenly.
-	fr := xFracs(hourlySeries(model.Range1M, 3))
+	fracs := xFracs(hourlySeries(model.Range1M, 3))
 	want := []float32{0, 0.5, 1}
-	for i := range want {
-		if fr[i] != want[i] {
-			t.Errorf("frac %d = %v, want %v", i, fr[i], want[i])
+	for idx := range want {
+		if fracs[idx] != want[idx] {
+			t.Errorf("frac %d = %v, want %v", idx, fracs[idx], want[idx])
 		}
 	}
 }
@@ -219,34 +219,34 @@ func TestSessionTicksSpanFullWindow(t *testing.T) {
 	}
 	want := []string{"09:30", "12:45", "16:00"}
 	fracs := []float32{0, 0.5, 1}
-	for i, tk := range ticks {
-		if tk.label != want[i] {
-			t.Errorf("tick %d label = %q, want %q", i, tk.label, want[i])
+	for idx, tick := range ticks {
+		if tick.label != want[idx] {
+			t.Errorf("tick %d label = %q, want %q", idx, tick.label, want[idx])
 		}
-		if tk.frac != fracs[i] {
-			t.Errorf("tick %d frac = %v, want %v", i, tk.frac, fracs[i])
+		if tick.frac != fracs[idx] {
+			t.Errorf("tick %d frac = %v, want %v", idx, tick.frac, fracs[idx])
 		}
 	}
 }
 
 func TestSessionTicksDegenerate(t *testing.T) {
-	at := time.Date(2026, 7, 17, 9, 30, 0, 0, time.UTC)
-	if sessionTicks(at, at, 3, time.UTC) != nil {
+	when := time.Date(2026, 7, 17, 9, 30, 0, 0, time.UTC)
+	if sessionTicks(when, when, 3, time.UTC) != nil {
 		t.Error("expected nil for an empty window")
 	}
-	if sessionTicks(at, at.Add(time.Hour), 1, time.UTC) != nil {
+	if sessionTicks(when, when.Add(time.Hour), 1, time.UTC) != nil {
 		t.Error("expected nil when fewer than two ticks fit")
 	}
 }
 
 // hourlySeries builds a series with n candles spaced an hour apart (UTC).
-func hourlySeries(r model.Range, n int) model.Series {
+func hourlySeries(rng model.Range, count int) model.Series {
 	start := time.Date(2026, 7, 17, 9, 30, 0, 0, time.UTC)
-	s := model.Series{Range: r, Candles: make([]model.Candle, n)}
-	for i := range s.Candles {
-		s.Candles[i] = model.Candle{Time: start.Add(time.Duration(i) * time.Hour), Close: 100}
+	series := model.Series{Range: rng, Candles: make([]model.Candle, count)}
+	for idx := range series.Candles {
+		series.Candles[idx] = model.Candle{Time: start.Add(time.Duration(idx) * time.Hour), Close: 100}
 	}
-	return s
+	return series
 }
 
 func TestXTicks1DShowsHours(t *testing.T) {
@@ -256,12 +256,12 @@ func TestXTicks1DShowsHours(t *testing.T) {
 	}
 	want := []string{"09:30", "12:30", "15:30"}
 	fracs := []float32{0, 0.5, 1}
-	for i, tk := range ticks {
-		if tk.label != want[i] {
-			t.Errorf("tick %d label = %q, want %q", i, tk.label, want[i])
+	for idx, tick := range ticks {
+		if tick.label != want[idx] {
+			t.Errorf("tick %d label = %q, want %q", idx, tick.label, want[idx])
 		}
-		if tk.frac != fracs[i] {
-			t.Errorf("tick %d frac = %v, want %v", i, tk.frac, fracs[i])
+		if tick.frac != fracs[idx] {
+			t.Errorf("tick %d frac = %v, want %v", idx, tick.frac, fracs[idx])
 		}
 	}
 }
@@ -308,9 +308,9 @@ func TestXTicksDegenerate(t *testing.T) {
 }
 
 func TestXAxisFormatPerRange(t *testing.T) {
-	at := time.Date(2026, 7, 17, 15, 4, 0, 0, time.UTC) // a Friday
+	when := time.Date(2026, 7, 17, 15, 4, 0, 0, time.UTC) // a Friday
 	cases := []struct {
-		r    model.Range
+		rng  model.Range
 		want string
 	}{
 		{model.Range1D, "15:04"},
@@ -322,9 +322,9 @@ func TestXAxisFormatPerRange(t *testing.T) {
 		{model.Range5Y, "2026"},
 		{model.RangeAll, "2026"},
 	}
-	for _, c := range cases {
-		if got := at.Format(xAxisFormat(c.r)); got != c.want {
-			t.Errorf("range %s: label = %q, want %q", c.r, got, c.want)
+	for _, testCase := range cases {
+		if got := when.Format(xAxisFormat(testCase.rng)); got != testCase.want {
+			t.Errorf("range %s: label = %q, want %q", testCase.rng, got, testCase.want)
 		}
 	}
 }
@@ -336,9 +336,9 @@ func TestFormatAxisPrice(t *testing.T) {
 }
 
 func TestHoverTimeFormatPerRange(t *testing.T) {
-	at := time.Date(2026, 7, 17, 15, 4, 0, 0, time.UTC) // a Friday
+	when := time.Date(2026, 7, 17, 15, 4, 0, 0, time.UTC) // a Friday
 	cases := []struct {
-		r    model.Range
+		rng  model.Range
 		want string
 	}{
 		{model.Range1D, "15:04"},
@@ -350,9 +350,9 @@ func TestHoverTimeFormatPerRange(t *testing.T) {
 		{model.Range5Y, "17 Jul 2026"},
 		{model.RangeAll, "17 Jul 2026"},
 	}
-	for _, c := range cases {
-		if got := at.Format(hoverTimeFormat(c.r)); got != c.want {
-			t.Errorf("range %s: label = %q, want %q", c.r, got, c.want)
+	for _, testCase := range cases {
+		if got := when.Format(hoverTimeFormat(testCase.rng)); got != testCase.want {
+			t.Errorf("range %s: label = %q, want %q", testCase.rng, got, testCase.want)
 		}
 	}
 }

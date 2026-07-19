@@ -18,31 +18,31 @@ const quoteBody = `{"chart":{"result":[{"meta":{
 
 func TestYahooQuote(t *testing.T) {
 	var got *http.Request
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		got = r
-		_, _ = w.Write([]byte(quoteBody))
+	srv := httptest.NewServer(http.HandlerFunc(func(respWriter http.ResponseWriter, request *http.Request) {
+		got = request
+		_, _ = respWriter.Write([]byte(quoteBody))
 	}))
 	defer srv.Close()
 
-	y := NewYahoo(srv.Client())
-	y.baseURL = srv.URL + "/"
+	provider := NewYahoo(srv.Client())
+	provider.baseURL = srv.URL + "/"
 
-	q, err := y.Quote(context.Background(), "AAPL")
+	quote, err := provider.Quote(context.Background(), "AAPL")
 	if err != nil {
 		t.Fatalf("Quote: %v", err)
 	}
-	if q.Symbol != "AAPL" || q.Price != 150.25 || q.Currency != "USD" {
-		t.Errorf("unexpected quote: %+v", q)
+	if quote.Symbol != "AAPL" || quote.Price != 150.25 || quote.Currency != "USD" {
+		t.Errorf("unexpected quote: %+v", quote)
 	}
 	// previousCloseRef prefers chartPreviousClose (147.5) over previousClose.
-	if q.PreviousClose != 147.5 {
-		t.Errorf("PreviousClose = %v, want 147.5", q.PreviousClose)
+	if quote.PreviousClose != 147.5 {
+		t.Errorf("PreviousClose = %v, want 147.5", quote.PreviousClose)
 	}
 	if got.URL.Path != "/AAPL" {
 		t.Errorf("request path = %q, want /AAPL", got.URL.Path)
 	}
-	if ua := got.Header.Get("User-Agent"); ua != yahooUserAgent {
-		t.Errorf("User-Agent = %q, want %q", ua, yahooUserAgent)
+	if userAgent := got.Header.Get("User-Agent"); userAgent != yahooUserAgent {
+		t.Errorf("User-Agent = %q, want %q", userAgent, yahooUserAgent)
 	}
 }
 
@@ -58,81 +58,81 @@ const historyBody = `{"chart":{"result":[{"meta":{
 
 func TestYahooHistorySkipsGaps(t *testing.T) {
 	var got *http.Request
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		got = r
-		_, _ = w.Write([]byte(historyBody))
+	srv := httptest.NewServer(http.HandlerFunc(func(respWriter http.ResponseWriter, request *http.Request) {
+		got = request
+		_, _ = respWriter.Write([]byte(historyBody))
 	}))
 	defer srv.Close()
 
-	y := NewYahoo(srv.Client())
-	y.baseURL = srv.URL + "/"
+	provider := NewYahoo(srv.Client())
+	provider.baseURL = srv.URL + "/"
 
-	s, err := y.History(context.Background(), "AAPL", model.Range1D)
+	series, err := provider.History(context.Background(), "AAPL", model.Range1D)
 	if err != nil {
 		t.Fatalf("History: %v", err)
 	}
 	// The middle candle (null close) must be skipped.
-	if len(s.Candles) != 2 {
-		t.Fatalf("got %d candles, want 2 (gap skipped): %+v", len(s.Candles), s.Candles)
+	if len(series.Candles) != 2 {
+		t.Fatalf("got %d candles, want 2 (gap skipped): %+v", len(series.Candles), series.Candles)
 	}
-	if s.Candles[0].Close != 10.0 || s.Candles[0].Volume != 100 {
-		t.Errorf("candle[0] = %+v", s.Candles[0])
+	if series.Candles[0].Close != 10.0 || series.Candles[0].Volume != 100 {
+		t.Errorf("candle[0] = %+v", series.Candles[0])
 	}
-	if s.Candles[1].Close != 12.0 || s.Candles[1].Time.Unix() != 1700000120 {
-		t.Errorf("candle[1] = %+v", s.Candles[1])
+	if series.Candles[1].Close != 12.0 || series.Candles[1].Time.Unix() != 1700000120 {
+		t.Errorf("candle[1] = %+v", series.Candles[1])
 	}
-	if s.PreviousClose != 100.0 || s.Range != model.Range1D {
-		t.Errorf("series meta wrong: prevClose=%v range=%v", s.PreviousClose, s.Range)
+	if series.PreviousClose != 100.0 || series.Range != model.Range1D {
+		t.Errorf("series meta wrong: prevClose=%v range=%v", series.PreviousClose, series.Range)
 	}
 	// The friendly name prefers longName over shortName.
-	if s.Name != "Apple Inc." {
-		t.Errorf("series name = %q, want %q", s.Name, "Apple Inc.")
+	if series.Name != "Apple Inc." {
+		t.Errorf("series name = %q, want %q", series.Name, "Apple Inc.")
 	}
 	// The regular trading session window is carried through.
-	if s.SessionStart.Unix() != 1699972200 || s.SessionEnd.Unix() != 1699995600 {
+	if series.SessionStart.Unix() != 1699972200 || series.SessionEnd.Unix() != 1699995600 {
 		t.Errorf("session window = %v..%v, want 1699972200..1699995600",
-			s.SessionStart.Unix(), s.SessionEnd.Unix())
+			series.SessionStart.Unix(), series.SessionEnd.Unix())
 	}
 	// Range1D must map to range=1d interval=1m on the wire.
-	if r, i := got.URL.Query().Get("range"), got.URL.Query().Get("interval"); r != "1d" || i != "1m" {
-		t.Errorf("query range=%q interval=%q, want 1d/1m", r, i)
+	if rangeQ, intervalQ := got.URL.Query().Get("range"), got.URL.Query().Get("interval"); rangeQ != "1d" || intervalQ != "1m" {
+		t.Errorf("query range=%q interval=%q, want 1d/1m", rangeQ, intervalQ)
 	}
 }
 
 func TestYahooAPIError(t *testing.T) {
 	body := `{"chart":{"result":null,"error":{"code":"Not Found","description":"No data found, symbol may be delisted"}}}`
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotFound)
-		_, _ = w.Write([]byte(body))
+	srv := httptest.NewServer(http.HandlerFunc(func(respWriter http.ResponseWriter, request *http.Request) {
+		respWriter.WriteHeader(http.StatusNotFound)
+		_, _ = respWriter.Write([]byte(body))
 	}))
 	defer srv.Close()
 
-	y := NewYahoo(srv.Client())
-	y.baseURL = srv.URL + "/"
+	provider := NewYahoo(srv.Client())
+	provider.baseURL = srv.URL + "/"
 
-	if _, err := y.Quote(context.Background(), "NOPE"); err == nil {
+	if _, err := provider.Quote(context.Background(), "NOPE"); err == nil {
 		t.Fatal("expected error for API error response, got nil")
 	}
 }
 
 func TestYahooNon200Unparseable(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusTooManyRequests)
-		_, _ = w.Write([]byte("Too Many Requests"))
+	srv := httptest.NewServer(http.HandlerFunc(func(respWriter http.ResponseWriter, request *http.Request) {
+		respWriter.WriteHeader(http.StatusTooManyRequests)
+		_, _ = respWriter.Write([]byte("Too Many Requests"))
 	}))
 	defer srv.Close()
 
-	y := NewYahoo(srv.Client())
-	y.baseURL = srv.URL + "/"
+	provider := NewYahoo(srv.Client())
+	provider.baseURL = srv.URL + "/"
 
-	if _, err := y.Quote(context.Background(), "AAPL"); err == nil {
+	if _, err := provider.Quote(context.Background(), "AAPL"); err == nil {
 		t.Fatal("expected error for 429 response, got nil")
 	}
 }
 
 func TestYahooEmptySymbol(t *testing.T) {
-	y := NewYahoo(nil)
-	if _, err := y.Quote(context.Background(), ""); err == nil {
+	provider := NewYahoo(nil)
+	if _, err := provider.Quote(context.Background(), ""); err == nil {
 		t.Fatal("expected error for empty symbol, got nil")
 	}
 }
@@ -145,16 +145,16 @@ const searchBody = `{"quotes":[
 
 func TestYahooSearch(t *testing.T) {
 	var got *http.Request
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		got = r
-		_, _ = w.Write([]byte(searchBody))
+	srv := httptest.NewServer(http.HandlerFunc(func(respWriter http.ResponseWriter, request *http.Request) {
+		got = request
+		_, _ = respWriter.Write([]byte(searchBody))
 	}))
 	defer srv.Close()
 
-	y := NewYahoo(srv.Client())
-	y.searchURL = srv.URL
+	provider := NewYahoo(srv.Client())
+	provider.searchURL = srv.URL
 
-	res, err := y.Search(context.Background(), "apple")
+	res, err := provider.Search(context.Background(), "apple")
 	if err != nil {
 		t.Fatalf("Search: %v", err)
 	}
@@ -176,9 +176,9 @@ func TestYahooSearch(t *testing.T) {
 
 func TestYahooSearchEmptyQuery(t *testing.T) {
 	// Empty query must short-circuit without an HTTP call.
-	y := NewYahoo(nil)
-	y.searchURL = "http://127.0.0.1:0/should-not-be-called"
-	res, err := y.Search(context.Background(), "   ")
+	provider := NewYahoo(nil)
+	provider.searchURL = "http://127.0.0.1:0/should-not-be-called"
+	res, err := provider.Search(context.Background(), "   ")
 	if err != nil || res != nil {
 		t.Fatalf("empty query: got (%v, %v), want (nil, nil)", res, err)
 	}
@@ -192,10 +192,10 @@ func TestYahooParams(t *testing.T) {
 		model.RangeYTD: {"ytd", "1d"},
 		model.RangeAll: {"max", "1mo"},
 	}
-	for r, want := range cases {
-		rng, interval := yahooParams(r)
+	for chartRange, want := range cases {
+		rng, interval := yahooParams(chartRange)
 		if rng != want[0] || interval != want[1] {
-			t.Errorf("yahooParams(%s) = %q/%q, want %q/%q", r, rng, interval, want[0], want[1])
+			t.Errorf("yahooParams(%s) = %q/%q, want %q/%q", chartRange, rng, interval, want[0], want[1])
 		}
 	}
 }

@@ -16,91 +16,91 @@ import (
 // canvas, so a lower opacity visibly fades the background (and becomes true
 // see-through transparency on surfaces that support it).
 type appTheme struct {
-	base fyne.Theme
-	bg   color.NRGBA
+	base       fyne.Theme
+	background color.NRGBA
 }
 
-func (t appTheme) Color(n fyne.ThemeColorName, v fyne.ThemeVariant) color.Color {
-	if n == theme.ColorNameBackground {
-		return t.bg
+func (custom appTheme) Color(name fyne.ThemeColorName, variant fyne.ThemeVariant) color.Color {
+	if name == theme.ColorNameBackground {
+		return custom.background
 	}
-	return t.base.Color(n, v)
+	return custom.base.Color(name, variant)
 }
 
-func (t appTheme) Font(s fyne.TextStyle) fyne.Resource     { return t.base.Font(s) }
-func (t appTheme) Icon(n fyne.ThemeIconName) fyne.Resource { return t.base.Icon(n) }
-func (t appTheme) Size(n fyne.ThemeSizeName) float32       { return t.base.Size(n) }
+func (custom appTheme) Font(style fyne.TextStyle) fyne.Resource    { return custom.base.Font(style) }
+func (custom appTheme) Icon(name fyne.ThemeIconName) fyne.Resource { return custom.base.Icon(name) }
+func (custom appTheme) Size(name fyne.ThemeSizeName) float32       { return custom.base.Size(name) }
 
 // backgroundColor resolves a config.Background to a concrete color, falling
 // back to the default color for unparsable hex strings and clamping opacity.
-func backgroundColor(b config.Background) color.NRGBA {
-	c, ok := parseHexColor(b.Color)
+func backgroundColor(background config.Background) color.NRGBA {
+	resolved, ok := parseHexColor(background.Color)
 	if !ok {
-		c, _ = parseHexColor(config.DefaultBackground().Color)
+		resolved, _ = parseHexColor(config.DefaultBackground().Color)
 	}
-	op := b.Opacity
-	if op < 0 {
-		op = 0
+	opacity := background.Opacity
+	if opacity < 0 {
+		opacity = 0
 	}
-	if op > 1 {
-		op = 1
+	if opacity > 1 {
+		opacity = 1
 	}
-	c.A = uint8(op*255 + 0.5)
-	return c
+	resolved.A = uint8(opacity*255 + 0.5)
+	return resolved
 }
 
 // formatHexColor renders a color in the "#RRGGBB" hex form used in config.
-func formatHexColor(c color.NRGBA) string {
-	return fmt.Sprintf("#%02x%02x%02x", c.R, c.G, c.B)
+func formatHexColor(col color.NRGBA) string {
+	return fmt.Sprintf("#%02x%02x%02x", col.R, col.G, col.B)
 }
 
 // parseHexColor parses a "#RRGGBB" hex color (the "#" is optional), returning
 // it fully opaque.
-func parseHexColor(s string) (color.NRGBA, bool) {
-	s = strings.TrimPrefix(strings.TrimSpace(s), "#")
-	if len(s) != 6 {
+func parseHexColor(hex string) (color.NRGBA, bool) {
+	hex = strings.TrimPrefix(strings.TrimSpace(hex), "#")
+	if len(hex) != 6 {
 		return color.NRGBA{}, false
 	}
-	var v [3]uint8
-	for i := 0; i < 3; i++ {
-		hi, ok1 := hexNibble(s[2*i])
-		lo, ok2 := hexNibble(s[2*i+1])
+	var channels [3]uint8
+	for idx := 0; idx < 3; idx++ {
+		high, ok1 := hexNibble(hex[2*idx])
+		low, ok2 := hexNibble(hex[2*idx+1])
 		if !ok1 || !ok2 {
 			return color.NRGBA{}, false
 		}
-		v[i] = hi<<4 | lo
+		channels[idx] = high<<4 | low
 	}
-	return color.NRGBA{R: v[0], G: v[1], B: v[2], A: 0xff}, true
+	return color.NRGBA{R: channels[0], G: channels[1], B: channels[2], A: 0xff}, true
 }
 
-func hexNibble(c byte) (uint8, bool) {
+func hexNibble(char byte) (uint8, bool) {
 	switch {
-	case c >= '0' && c <= '9':
-		return c - '0', true
-	case c >= 'a' && c <= 'f':
-		return c - 'a' + 10, true
-	case c >= 'A' && c <= 'F':
-		return c - 'A' + 10, true
+	case char >= '0' && char <= '9':
+		return char - '0', true
+	case char >= 'a' && char <= 'f':
+		return char - 'a' + 10, true
+	case char >= 'A' && char <= 'F':
+		return char - 'A' + 10, true
 	}
 	return 0, false
 }
 
 // applyBackground applies the saved background config to the running app,
 // skipping the (whole-UI) theme refresh when nothing changed.
-func (a *App) applyBackground() {
-	if a.bgApplied == a.cfg.Background && a.bgSet {
+func (app *App) applyBackground() {
+	if app.bgApplied == app.cfg.Background && app.bgSet {
 		return
 	}
-	a.bgApplied, a.bgSet = a.cfg.Background, true
-	a.setBackground(backgroundColor(a.cfg.Background))
+	app.bgApplied, app.bgSet = app.cfg.Background, true
+	app.setBackground(backgroundColor(app.cfg.Background))
 }
 
 // previewBackground applies an unsaved background live (settings preview).
-func (a *App) previewBackground(b config.Background) {
-	a.bgApplied, a.bgSet = b, true
-	a.setBackground(backgroundColor(b))
+func (app *App) previewBackground(background config.Background) {
+	app.bgApplied, app.bgSet = background, true
+	app.setBackground(backgroundColor(background))
 }
 
-func (a *App) setBackground(c color.NRGBA) {
-	a.fyne.Settings().SetTheme(appTheme{base: theme.DefaultTheme(), bg: c})
+func (app *App) setBackground(col color.NRGBA) {
+	app.fyne.Settings().SetTheme(appTheme{base: theme.DefaultTheme(), background: col})
 }

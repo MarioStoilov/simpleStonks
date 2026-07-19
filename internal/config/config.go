@@ -126,10 +126,10 @@ type Config struct {
 // clone returns a copy safe to mutate without aliasing the original's slices.
 // Update relies on this so in-place edits (e.g. reordering Symbols) don't also
 // mutate the stored config and defeat its change detection.
-func (c Config) clone() Config {
-	cp := c
-	cp.Symbols = append([]string(nil), c.Symbols...)
-	return cp
+func (cfg Config) clone() Config {
+	copied := cfg
+	copied.Symbols = append([]string(nil), cfg.Symbols...)
+	return copied
 }
 
 // Default returns the configuration used on first run.

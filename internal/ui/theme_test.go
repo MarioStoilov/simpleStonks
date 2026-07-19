@@ -21,23 +21,23 @@ func TestParseHexColor(t *testing.T) {
 		{"", color.NRGBA{}, false},
 		{"#1234567", color.NRGBA{}, false}, // too long
 	}
-	for _, c := range cases {
-		got, ok := parseHexColor(c.in)
-		if ok != c.ok || got != c.want {
-			t.Errorf("parseHexColor(%q) = (%v, %v), want (%v, %v)", c.in, got, ok, c.want, c.ok)
+	for _, testCase := range cases {
+		got, ok := parseHexColor(testCase.in)
+		if ok != testCase.ok || got != testCase.want {
+			t.Errorf("parseHexColor(%q) = (%v, %v), want (%v, %v)", testCase.in, got, ok, testCase.want, testCase.ok)
 		}
 	}
 }
 
 func TestFormatHexColorRoundTrip(t *testing.T) {
-	in := color.NRGBA{R: 0x1a, G: 0xb2, B: 0x03, A: 0xff}
-	s := formatHexColor(in)
-	if s != "#1ab203" {
-		t.Errorf("formatHexColor = %q, want %q", s, "#1ab203")
+	original := color.NRGBA{R: 0x1a, G: 0xb2, B: 0x03, A: 0xff}
+	hex := formatHexColor(original)
+	if hex != "#1ab203" {
+		t.Errorf("formatHexColor = %q, want %q", hex, "#1ab203")
 	}
-	back, ok := parseHexColor(s)
-	if !ok || back != in {
-		t.Errorf("round trip = (%v, %v), want (%v, true)", back, ok, in)
+	back, ok := parseHexColor(hex)
+	if !ok || back != original {
+		t.Errorf("round trip = (%v, %v), want (%v, true)", back, ok, original)
 	}
 }
 
@@ -58,10 +58,10 @@ func TestBackgroundColor(t *testing.T) {
 	}
 
 	// Opacity is clamped to [0, 1].
-	if a := backgroundColor(config.Background{Color: "#ffffff", Opacity: 2}).A; a != 0xff {
-		t.Errorf("opacity > 1: alpha = %d, want 255", a)
+	if alpha := backgroundColor(config.Background{Color: "#ffffff", Opacity: 2}).A; alpha != 0xff {
+		t.Errorf("opacity > 1: alpha = %d, want 255", alpha)
 	}
-	if a := backgroundColor(config.Background{Color: "#ffffff", Opacity: -1}).A; a != 0 {
-		t.Errorf("opacity < 0: alpha = %d, want 0", a)
+	if alpha := backgroundColor(config.Background{Color: "#ffffff", Opacity: -1}).A; alpha != 0 {
+		t.Errorf("opacity < 0: alpha = %d, want 0", alpha)
 	}
 }

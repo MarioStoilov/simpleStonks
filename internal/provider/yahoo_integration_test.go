@@ -31,12 +31,12 @@ func TestIntegrationYahooQuote(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	q, err := NewYahoo(nil).Quote(ctx, "AAPL")
+	quote, err := NewYahoo(nil).Quote(ctx, "AAPL")
 	if err != nil {
 		t.Fatalf("live Quote: %v", err)
 	}
-	if q.Symbol == "" || q.Price <= 0 {
-		t.Fatalf("implausible quote: %+v", q)
+	if quote.Symbol == "" || quote.Price <= 0 {
+		t.Fatalf("implausible quote: %+v", quote)
 	}
 }
 
@@ -46,11 +46,11 @@ func TestIntegrationYahooHistory(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	s, err := NewYahoo(nil).History(ctx, "AAPL", model.Range1M)
+	series, err := NewYahoo(nil).History(ctx, "AAPL", model.Range1M)
 	if err != nil {
 		t.Fatalf("live History: %v", err)
 	}
-	if len(s.Candles) == 0 {
+	if len(series.Candles) == 0 {
 		t.Fatal("expected candles for the 1M range")
 	}
 }
@@ -69,11 +69,11 @@ func TestIntegrationYahooSearch(t *testing.T) {
 		t.Fatal("expected search results for 'apple'")
 	}
 	found := false
-	for _, r := range res {
-		if r.Symbol == "AAPL" {
+	for _, result := range res {
+		if result.Symbol == "AAPL" {
 			found = true
-			if r.Name == "" {
-				t.Errorf("AAPL result missing name: %+v", r)
+			if result.Name == "" {
+				t.Errorf("AAPL result missing name: %+v", result)
 			}
 		}
 	}
