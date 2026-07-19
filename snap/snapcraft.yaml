@@ -44,5 +44,7 @@ parts:
       - qt6-wayland # Wayland platform plugin
       - libqt6svg6 # SVG image plugin (About-dialog logo); ships the plugin on 24.04
       - qt6-gtk-platformtheme # match the desktop theme where available
-    organize:
-      bin/simplestonks: bin/simplestonks
+    # Build explicitly instead of the plugin default so the release binary is
+    # stripped (-s -w) — the unstripped cgo/Qt binary alone is ~100 MB.
+    override-build: |
+      go build -trimpath -ldflags="-s -w" -o "$CRAFT_PART_INSTALL/bin/simplestonks" ./cmd/simplestonks
