@@ -42,5 +42,18 @@ export const DEFAULT_REFRESH_MS = 30_000;
 export const PRICE_PLACEHOLDER = '—';
 export const MSG_UNAVAILABLE = 'unavailable';
 
+// Search dialog (mirrors internal/constants text.go / SearchDebounce).
+export const SEARCH_DEBOUNCE_MS = 300;
+export const PLACEHOLDER_SEARCH = 'Search name or symbol — e.g. Apple or AAPL';
+export const MSG_SEARCH_PROMPT = 'Start typing to search…';
+export const MSG_SEARCHING = 'Searching…';
+export const MSG_SEARCH_FAILED = 'Search failed (offline?)';
+export const MSG_NO_MATCHES = 'No matches';
+export const TIP_ALREADY_TRACKED = 'Already tracking this index';
+
+// Separators used when joining symbol/name/market fragments.
+export const SEP_TITLE = '  ·  ';
+export const SEP_META = ' · ';
+
 // EventConfigChanged mirror (constants.EventConfigChanged on the Go side).
 export const EVENT_CONFIG_CHANGED = 'configChanged';

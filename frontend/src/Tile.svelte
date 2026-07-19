@@ -8,21 +8,34 @@
 
   // Tile is one tracked-symbol card: symbol + friendly name, latest price with
   // change (colored) and a live flash, and a mini 1D chart. compact shrinks it
-  // for the detail view's sidebar.
+  // for the detail view's sidebar; editing shows a reorder/remove control row
+  // and disables opening the detail view.
   let {
     symbol,
     series = null,
     failed = false,
     selected = false,
     compact = false,
+    editing = false,
+    canMoveLeft = false,
+    canMoveRight = false,
     onopen,
+    onmoveleft,
+    onmoveright,
+    onremove,
   }: {
     symbol: string;
     series?: Series | null;
     failed?: boolean;
     selected?: boolean;
     compact?: boolean;
+    editing?: boolean;
+    canMoveLeft?: boolean;
+    canMoveRight?: boolean;
     onopen?: () => void;
+    onmoveleft?: () => void;
+    onmoveright?: () => void;
+    onremove?: () => void;
   } = $props();
 
   const lastPrice = $derived(lastClose(series));
@@ -38,9 +51,11 @@
   class:compact
   role="button"
   tabindex="0"
-  onclick={onopen}
+  onclick={() => {
+    if (!editing) onopen?.();
+  }}
   onkeydown={(event) => {
-    if (event.key === 'Enter') onopen?.();
+    if (event.key === 'Enter' && !editing) onopen?.();
   }}
 >
   <div class="head">
@@ -58,6 +73,13 @@
   <div class="chartbox">
     <Chart {series} color={failed ? COLOR_NEUTRAL : changeColor} />
   </div>
+  {#if editing}
+    <div class="controls">
+      <button class="ctrl" disabled={!canMoveLeft} onclick={onmoveleft} aria-label="Move left">◀</button>
+      <button class="ctrl" disabled={!canMoveRight} onclick={onmoveright} aria-label="Move right">▶</button>
+      <button class="ctrl remove" onclick={onremove} aria-label="Remove">✕</button>
+    </div>
+  {/if}
 </div>
 
 <style>
@@ -121,5 +143,29 @@
   }
   .compact .chartbox {
     min-height: 60px;
+  }
+  .controls {
+    display: flex;
+    gap: 0.3rem;
+  }
+  .ctrl {
+    background: #2c303c; /* COLOR_HOVER */
+    color: inherit;
+    border: none;
+    border-radius: 4px;
+    padding: 0.2rem 0.55rem;
+    cursor: pointer;
+    font-size: 0.8rem;
+  }
+  .ctrl:hover:not(:disabled) {
+    background: #303a52; /* COLOR_SELECTED */
+  }
+  .ctrl:disabled {
+    color: #808080; /* COLOR_DISABLED_FG */
+    cursor: not-allowed;
+  }
+  .ctrl.remove {
+    margin-left: auto;
+    color: #d03a3a; /* COLOR_DOWN */
   }
 </style>
