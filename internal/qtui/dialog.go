@@ -1,0 +1,76 @@
+package qtui
+
+import (
+	"fmt"
+
+	qt "github.com/mappu/miqt/qt6"
+
+	"github.com/MarioStoilov/simplestonks/internal/constants"
+)
+
+// newCardDialog builds a frameless card-styled modal dialog matching the
+// widget look: rounded opaque card, a title row with a ✕ close button, and
+// drag-to-move on the background. The returned layout receives the dialog's
+// content; Esc rejects as usual.
+func newCardDialog(parent *qt.QWidget, title string) (*qt.QDialog, *qt.QVBoxLayout) {
+	dialog := qt.NewQDialog(parent)
+	dialog.SetWindowTitle(title)
+	dialog.SetModal(true)
+	dialog.SetWindowFlags(qt.Dialog | qt.FramelessWindowHint)
+	dialog.SetAttribute(qt.WA_TranslucentBackground)
+
+	outer := qt.NewQVBoxLayout(dialog.QWidget)
+	outer.SetContentsMargins(0, 0, 0, 0)
+
+	card := qt.NewQFrame(dialog.QWidget)
+	card.SetObjectName(*qt.NewQAnyStringView3("dialogCard"))
+	card.SetStyleSheet(fmt.Sprintf(
+		"#dialogCard { background-color: %s; border-radius: %dpx; } QLabel { color: %s; }",
+		cssRGB(constants.ColorCardBg), int(constants.TileCornerRadius), cssRGB(constants.ColorForeground)))
+	outer.AddWidget(card.QWidget)
+
+	body := qt.NewQVBoxLayout(card.QWidget)
+
+	bar := qt.NewQHBoxLayout2()
+	titleLabel := qt.NewQLabel5(title, card.QWidget)
+	titleLabel.SetStyleSheet("background: transparent; font-weight: 600;")
+	bar.AddWidget(titleLabel.QWidget)
+	bar.AddStretch()
+	closeButton := qt.NewQPushButton5("✕", card.QWidget)
+	closeButton.SetStyleSheet(windowButtonStyle(cssRGB(constants.ColorDown)))
+	closeButton.SetCursor(qt.NewQCursor2(qt.PointingHandCursor))
+	closeButton.OnClicked(func() { dialog.Reject() })
+	bar.AddWidget(closeButton.QWidget)
+	body.AddLayout(bar.QLayout)
+
+	dialog.OnMousePressEvent(func(super func(event *qt.QMouseEvent), event *qt.QMouseEvent) {
+		dialog.WindowHandle().StartSystemMove()
+	})
+
+	return dialog, body
+}
+
+// dialogButtonStyle styles a dialog action button; primary marks the default
+// action with the selection color.
+func dialogButtonStyle(primary bool) string {
+	background := constants.ColorHover
+	if primary {
+		background = constants.ColorSelected
+	}
+	return fmt.Sprintf(
+		"QPushButton { background-color: %s; color: %s; border: none; border-radius: %dpx; padding: 5px 14px; }"+
+			" QPushButton:hover { background-color: %s; }"+
+			" QPushButton:disabled { background-color: %s; color: %s; }",
+		cssRGB(background), cssRGB(constants.ColorForeground), int(constants.PanelCornerRadius),
+		cssRGB(constants.ColorSelected), cssRGB(constants.ColorDisabledBg), cssRGB(constants.ColorDisabledFg))
+}
+
+// inputStyle styles line edits and combo boxes for the dark card.
+func inputStyle() string {
+	return fmt.Sprintf(
+		"QLineEdit, QComboBox { background-color: %s; color: %s; border: 1px solid %s; border-radius: %dpx; padding: 5px 8px; }"+
+			" QComboBox QAbstractItemView { background-color: %s; color: %s; selection-background-color: %s; }",
+		cssRGB(constants.ColorChartBg), cssRGB(constants.ColorForeground), cssRGB(constants.ColorAxis),
+		int(constants.PanelCornerRadius),
+		cssRGB(constants.ColorCardBg), cssRGB(constants.ColorForeground), cssRGB(constants.ColorSelected))
+}

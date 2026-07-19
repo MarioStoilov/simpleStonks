@@ -26,6 +26,14 @@ type tile struct {
 	shownPrice float64
 	priceShown bool
 	flashTimer *qt.QTimer
+
+	// Edit-mode reorder/remove controls (home grid only).
+	controls        *qt.QWidget
+	moveLeftButton  *qt.QPushButton
+	moveRightButton *qt.QPushButton
+	onMoveLeft      func()
+	onMoveRight     func()
+	onRemove        func()
 }
 
 const priceBaseStyle = "background: transparent; font-weight: 600;"
@@ -95,6 +103,44 @@ func newTile(parent *qt.QWidget, symbol string, compact bool, onOpen func()) *ti
 	chart := newChartWidget(frame.QWidget)
 	layout.AddWidget2(chart.QWidget, 1)
 
+	// Edit-mode controls: reorder left/right and remove; hidden until the
+	// home grid enters edit mode.
+	controls := qt.NewQWidget(frame.QWidget)
+	controls.SetStyleSheet("background: transparent;")
+	controlsLayout := qt.NewQHBoxLayout(controls)
+	controlsLayout.SetContentsMargins(0, 0, 0, 0)
+	cell := &tile{}
+	moveLeftButton := qt.NewQPushButton5("◀", controls)
+	moveLeftButton.SetStyleSheet(dialogButtonStyle(false))
+	moveLeftButton.SetCursor(qt.NewQCursor2(qt.PointingHandCursor))
+	moveLeftButton.OnClicked(func() {
+		if cell.onMoveLeft != nil {
+			cell.onMoveLeft()
+		}
+	})
+	controlsLayout.AddWidget(moveLeftButton.QWidget)
+	moveRightButton := qt.NewQPushButton5("▶", controls)
+	moveRightButton.SetStyleSheet(dialogButtonStyle(false))
+	moveRightButton.SetCursor(qt.NewQCursor2(qt.PointingHandCursor))
+	moveRightButton.OnClicked(func() {
+		if cell.onMoveRight != nil {
+			cell.onMoveRight()
+		}
+	})
+	controlsLayout.AddWidget(moveRightButton.QWidget)
+	controlsLayout.AddStretch()
+	removeButton := qt.NewQPushButton5("✕", controls)
+	removeButton.SetStyleSheet(windowButtonStyle(cssRGB(constants.ColorDown)))
+	removeButton.SetCursor(qt.NewQCursor2(qt.PointingHandCursor))
+	removeButton.OnClicked(func() {
+		if cell.onRemove != nil {
+			cell.onRemove()
+		}
+	})
+	controlsLayout.AddWidget(removeButton.QWidget)
+	controls.Hide()
+	layout.AddWidget(controls)
+
 	flashTimer := qt.NewQTimer2(frame.QObject)
 	flashTimer.SetSingleShot(true)
 	flashTimer.OnTimeout(func() {
@@ -107,16 +153,29 @@ func newTile(parent *qt.QWidget, symbol string, compact bool, onOpen func()) *ti
 		})
 	}
 
-	return &tile{
-		frame:       frame,
-		symbol:      symbol,
-		nameLabel:   nameLabel,
-		priceLabel:  priceLabel,
-		changeLabel: changeLabel,
-		changeBase:  changeStyleSheet,
-		chart:       chart,
-		flashTimer:  flashTimer,
-	}
+	cell.frame = frame
+	cell.symbol = symbol
+	cell.nameLabel = nameLabel
+	cell.priceLabel = priceLabel
+	cell.changeLabel = changeLabel
+	cell.changeBase = changeStyleSheet
+	cell.chart = chart
+	cell.flashTimer = flashTimer
+	cell.controls = controls
+	cell.moveLeftButton = moveLeftButton
+	cell.moveRightButton = moveRightButton
+	return cell
+}
+
+// setEditing shows or hides the reorder/remove controls.
+func (cell *tile) setEditing(editing bool) {
+	cell.controls.SetVisible(editing)
+}
+
+// setMoveBounds enables the reorder buttons that have somewhere to go.
+func (cell *tile) setMoveBounds(canLeft, canRight bool) {
+	cell.moveLeftButton.SetEnabled(canLeft)
+	cell.moveRightButton.SetEnabled(canRight)
 }
 
 // setSeries updates the tile from a fetched series. With flash enabled, a

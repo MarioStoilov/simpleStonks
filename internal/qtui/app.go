@@ -73,12 +73,9 @@ func (app *App) Run() {
 	topBar.AddWidget(closeButton.QWidget)
 	rootLayout.AddLayout(topBar.QLayout)
 
-	app.home = newHomeView(card, app.quotes)
-	// An explicit cursor stops the grid from inheriting the window's resize
-	// cursor when the pointer jumps straight from the grip margin onto it.
-	app.home.scroll.SetCursor(qt.NewQCursor2(qt.ArrowCursor))
+	app.home = newHomeView(card, app.quotes, app.store)
 	app.detail = newDetailView(card, app.quotes, app.store, func() {
-		app.stack.SetCurrentWidget(app.home.scroll.QWidget)
+		app.stack.SetCurrentWidget(app.home.root)
 	})
 	app.home.onOpen = func(symbol string) {
 		app.detail.showSymbol(symbol)
@@ -86,7 +83,7 @@ func (app *App) Run() {
 	}
 
 	app.stack = qt.NewQStackedWidget(card)
-	app.stack.AddWidget(app.home.scroll.QWidget)
+	app.stack.AddWidget(app.home.root)
 	app.stack.AddWidget(app.detail.root)
 	rootLayout.AddWidget2(app.stack.QWidget, 1)
 
