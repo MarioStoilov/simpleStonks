@@ -11,6 +11,7 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
+	"github.com/MarioStoilov/simplestonks/internal/chartmath"
 	"github.com/MarioStoilov/simplestonks/internal/constants"
 	"github.com/MarioStoilov/simplestonks/internal/model"
 )
@@ -111,7 +112,7 @@ type chartRenderer struct {
 	// Hover readout state (only populated when chart.hoverReadout is set):
 	// the plotted points (absolute coordinates) and their values, cached by
 	// rebuild, plus the marker/guide/tooltip canvas objects.
-	hoverPts   []fyne.Position
+	hoverPts   []chartmath.Point
 	hoverVals  []float64
 	plotH      float32        // plot-area height of the last rebuild
 	vDashes    []*canvas.Line // pooled segments of the vertical guide
@@ -161,7 +162,7 @@ func (renderer *chartRenderer) rebuild(size fyne.Size) {
 	defer renderer.updateHover() // runs first: re-aim the marker at the new geometry
 
 	series := renderer.chart.series
-	values := closesOf(series)
+	values := chartmath.ClosesOf(series)
 	if len(values) < 2 {
 		return
 	}
@@ -199,7 +200,7 @@ func (renderer *chartRenderer) rebuild(size fyne.Size) {
 	}
 	var labels []yLabel
 	if low == high {
-		labels = []yLabel{{value: low, text: formatAxisPrice(low)}}
+		labels = []yLabel{{value: low, text: chartmath.FormatAxisPrice(low)}}
 	} else {
 		count := int(plotH/constants.YTickSpacing) + 1
 		if count < 2 {
@@ -208,13 +209,13 @@ func (renderer *chartRenderer) rebuild(size fyne.Size) {
 		if count > constants.MaxYTicks {
 			count = constants.MaxYTicks
 		}
-		for _, value := range yTicks(low, high, count) {
-			labels = append(labels, yLabel{value: value, text: formatAxisPrice(value)})
+		for _, value := range chartmath.YTicks(low, high, count) {
+			labels = append(labels, yLabel{value: value, text: chartmath.FormatAxisPrice(value)})
 		}
 	}
 	prevIdx := -1 // index of the previous-close label, which wins collisions
 	if prevClose > 0 && low != high {
-		labels = append(labels, yLabel{value: prevClose, text: formatAxisPrice(prevClose)})
+		labels = append(labels, yLabel{value: prevClose, text: chartmath.FormatAxisPrice(prevClose)})
 		prevIdx = len(labels) - 1
 	}
 	var leftMargin float32
@@ -227,11 +228,11 @@ func (renderer *chartRenderer) rebuild(size fyne.Size) {
 	leftMargin += constants.AxisGap
 
 	plotW := size.Width - leftMargin
-	pts := plotPath(values, xFracs(series), plotW, plotH, constants.ChartPadding, low, high)
+	pts := chartmath.PlotPath(values, chartmath.XFracs(series), plotW, plotH, constants.ChartPadding, low, high)
 	if pts == nil { // too small for margins: fall back to the bare line
 		leftMargin, bottomMargin = 0, 0
 		plotW, plotH = size.Width, size.Height
-		pts = plotPath(values, xFracs(series), plotW, plotH, constants.ChartPadding, low, high)
+		pts = chartmath.PlotPath(values, chartmath.XFracs(series), plotW, plotH, constants.ChartPadding, low, high)
 	}
 
 	// Cache the plotted points (absolute coordinates) for the hover readout
@@ -239,9 +240,9 @@ func (renderer *chartRenderer) rebuild(size fyne.Size) {
 	renderer.plotH = plotH
 	if pts != nil && renderer.chart.hoverReadout {
 		renderer.hoverVals = values
-		renderer.hoverPts = make([]fyne.Position, len(pts))
+		renderer.hoverPts = make([]chartmath.Point, len(pts))
 		for idx, point := range pts {
-			renderer.hoverPts[idx] = fyne.NewPos(point.X+leftMargin, point.Y)
+			renderer.hoverPts[idx] = chartmath.Point{X: point.X + leftMargin, Y: point.Y}
 		}
 		segments := int((plotH-2*constants.ChartPadding)/(constants.DashLen+constants.DashGap)) + 1
 		renderer.vDashes = make([]*canvas.Line, 0, segments)
@@ -255,7 +256,7 @@ func (renderer *chartRenderer) rebuild(size fyne.Size) {
 
 	// Dashed reference line at the previous interval's close (under the series).
 	if prevClose > 0 && pts != nil {
-		posY := yFor(prevClose, low, high, plotH, constants.ChartPadding)
+		posY := chartmath.YFor(prevClose, low, high, plotH, constants.ChartPadding)
 		right := leftMargin + plotW - constants.ChartPadding
 		for posX := leftMargin + constants.ChartPadding; posX < right; posX += constants.DashLen + constants.DashGap {
 			segEnd := posX + constants.DashLen
@@ -295,7 +296,7 @@ func (renderer *chartRenderer) rebuild(size fyne.Size) {
 	// centered on their value; ticks that would collide with the previous-close
 	// label make way for it.
 	labelY := func(value float64) float32 {
-		posY := yFor(value, low, high, plotH, constants.ChartPadding) - labelH/2
+		posY := chartmath.YFor(value, low, high, plotH, constants.ChartPadding) - labelH/2
 		if posY < 0 {
 			posY = 0
 		}
@@ -321,16 +322,16 @@ func (renderer *chartRenderer) rebuild(size fyne.Size) {
 	// Time (x) labels along the bottom, formatted per the series' range. An
 	// intraday series with a known session is labeled across the full window.
 	maxTicks := int(plotW / constants.XTickSpacing)
-	var ticks []axisTick
-	if sessionWindow(series) {
-		ticks = sessionTicks(series.SessionStart, series.SessionEnd, maxTicks, time.Local)
+	var ticks []chartmath.AxisTick
+	if chartmath.SessionWindow(series) {
+		ticks = chartmath.SessionTicks(series.SessionStart, series.SessionEnd, maxTicks, time.Local)
 	} else {
-		ticks = xTicks(series, maxTicks, time.Local)
+		ticks = chartmath.XTicks(series, maxTicks, time.Local)
 	}
 	for _, tick := range ticks {
-		txt := newLabel(tick.label)
-		width := fyne.MeasureText(tick.label, constants.AxisTextSize, fyne.TextStyle{}).Width
-		posX := leftMargin + constants.ChartPadding + tick.frac*(plotW-2*constants.ChartPadding) - width/2
+		txt := newLabel(tick.Label)
+		width := fyne.MeasureText(tick.Label, constants.AxisTextSize, fyne.TextStyle{}).Width
+		posX := leftMargin + constants.ChartPadding + tick.Frac*(plotW-2*constants.ChartPadding) - width/2
 		if posX < leftMargin {
 			posX = leftMargin
 		}
@@ -364,7 +365,7 @@ func (renderer *chartRenderer) updateHover() {
 		canvas.Refresh(owner)
 		return
 	}
-	idx := nearestPoint(renderer.hoverPts, owner.hoverAt.X)
+	idx := chartmath.NearestPoint(renderer.hoverPts, owner.hoverAt.X)
 	point := renderer.hoverPts[idx]
 	series := owner.series
 	size := owner.Size()
@@ -393,7 +394,7 @@ func (renderer *chartRenderer) updateHover() {
 	renderer.dot.Show()
 
 	// Time/date of the hovered point, boxed on the x axis under the guide.
-	renderer.timeLbl.Text = series.Candles[idx].Time.In(time.Local).Format(hoverTimeFormat(series.Range))
+	renderer.timeLbl.Text = series.Candles[idx].Time.In(time.Local).Format(chartmath.HoverTimeFormat(series.Range))
 	labelSize := fyne.MeasureText(renderer.timeLbl.Text, constants.AxisTextSize, fyne.TextStyle{})
 	lblWidth, lblHeight := labelSize.Width+2*constants.TipPad, labelSize.Height+2
 	lblX := point.X - lblWidth/2
@@ -412,7 +413,7 @@ func (renderer *chartRenderer) updateHover() {
 
 	// Tooltip: the price, and under it the % change versus the previous close
 	// (the dashed reference line), green for above and red for below.
-	renderer.tipText.Text = formatAxisPrice(renderer.hoverVals[idx])
+	renderer.tipText.Text = chartmath.FormatAxisPrice(renderer.hoverVals[idx])
 	priceSize := fyne.MeasureText(renderer.tipText.Text, constants.AxisTextSize, fyne.TextStyle{})
 	tipWidth, tipHeight := priceSize.Width, priceSize.Height
 	showPct := series.PreviousClose > 0
@@ -454,214 +455,4 @@ func (renderer *chartRenderer) updateHover() {
 
 	renderer.hoverShown = true
 	canvas.Refresh(owner)
-}
-
-// hoverTimeFormat maps a chart range to the format of the hover guide's
-// x-axis label: clock time intraday, calendar dates beyond, with the year for
-// multi-year spans.
-func hoverTimeFormat(rng model.Range) string {
-	switch rng {
-	case model.Range1D:
-		return constants.TimeFmtClock
-	case model.Range5D, model.Range1W, model.Range1M:
-		return constants.TimeFmtWeekdayDate
-	default: // YTD, 1Y, 5Y, ALL
-		return constants.TimeFmtFullDate
-	}
-}
-
-// nearestPoint returns the index of the point whose x coordinate is closest to
-// targetX. Points must be ordered by non-decreasing x (as plotted points are).
-func nearestPoint(points []fyne.Position, targetX float32) int {
-	best := 0
-	bestDist := float32(-1)
-	for idx, point := range points {
-		dist := point.X - targetX
-		if dist < 0 {
-			dist = -dist
-		}
-		if bestDist < 0 || dist < bestDist {
-			best, bestDist = idx, dist
-		}
-	}
-	return best
-}
-
-// axisTick is one x-axis label at a fractional position along the plot width.
-type axisTick struct {
-	frac  float32 // 0 (left edge) .. 1 (right edge)
-	label string
-}
-
-// xTicks picks up to max evenly spaced candles from the series and formats
-// their timestamps (in loc) for the series' range. Consecutive duplicate
-// labels — e.g. the same year twice on a 5Y chart — are dropped.
-func xTicks(series model.Series, max int, loc *time.Location) []axisTick {
-	count := len(series.Candles)
-	if count < 2 || max < 2 {
-		return nil
-	}
-	if max > count {
-		max = count
-	}
-	layout := xAxisFormat(series.Range)
-	out := make([]axisTick, 0, max)
-	prev := ""
-	for tickIdx := 0; tickIdx < max; tickIdx++ {
-		candleIdx := tickIdx * (count - 1) / (max - 1)
-		label := series.Candles[candleIdx].Time.In(loc).Format(layout)
-		if label == prev {
-			continue
-		}
-		prev = label
-		out = append(out, axisTick{frac: float32(candleIdx) / float32(count-1), label: label})
-	}
-	return out
-}
-
-// xAxisFormat maps a chart range to the time layout of its x-axis labels:
-// hours intraday, then days, dates, months, and years as the span grows.
-func xAxisFormat(rng model.Range) string {
-	switch rng {
-	case model.Range1D:
-		return constants.TimeFmtClock
-	case model.Range5D, model.Range1W:
-		return constants.TimeFmtWeekdayDay
-	case model.Range1M:
-		return constants.TimeFmtDayMonth
-	case model.RangeYTD, model.Range1Y:
-		return constants.TimeFmtMonth
-	default: // 5Y, ALL
-		return constants.TimeFmtYear
-	}
-}
-
-// formatAxisPrice formats a y-axis price label.
-func formatAxisPrice(value float64) string { return fmt.Sprintf(constants.FmtPrice, value) }
-
-// closesOf extracts the closing prices from a series.
-func closesOf(series model.Series) []float64 {
-	out := make([]float64, len(series.Candles))
-	for idx, candle := range series.Candles {
-		out[idx] = candle.Close
-	}
-	return out
-}
-
-// plotPath maps close values to pixel positions within a width×height box
-// (inset by pad): x from the given 0..1 fractions, y scaled to the [low, high]
-// value scale, inverted so higher values sit toward the top. It returns nil
-// when there is nothing meaningful to draw (fewer than two points, mismatched
-// fractions, or no room after padding).
-func plotPath(values []float64, fracs []float32, width, height, pad float32, low, high float64) []fyne.Position {
-	if len(values) < 2 || len(fracs) != len(values) {
-		return nil
-	}
-	innerWidth := width - 2*pad
-	if innerWidth <= 0 || height-2*pad <= 0 {
-		return nil
-	}
-	points := make([]fyne.Position, len(values))
-	for idx, value := range values {
-		points[idx] = fyne.NewPos(pad+innerWidth*fracs[idx], yFor(value, low, high, height, pad))
-	}
-	return points
-}
-
-// evenFracs returns count positions spaced evenly across 0..1.
-func evenFracs(count int) []float32 {
-	if count < 2 {
-		return nil
-	}
-	out := make([]float32, count)
-	for idx := range out {
-		out[idx] = float32(idx) / float32(count-1)
-	}
-	return out
-}
-
-// sessionWindow reports whether a series should be drawn against its full
-// trading-session window: intraday data with known session bounds whose
-// candles actually belong to that session. While a market is closed, Yahoo
-// pairs the *previous* day's candles with the *upcoming* session in
-// currentTradingPeriod; drawing those against the future window would
-// collapse them onto its left edge, so they fall back to even spacing (the
-// completed day spans the full width). Once the session opens and its first
-// candles arrive, the window mode kicks in and the new chart starts filling
-// in from the left.
-func sessionWindow(series model.Series) bool {
-	if !series.Range.Intraday() || !series.SessionEnd.After(series.SessionStart) || len(series.Candles) == 0 {
-		return false
-	}
-	last := series.Candles[len(series.Candles)-1].Time
-	return !last.Before(series.SessionStart)
-}
-
-// xFracs returns each candle's horizontal position as a 0..1 fraction. Within
-// a session window the fraction is time-based over the whole session, so a
-// live trading day fills in gradually (Yahoo-style); otherwise candles are
-// spaced evenly.
-func xFracs(series model.Series) []float32 {
-	if !sessionWindow(series) {
-		return evenFracs(len(series.Candles))
-	}
-	span := float32(series.SessionEnd.Sub(series.SessionStart))
-	out := make([]float32, len(series.Candles))
-	for idx, candle := range series.Candles {
-		frac := float32(candle.Time.Sub(series.SessionStart)) / span
-		if frac < 0 {
-			frac = 0
-		}
-		if frac > 1 {
-			frac = 1
-		}
-		out[idx] = frac
-	}
-	return out
-}
-
-// sessionTicks returns up to max evenly spaced intraday time labels spanning a
-// trading-session window.
-func sessionTicks(start, end time.Time, max int, loc *time.Location) []axisTick {
-	if max < 2 || !end.After(start) {
-		return nil
-	}
-	layout := xAxisFormat(model.Range1D)
-	span := end.Sub(start)
-	out := make([]axisTick, 0, max)
-	prev := ""
-	for tickIdx := 0; tickIdx < max; tickIdx++ {
-		tickTime := start.Add(span * time.Duration(tickIdx) / time.Duration(max-1))
-		label := tickTime.In(loc).Format(layout)
-		if label == prev {
-			continue
-		}
-		prev = label
-		out = append(out, axisTick{frac: float32(tickIdx) / float32(max-1), label: label})
-	}
-	return out
-}
-
-// yTicks returns max evenly spaced reference values from high (first) down to
-// low.
-func yTicks(low, high float64, max int) []float64 {
-	if max < 2 || high <= low {
-		return nil
-	}
-	out := make([]float64, max)
-	for idx := range out {
-		out[idx] = high - (high-low)*float64(idx)/float64(max-1)
-	}
-	return out
-}
-
-// yFor maps a value on the [low, high] scale to a y pixel within a height-tall
-// box inset by pad, inverted so high sits at the top. A zero-width scale
-// centers.
-func yFor(value, low, high float64, height, pad float32) float32 {
-	normalized := 0.5 // flat scale sits in the middle
-	if high != low {
-		normalized = (value - low) / (high - low)
-	}
-	return pad + (height-2*pad)*float32(1-normalized)
 }
