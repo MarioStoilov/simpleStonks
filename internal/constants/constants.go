@@ -19,7 +19,7 @@ const (
 
 	// AppVersion is the released application version, shown in the About
 	// dialog. Keep it in sync with the `version` key in snap/snapcraft.yaml.
-	AppVersion = "1.0.1"
+	AppVersion = "1.1.0"
 
 	// RepoURL is the public home of the project, linked from the About dialog.
 	RepoURL = "https://github.com/MarioStoilov/simpleStonks"

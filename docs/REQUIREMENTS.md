@@ -305,9 +305,10 @@ The core MVP + polish scope is in place:
 
 ## Open items
 
-The MVP is **shipped**: v1.0.0 is published on the Snap Store `stable` channel
-(name `simplestonks`, `grade: stable`, strict confinement; earlier 0.2.x
-revisions went through `edge`). Known limitation: the window titlebar icon
+The MVP is **shipped**: v1.0.0 (Fyne) and v1.1.0 (the Qt rewrite — frameless
+translucent widget window, same feature set) are published on the Snap Store
+`stable` channel (name `simplestonks`, `grade: stable`, strict confinement;
+releases go through `edge` first). Known limitation: the window titlebar icon
 stays generic under native Wayland (apps cannot set their own window icon
 there); the desktop entry/taskbar icon works.
 
