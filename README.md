@@ -1,4 +1,4 @@
-<img src="internal/ui/icon.svg" width="72" align="right" alt="simpleStonks logo">
+<img src="internal/assets/icon.svg" width="72" align="right" alt="simpleStonks logo">
 
 # simpleStonks
 
@@ -57,11 +57,12 @@ Or build from source (below).
 
 ## Build and run from source
 
-Requires Go 1.23+ and (for the GUI) some system dev headers.
+Requires Go 1.23+ and (for the GUI) the Qt 6 dev headers — the UI is built
+against Qt 6 via cgo (miqt bindings).
 
 ```sh
 # 1. Install system build deps (Debian/Ubuntu)
-sudo apt install pkg-config gcc libgl1-mesa-dev xorg-dev libwayland-dev libxkbcommon-dev
+sudo apt install pkg-config gcc qt6-base-dev
 
 # 2. Clone
 git clone git@github.com:MarioStoilov/simpleStonks.git
@@ -77,7 +78,8 @@ See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for the full prerequisites, the
 
 ## Tech
 
-- Go + [Fyne](https://fyne.io/) for the UI
+- Go + [Qt 6](https://www.qt.io/) via [miqt](https://github.com/mappu/miqt)
+  bindings for the UI (a frameless, translucent widget-style window)
 - Market data from Yahoo Finance's public chart/search endpoints (no API key)
 - Config follows the XDG spec (`~/.config/simplestonks/config.json`)
 - Packaged with snapcraft for the Snap Store
