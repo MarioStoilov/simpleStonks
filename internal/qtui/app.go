@@ -95,9 +95,11 @@ func (app *App) Run() {
 	rootLayout.AddWidget2(app.stack.QWidget, 1)
 
 	// Periodic refresh with price flashes, dispatched to the visible view.
+	// Compare stack indexes, not widgets: miqt's CurrentWidget() returns a
+	// fresh Go wrapper each call, so wrapper identity never matches.
 	app.refresh = qt.NewQTimer()
 	app.refresh.OnTimeout(func() {
-		if app.stack.CurrentWidget() == app.detail.root {
+		if app.stack.CurrentIndex() == app.stack.IndexOf(app.detail.root) {
 			app.detail.refresh()
 			return
 		}
