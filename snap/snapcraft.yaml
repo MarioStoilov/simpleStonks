@@ -1,6 +1,6 @@
 name: simplestonks
 base: core24
-version: "1.2.0"
+version: "1.2.1"
 icon: internal/assets/icon.svg # bundled into the binary too; see internal/assets
 license: MIT
 summary: Bare-bones stock tracker widget

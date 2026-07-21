@@ -48,6 +48,11 @@ type detailView struct {
 	// pre/post windows but never trade in them, so the windows cannot tell).
 	extendedKnown map[string]bool
 
+	// marketState is the shown symbol's session state as of the last applied
+	// fetch; the toggle only shows when the setting has an effect (pre-market
+	// or after-hours).
+	marketState chartmath.MarketState
+
 	order        []string
 	sidebarTiles map[string]*tile
 
@@ -183,6 +188,7 @@ func (view *detailView) showSymbol(symbol string) {
 	view.priceShown = false
 	view.rng = view.store.Get().DefaultRange
 	view.styleRangeButtons()
+	view.marketState = chartmath.MarketClosed // unknown until the first fetch
 	view.updateToggleVisibility()
 	view.generation++
 	view.loadMain(false)
@@ -229,11 +235,13 @@ func (view *detailView) setExtendedHours(enabled bool) {
 	}
 }
 
-// updateToggleVisibility shows the extended-hours toggle only on the 1D
-// range and only for symbols known to trade pre/post; unknown symbols keep
-// it hidden until their first fetch reports the capability flag.
+// updateToggleVisibility shows the extended-hours toggle only when it has an
+// effect: on the 1D range, for symbols known to trade pre/post, while the
+// market is actually in a pre-market or after-hours session. Unknown symbols
+// keep it hidden until their first fetch reports the capability flag.
 func (view *detailView) updateToggleVisibility() {
-	view.extendedToggle.SetVisible(view.extendedKnown[view.symbol] && view.rng.Intraday())
+	relevant := view.marketState == chartmath.MarketPreMarket || view.marketState == chartmath.MarketAfterHours
+	view.extendedToggle.SetVisible(view.extendedKnown[view.symbol] && view.rng.Intraday() && relevant)
 }
 
 // setSymbols reconciles the sidebar with the tracked list.
@@ -323,6 +331,10 @@ func (view *detailView) loadMain(flash bool) {
 
 // applyMain renders a fetched series into the header and chart.
 func (view *detailView) applyMain(series model.Series, flash bool) {
+	// Regular fetches carry the session windows too; while the market is
+	// closed they belong to the upcoming session, which StateAt classifies
+	// as closed — exactly when the toggle has nothing to offer.
+	view.marketState = chartmath.StateAt(series, time.Now())
 	view.updateToggleVisibility()
 	view.nameLabel.SetText(series.Name)
 	view.extendedLabel.SetText("")
@@ -347,6 +359,7 @@ func (view *detailView) applyMain(series model.Series, flash bool) {
 // the regular price in the headline, and the separate pre/post price label.
 func (view *detailView) applyExtended(display chartmath.ExtendedDisplay, flash bool) {
 	series := display.Series
+	view.marketState = display.State
 	view.updateToggleVisibility()
 	view.nameLabel.SetText(series.Name)
 

@@ -277,10 +277,12 @@ Progress is recorded in `git log`; the short version:
 
 - Extended-hours (pre-market/after-hours) on the detail view's 1D chart —
   detail view only, controlled by one shared setting (header "Pre/post
-  market data" checkbox — visible only on 1D and only for instruments that
-  actually trade pre/post, per Yahoo's hasPrePostMarketData chart-meta flag,
-  which is false for indexes even though they report pre/post windows — +
-  Settings → General checkbox, default on, live-synced both ways):
+  market data" checkbox — visible only on 1D, only for instruments that
+  actually trade pre/post (per Yahoo's hasPrePostMarketData chart-meta flag,
+  which is false for indexes even though they report pre/post windows), and
+  only while a pre-market or after-hours session is running, since that is
+  when the setting has an effect — + Settings → General checkbox, default
+  on, live-synced both ways):
   during pre-market the chart shows the pre session with a separate
   "Pre-market: price (%)" label next to the regular price; during after-hours
   the regular chart continues with the post candles (dimmed, behind a dashed
