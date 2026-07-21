@@ -71,6 +71,9 @@ func TestIntegrationYahooHistoryExtended(t *testing.T) {
 	if series.RegularPrice <= 0 {
 		t.Fatalf("implausible regular price: %v", series.RegularPrice)
 	}
+	if !series.HasExtendedHours {
+		t.Error("HasExtendedHours = false for AAPL, want true (hasPrePostMarketData)")
+	}
 	// AAPL has pre/post sessions; when Yahoo reports them they must bracket
 	// the regular session.
 	if !series.PreStart.IsZero() && !series.PreStart.Before(series.SessionStart) {

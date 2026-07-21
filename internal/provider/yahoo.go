@@ -92,6 +92,8 @@ func (yahoo *Yahoo) history(ctx context.Context, symbol string, rng model.Range,
 		Candles:       candles,
 		PreviousClose: res.Meta.previousCloseRef(),
 		RegularPrice:  res.Meta.RegularMarketPrice,
+
+		HasExtendedHours: res.Meta.HasPrePostMarketData,
 	}
 	if period := res.Meta.CurrentTradingPeriod.Regular; period.Start > 0 && period.End > period.Start {
 		series.SessionStart = time.Unix(period.Start, 0).UTC()
@@ -239,6 +241,7 @@ type yahooMeta struct {
 	PreviousClose        float64 `json:"previousClose"`
 	ChartPreviousClose   float64 `json:"chartPreviousClose"`
 	RegularMarketTime    int64   `json:"regularMarketTime"`
+	HasPrePostMarketData bool    `json:"hasPrePostMarketData"`
 	CurrentTradingPeriod struct {
 		Pre     yahooPeriod `json:"pre"`
 		Regular yahooPeriod `json:"regular"`

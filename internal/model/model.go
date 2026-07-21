@@ -61,6 +61,11 @@ type Series struct {
 	PreStart time.Time
 	PostEnd  time.Time
 
+	// HasExtendedHours reports whether the instrument actually trades
+	// pre/post market (Yahoo's hasPrePostMarketData): indexes and other
+	// non-equities report session windows without ever trading in them.
+	HasExtendedHours bool
+
 	// RegularPrice is the latest regular-session price (Yahoo's
 	// regularMarketPrice): the last regular close while the market is
 	// outside regular hours, the live price during them.

@@ -189,29 +189,6 @@ func TestBuildExtendedDisplayAfterHoursWithoutPostCandles(t *testing.T) {
 	}
 }
 
-func TestHasExtendedCandles(t *testing.T) {
-	// Candles inside the regular session only: no extended capability, even
-	// though the series carries pre/post windows (Yahoo reports those for
-	// indexes too).
-	regularOnly := extendedSeries(clock(10, 0), clock(15, 0))
-	if HasExtendedCandles(regularOnly) {
-		t.Error("regular-only series must not report extended candles")
-	}
-	preCandle := extendedSeries(clock(9, 0), clock(10, 0))
-	if !HasExtendedCandles(preCandle) {
-		t.Error("series with a pre candle must report extended candles")
-	}
-	postCandle := extendedSeries(clock(10, 0), clock(16, 30))
-	if !HasExtendedCandles(postCandle) {
-		t.Error("series with a post candle must report extended candles")
-	}
-	noWindow := extendedSeries(clock(9, 0))
-	noWindow.SessionStart, noWindow.SessionEnd = time.Time{}, time.Time{}
-	if HasExtendedCandles(noWindow) {
-		t.Error("series without a regular window must not report extended candles")
-	}
-}
-
 func TestBuildExtendedDisplayClosedPassesThrough(t *testing.T) {
 	series := extendedSeries(clock(10, 0), clock(15, 0))
 	display := BuildExtendedDisplay(series, clock(23, 0))

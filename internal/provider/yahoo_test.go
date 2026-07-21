@@ -49,7 +49,7 @@ func TestYahooQuote(t *testing.T) {
 
 const historyBody = `{"chart":{"result":[{"meta":{
   "currency":"USD","symbol":"AAPL","shortName":"Apple","longName":"Apple Inc.",
-  "chartPreviousClose":100.0,"regularMarketPrice":12.5,
+  "chartPreviousClose":100.0,"regularMarketPrice":12.5,"hasPrePostMarketData":true,
   "currentTradingPeriod":{
     "pre":{"start":1699952400,"end":1699972200},
     "regular":{"start":1699972200,"end":1699995600},
@@ -105,6 +105,9 @@ func TestYahooHistorySkipsGaps(t *testing.T) {
 	if series.RegularPrice != 12.5 {
 		t.Errorf("RegularPrice = %v, want 12.5", series.RegularPrice)
 	}
+	if !series.HasExtendedHours {
+		t.Error("HasExtendedHours = false, want true (hasPrePostMarketData)")
+	}
 	// Range1D must map to range=1d interval=1m on the wire, and a regular
 	// History fetch must never ask for extended-hours candles.
 	if rangeQ, intervalQ := got.URL.Query().Get("range"), got.URL.Query().Get("interval"); rangeQ != "1d" || intervalQ != "1m" {
@@ -117,7 +120,7 @@ func TestYahooHistorySkipsGaps(t *testing.T) {
 
 const extendedBody = `{"chart":{"result":[{"meta":{
   "currency":"USD","symbol":"AAPL","shortName":"Apple","longName":"Apple Inc.",
-  "chartPreviousClose":100.0,"regularMarketPrice":12.0,
+  "chartPreviousClose":100.0,"regularMarketPrice":12.0,"hasPrePostMarketData":true,
   "currentTradingPeriod":{
     "pre":{"start":1699952400,"end":1699972200},
     "regular":{"start":1699972200,"end":1699995600},
@@ -168,6 +171,9 @@ func TestYahooHistoryExtended(t *testing.T) {
 	}
 	if series.RegularPrice != 12.0 {
 		t.Errorf("RegularPrice = %v, want 12.0", series.RegularPrice)
+	}
+	if !series.HasExtendedHours {
+		t.Error("HasExtendedHours = false, want true (hasPrePostMarketData)")
 	}
 }
 

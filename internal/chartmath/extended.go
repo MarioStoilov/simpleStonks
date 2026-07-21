@@ -101,23 +101,6 @@ func BuildExtendedDisplay(series model.Series, now time.Time) ExtendedDisplay {
 	return display
 }
 
-// HasExtendedCandles reports whether a series actually contains candles
-// outside its regular session. This is the definitive pre/post capability
-// signal for an extended-hours fetch: Yahoo reports pre/post *windows* even
-// for instruments that never trade in them (e.g. indexes), so the windows
-// alone cannot tell.
-func HasExtendedCandles(series model.Series) bool {
-	if !series.SessionEnd.After(series.SessionStart) {
-		return false
-	}
-	for _, candle := range series.Candles {
-		if candle.Time.Before(series.SessionStart) || !candle.Time.Before(series.SessionEnd) {
-			return true
-		}
-	}
-	return false
-}
-
 // candlesBetween returns the candles whose time falls in [from, to).
 func candlesBetween(candles []model.Candle, from, to time.Time) []model.Candle {
 	out := make([]model.Candle, 0, len(candles))

@@ -43,12 +43,10 @@ type detailView struct {
 	extendedHours bool // shared setting: show pre/post market data on 1D
 	generation    int  // drops stale async responses after symbol/range switches
 
-	// Extended-hours capability per symbol, learned from extended fetches
-	// (indexes report pre/post windows but never trade in them, so only the
-	// fetched candles can tell); hintExtended is the window-presence hint
-	// used for the current symbol until its capability is known.
+	// Extended-hours capability per symbol, from Yahoo's
+	// hasPrePostMarketData flag on every fetched series (indexes report
+	// pre/post windows but never trade in them, so the windows cannot tell).
 	extendedKnown map[string]bool
-	hintExtended  bool
 
 	order        []string
 	sidebarTiles map[string]*tile
@@ -182,7 +180,6 @@ func (view *detailView) showSymbol(symbol string) {
 	view.priceLabel.SetText(constants.PricePlaceholder)
 	view.changeLabel.SetText("")
 	view.extendedLabel.SetText("")
-	view.hintExtended = false
 	view.priceShown = false
 	view.rng = view.store.Get().DefaultRange
 	view.styleRangeButtons()
@@ -233,14 +230,10 @@ func (view *detailView) setExtendedHours(enabled bool) {
 }
 
 // updateToggleVisibility shows the extended-hours toggle only on the 1D
-// range and only for symbols that trade pre/post: the learned capability
-// when known, else the window-presence hint of the last applied series.
+// range and only for symbols known to trade pre/post; unknown symbols keep
+// it hidden until their first fetch reports the capability flag.
 func (view *detailView) updateToggleVisibility() {
-	capable, known := view.extendedKnown[view.symbol]
-	if !known {
-		capable = view.hintExtended
-	}
-	view.extendedToggle.SetVisible(capable && view.rng.Intraday())
+	view.extendedToggle.SetVisible(view.extendedKnown[view.symbol] && view.rng.Intraday())
 }
 
 // setSymbols reconciles the sidebar with the tracked list.
@@ -285,18 +278,16 @@ func (view *detailView) loadMain(flash bool) {
 		var display chartmath.ExtendedDisplay
 		var series model.Series
 		var err error
-		var learned, learnedCapable bool
 		if extended {
 			series, err = view.quotes.HistoryExtended(ctx, symbol)
 			if err == nil {
 				display = chartmath.BuildExtendedDisplay(series, time.Now())
 				if display.State == chartmath.MarketClosed {
-					// Overnight/weekend responses pair yesterday's candles
-					// with tomorrow's windows and prove nothing.
+					// A closed market pairs the previous day's candles with
+					// the upcoming session's windows; only the regular fetch
+					// renders those correctly.
 					extended = false
 				} else {
-					learned = true
-					learnedCapable = chartmath.HasExtendedCandles(series)
 					series = display.Series
 				}
 			}
@@ -305,8 +296,9 @@ func (view *detailView) loadMain(flash bool) {
 			series, err = view.quotes.History(ctx, symbol, rng)
 		}
 		mainthread.Wait(func() {
-			if learned {
-				view.extendedKnown[symbol] = learnedCapable
+			if err == nil {
+				// Every chart response carries the pre/post capability flag.
+				view.extendedKnown[symbol] = series.HasExtendedHours
 			}
 			if requestGen != view.generation { // superseded by a newer switch
 				return
@@ -331,7 +323,6 @@ func (view *detailView) loadMain(flash bool) {
 
 // applyMain renders a fetched series into the header and chart.
 func (view *detailView) applyMain(series model.Series, flash bool) {
-	view.hintExtended = !series.PreStart.IsZero() || !series.PostEnd.IsZero()
 	view.updateToggleVisibility()
 	view.nameLabel.SetText(series.Name)
 	view.extendedLabel.SetText("")
@@ -356,7 +347,6 @@ func (view *detailView) applyMain(series model.Series, flash bool) {
 // the regular price in the headline, and the separate pre/post price label.
 func (view *detailView) applyExtended(display chartmath.ExtendedDisplay, flash bool) {
 	series := display.Series
-	view.hintExtended = !series.PreStart.IsZero() || !series.PostEnd.IsZero()
 	view.updateToggleVisibility()
 	view.nameLabel.SetText(series.Name)
 

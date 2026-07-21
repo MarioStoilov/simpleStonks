@@ -304,9 +304,10 @@ The core MVP + polish scope is in place:
   all applied live.
 - Extended hours on the detail view's 1D chart (detail view only; one shared
   setting, default on, exposed as a header "Pre/post market data" checkbox —
-  shown only on 1D and only for instruments that actually trade pre/post
-  (learned from fetched candles; indexes report the windows without trading
-  in them) — and a General settings checkbox): pre-market shows the pre session's own chart plus a
+  shown only on 1D and only for instruments that actually trade pre/post,
+  per Yahoo's hasPrePostMarketData flag (false for indexes, which report the
+  windows without trading in them) — and a General settings checkbox):
+  pre-market shows the pre session's own chart plus a
   separate "Pre-market" price next to the regular one; after-hours continues
   the regular chart with dimmed post candles behind a dashed divider at the
   regular close plus an "After-hours" price; regular hours and fully-closed
