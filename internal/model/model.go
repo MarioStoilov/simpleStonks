@@ -54,6 +54,17 @@ type Series struct {
 	// against this full window so a live day fills in gradually.
 	SessionStart time.Time
 	SessionEnd   time.Time
+
+	// PreStart/PostEnd bound the extended-hours sessions around the regular
+	// one (zero when the provider does not know them): pre-market spans
+	// [PreStart, SessionStart) and after-hours spans [SessionEnd, PostEnd).
+	PreStart time.Time
+	PostEnd  time.Time
+
+	// RegularPrice is the latest regular-session price (Yahoo's
+	// regularMarketPrice): the last regular close while the market is
+	// outside regular hours, the live price during them.
+	RegularPrice float64
 }
 
 // SearchResult is one instrument returned by a symbol search: enough to show

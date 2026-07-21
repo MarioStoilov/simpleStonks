@@ -49,8 +49,11 @@ func TestYahooQuote(t *testing.T) {
 
 const historyBody = `{"chart":{"result":[{"meta":{
   "currency":"USD","symbol":"AAPL","shortName":"Apple","longName":"Apple Inc.",
-  "chartPreviousClose":100.0,
-  "currentTradingPeriod":{"regular":{"start":1699972200,"end":1699995600}}},
+  "chartPreviousClose":100.0,"regularMarketPrice":12.5,
+  "currentTradingPeriod":{
+    "pre":{"start":1699952400,"end":1699972200},
+    "regular":{"start":1699972200,"end":1699995600},
+    "post":{"start":1699995600,"end":1700010000}}},
   "timestamp":[1700000000,1700000060,1700000120],
   "indicators":{"quote":[{
     "open":[10.0,null,12.0],"high":[10.5,null,12.5],
@@ -94,9 +97,77 @@ func TestYahooHistorySkipsGaps(t *testing.T) {
 		t.Errorf("session window = %v..%v, want 1699972200..1699995600",
 			series.SessionStart.Unix(), series.SessionEnd.Unix())
 	}
-	// Range1D must map to range=1d interval=1m on the wire.
+	// The extended windows and regular price ride along on every fetch.
+	if series.PreStart.Unix() != 1699952400 || series.PostEnd.Unix() != 1700010000 {
+		t.Errorf("extended windows = %v..%v, want 1699952400/1700010000",
+			series.PreStart.Unix(), series.PostEnd.Unix())
+	}
+	if series.RegularPrice != 12.5 {
+		t.Errorf("RegularPrice = %v, want 12.5", series.RegularPrice)
+	}
+	// Range1D must map to range=1d interval=1m on the wire, and a regular
+	// History fetch must never ask for extended-hours candles.
 	if rangeQ, intervalQ := got.URL.Query().Get("range"), got.URL.Query().Get("interval"); rangeQ != "1d" || intervalQ != "1m" {
 		t.Errorf("query range=%q interval=%q, want 1d/1m", rangeQ, intervalQ)
+	}
+	if got.URL.Query().Has("includePrePost") {
+		t.Error("regular History request must not include includePrePost")
+	}
+}
+
+const extendedBody = `{"chart":{"result":[{"meta":{
+  "currency":"USD","symbol":"AAPL","shortName":"Apple","longName":"Apple Inc.",
+  "chartPreviousClose":100.0,"regularMarketPrice":12.0,
+  "currentTradingPeriod":{
+    "pre":{"start":1699952400,"end":1699972200},
+    "regular":{"start":1699972200,"end":1699995600},
+    "post":{"start":1699995600,"end":1700010000}}},
+  "timestamp":[1699960000,1699972260,1699980000,1700000000],
+  "indicators":{"quote":[{
+    "open":[9.0,10.0,11.0,12.0],"high":[9.5,10.5,11.5,12.5],
+    "low":[8.5,9.5,10.5,11.5],"close":[9.0,10.0,11.0,12.0],"volume":[50,100,110,60]}]}
+}],"error":null}}`
+
+func TestYahooHistoryExtended(t *testing.T) {
+	var got *http.Request
+	srv := httptest.NewServer(http.HandlerFunc(func(respWriter http.ResponseWriter, request *http.Request) {
+		got = request
+		_, _ = respWriter.Write([]byte(extendedBody))
+	}))
+	defer srv.Close()
+
+	provider := NewYahoo(srv.Client())
+	provider.baseURL = srv.URL + "/"
+
+	series, err := provider.HistoryExtended(context.Background(), "AAPL")
+	if err != nil {
+		t.Fatalf("HistoryExtended: %v", err)
+	}
+	// Extended fetches go out as 1D with includePrePost=true.
+	query := got.URL.Query()
+	if query.Get("includePrePost") != "true" {
+		t.Errorf("includePrePost = %q, want true", query.Get("includePrePost"))
+	}
+	if query.Get("range") != "1d" || query.Get("interval") != "1m" {
+		t.Errorf("query range=%q interval=%q, want 1d/1m", query.Get("range"), query.Get("interval"))
+	}
+	// All candles — pre, regular, and post — are kept.
+	if len(series.Candles) != 4 {
+		t.Fatalf("got %d candles, want 4: %+v", len(series.Candles), series.Candles)
+	}
+	if series.Range != model.Range1D {
+		t.Errorf("Range = %v, want %v", series.Range, model.Range1D)
+	}
+	if series.SessionStart.Unix() != 1699972200 || series.SessionEnd.Unix() != 1699995600 {
+		t.Errorf("session window = %v..%v, want 1699972200..1699995600",
+			series.SessionStart.Unix(), series.SessionEnd.Unix())
+	}
+	if series.PreStart.Unix() != 1699952400 || series.PostEnd.Unix() != 1700010000 {
+		t.Errorf("extended windows = %v..%v, want 1699952400/1700010000",
+			series.PreStart.Unix(), series.PostEnd.Unix())
+	}
+	if series.RegularPrice != 12.0 {
+		t.Errorf("RegularPrice = %v, want 12.0", series.RegularPrice)
 	}
 }
 

@@ -3,11 +3,14 @@ package qtui
 import (
 	"context"
 	"fmt"
+	"image/color"
+	"log/slog"
 	"time"
 
 	qt "github.com/mappu/miqt/qt6"
 	"github.com/mappu/miqt/qt6/mainthread"
 
+	"github.com/MarioStoilov/simplestonks/internal/chartmath"
 	"github.com/MarioStoilov/simplestonks/internal/config"
 	"github.com/MarioStoilov/simplestonks/internal/constants"
 	"github.com/MarioStoilov/simplestonks/internal/model"
@@ -30,12 +33,22 @@ type detailView struct {
 	nameLabel      *qt.QLabel
 	priceLabel     *qt.QLabel
 	changeLabel    *qt.QLabel
+	extendedLabel  *qt.QLabel // separate pre-market/after-hours price
+	extendedToggle *qt.QCheckBox
 	chart          *chartWidget
 	rangeButtons   map[model.Range]*qt.QPushButton
 
-	symbol     string
-	rng        model.Range
-	generation int // drops stale async responses after symbol/range switches
+	symbol        string
+	rng           model.Range
+	extendedHours bool // shared setting: show pre/post market data on 1D
+	generation    int  // drops stale async responses after symbol/range switches
+
+	// Extended-hours capability per symbol, learned from extended fetches
+	// (indexes report pre/post windows but never trade in them, so only the
+	// fetched candles can tell); hintExtended is the window-presence hint
+	// used for the current symbol until its capability is known.
+	extendedKnown map[string]bool
+	hintExtended  bool
 
 	order        []string
 	sidebarTiles map[string]*tile
@@ -50,12 +63,13 @@ func newDetailView(parent *qt.QWidget, quotes provider.QuoteProvider, store *con
 	root := qt.NewQWidget(parent)
 	root.SetStyleSheet("background: transparent;")
 	view := &detailView{
-		quotes:       quotes,
-		store:        store,
-		onBack:       onBack,
-		root:         root,
-		rangeButtons: map[model.Range]*qt.QPushButton{},
-		sidebarTiles: map[string]*tile{},
+		quotes:        quotes,
+		store:         store,
+		onBack:        onBack,
+		root:          root,
+		rangeButtons:  map[model.Range]*qt.QPushButton{},
+		sidebarTiles:  map[string]*tile{},
+		extendedKnown: map[string]bool{},
 	}
 
 	outer := qt.NewQHBoxLayout(root)
@@ -95,6 +109,23 @@ func newDetailView(parent *qt.QWidget, quotes provider.QuoteProvider, store *con
 	ident.AddWidget(view.symbolLabel.QWidget)
 	ident.AddWidget(view.nameLabel.QWidget)
 	head.AddLayout(ident.QLayout)
+	// Extended-hours toggle, anchored left of the stretch so the varying
+	// width of the price block never shifts it. Only visible on the 1D range
+	// for symbols with pre/post trading; writes the shared setting — the
+	// reload arrives via the config subscription, the same path the settings
+	// dialog and external file edits use.
+	view.extendedToggle = qt.NewQCheckBox4(constants.LabelExtendedToggle, root)
+	view.extendedToggle.SetStyleSheet(checkBoxStyle())
+	view.extendedToggle.SetCursor(qt.NewQCursor2(qt.PointingHandCursor))
+	view.extendedToggle.SetToolTip(constants.TipExtendedHours)
+	view.extendedToggle.SetVisible(false)
+	view.extendedToggle.OnClicked(func() {
+		checked := view.extendedToggle.IsChecked()
+		if err := view.store.Update(func(conf *config.Config) { conf.ExtendedHours = checked }); err != nil {
+			slog.Error("saving extended-hours toggle failed", "error", err)
+		}
+	})
+	head.AddWidget(view.extendedToggle.QWidget)
 	head.AddStretch()
 	quote := qt.NewQVBoxLayout2()
 	view.priceLabel = qt.NewQLabel5(constants.PricePlaceholder, root)
@@ -103,8 +134,14 @@ func newDetailView(parent *qt.QWidget, quotes provider.QuoteProvider, store *con
 	view.changeLabel = qt.NewQLabel(root)
 	view.changeLabel.SetStyleSheet("background: transparent;")
 	view.changeLabel.SetAlignment(qt.AlignRight)
+	// Always present (empty when inactive) so showing/hiding the extended
+	// price never changes the header height and resizes the chart.
+	view.extendedLabel = qt.NewQLabel(root)
+	view.extendedLabel.SetStyleSheet(extendedLabelStyle(constants.ColorNeutral))
+	view.extendedLabel.SetAlignment(qt.AlignRight)
 	quote.AddWidget(view.priceLabel.QWidget)
 	quote.AddWidget(view.changeLabel.QWidget)
+	quote.AddWidget(view.extendedLabel.QWidget)
 	head.AddLayout(quote.QLayout)
 	main.AddLayout(head.QLayout)
 
@@ -144,9 +181,12 @@ func (view *detailView) showSymbol(symbol string) {
 	view.nameLabel.SetText("")
 	view.priceLabel.SetText(constants.PricePlaceholder)
 	view.changeLabel.SetText("")
+	view.extendedLabel.SetText("")
+	view.hintExtended = false
 	view.priceShown = false
 	view.rng = view.store.Get().DefaultRange
 	view.styleRangeButtons()
+	view.updateToggleVisibility()
 	view.generation++
 	view.loadMain(false)
 	view.setSymbols(view.store.Get().Symbols)
@@ -164,6 +204,7 @@ func (view *detailView) setRange(rng model.Range) {
 	view.rng = rng
 	view.priceShown = false // a range switch must not flash
 	view.styleRangeButtons()
+	view.updateToggleVisibility()
 	view.generation++
 	view.loadMain(false)
 }
@@ -175,6 +216,31 @@ func (view *detailView) refresh() {
 	if view.rng.Intraday() {
 		view.loadMain(true)
 	}
+}
+
+// setExtendedHours applies the shared extended-hours setting: syncs the
+// header toggle and reloads the main chart when it is showing 1D.
+func (view *detailView) setExtendedHours(enabled bool) {
+	if enabled == view.extendedHours && view.extendedToggle.IsChecked() == enabled {
+		return
+	}
+	view.extendedHours = enabled
+	view.extendedToggle.SetChecked(enabled)
+	if view.symbol != "" && view.rng.Intraday() {
+		view.generation++
+		view.loadMain(false)
+	}
+}
+
+// updateToggleVisibility shows the extended-hours toggle only on the 1D
+// range and only for symbols that trade pre/post: the learned capability
+// when known, else the window-presence hint of the last applied series.
+func (view *detailView) updateToggleVisibility() {
+	capable, known := view.extendedKnown[view.symbol]
+	if !known {
+		capable = view.hintExtended
+	}
+	view.extendedToggle.SetVisible(capable && view.rng.Intraday())
 }
 
 // setSymbols reconciles the sidebar with the tracked list.
@@ -205,14 +271,43 @@ func (view *detailView) setSymbols(symbols []string) {
 	}
 }
 
-// loadMain fetches the main chart's series off the UI thread.
+// loadMain fetches the main chart's series off the UI thread. On 1D with the
+// extended-hours setting on it fetches pre/post market data too; a closed
+// market falls back to the regular fetch, whose candles Yahoo pairs reliably
+// (see chartmath.BuildExtendedDisplay).
 func (view *detailView) loadMain(flash bool) {
 	symbol, rng, requestGen := view.symbol, view.rng, view.generation
+	capable, known := view.extendedKnown[symbol]
+	extended := view.extendedHours && rng == model.Range1D && (!known || capable)
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), constants.FetchTimeout)
 		defer cancel()
-		series, err := view.quotes.History(ctx, symbol, rng)
+		var display chartmath.ExtendedDisplay
+		var series model.Series
+		var err error
+		var learned, learnedCapable bool
+		if extended {
+			series, err = view.quotes.HistoryExtended(ctx, symbol)
+			if err == nil {
+				display = chartmath.BuildExtendedDisplay(series, time.Now())
+				if display.State == chartmath.MarketClosed {
+					// Overnight/weekend responses pair yesterday's candles
+					// with tomorrow's windows and prove nothing.
+					extended = false
+				} else {
+					learned = true
+					learnedCapable = chartmath.HasExtendedCandles(series)
+					series = display.Series
+				}
+			}
+		}
+		if !extended && err == nil {
+			series, err = view.quotes.History(ctx, symbol, rng)
+		}
 		mainthread.Wait(func() {
+			if learned {
+				view.extendedKnown[symbol] = learnedCapable
+			}
 			if requestGen != view.generation { // superseded by a newer switch
 				return
 			}
@@ -220,20 +315,29 @@ func (view *detailView) loadMain(flash bool) {
 				view.priceLabel.SetText(constants.PricePlaceholder)
 				view.changeLabel.SetText(constants.MsgUnavailable)
 				view.changeLabel.SetStyleSheet("background: transparent; color: " + cssRGB(constants.ColorNeutral) + ";")
+				view.extendedLabel.SetText("")
 				view.chart.setSeries(model.Series{}, constants.ColorNeutral)
 				view.priceShown = false
 				return
 			}
-			view.applyMain(series, flash)
+			if extended {
+				view.applyExtended(display, flash)
+			} else {
+				view.applyMain(series, flash)
+			}
 		})
 	}()
 }
 
 // applyMain renders a fetched series into the header and chart.
 func (view *detailView) applyMain(series model.Series, flash bool) {
+	view.hintExtended = !series.PreStart.IsZero() || !series.PostEnd.IsZero()
+	view.updateToggleVisibility()
 	view.nameLabel.SetText(series.Name)
+	view.extendedLabel.SetText("")
 	last := series.Candles[len(series.Candles)-1].Close
 	view.priceLabel.SetText(chartPrice(last))
+	view.changeLabel.SetText("")
 
 	lineColor := constants.ColorNeutral
 	if series.PreviousClose > 0 {
@@ -243,11 +347,68 @@ func (view *detailView) applyMain(series model.Series, flash bool) {
 		lineColor = col
 		view.changeLabel.SetText(fmt.Sprintf(constants.FmtPriceChange, sign, change, sign, percent))
 		view.changeLabel.SetStyleSheet("background: transparent; color: " + cssRGB(col) + ";")
-	} else {
-		view.changeLabel.SetText("")
 	}
 	view.chart.setSeries(series, lineColor)
+	view.flashPrice(last, flash)
+}
 
+// applyExtended renders an extended-hours display: the state-filtered chart,
+// the regular price in the headline, and the separate pre/post price label.
+func (view *detailView) applyExtended(display chartmath.ExtendedDisplay, flash bool) {
+	series := display.Series
+	view.hintExtended = !series.PreStart.IsZero() || !series.PostEnd.IsZero()
+	view.updateToggleVisibility()
+	view.nameLabel.SetText(series.Name)
+
+	// Headline: the regular-session price. During pre-market the series has
+	// no regular candles, so the meta price is the only source; during the
+	// session it equals the latest close.
+	headline := series.RegularPrice
+	if headline <= 0 {
+		headline = series.Candles[len(series.Candles)-1].Close
+	}
+	view.priceLabel.SetText(chartPrice(headline))
+	view.changeLabel.SetText("")
+	if series.PreviousClose > 0 {
+		change := headline - series.PreviousClose
+		percent := change / series.PreviousClose * constants.PercentMax
+		col, sign := changeStyle(change)
+		view.changeLabel.SetText(fmt.Sprintf(constants.FmtPriceChange, sign, change, sign, percent))
+		view.changeLabel.SetStyleSheet("background: transparent; color: " + cssRGB(col) + ";")
+	}
+
+	// Separate extended-hours price, measured against the regular price.
+	if display.ExtendedPrice > 0 && series.RegularPrice > 0 && display.State != chartmath.MarketRegular {
+		prefix := constants.LabelPreMarket
+		if display.State == chartmath.MarketAfterHours {
+			prefix = constants.LabelAfterHours
+		}
+		change := display.ExtendedPrice - series.RegularPrice
+		percent := change / series.RegularPrice * constants.PercentMax
+		col, sign := changeStyle(change)
+		view.extendedLabel.SetText(fmt.Sprintf(constants.FmtExtendedQuote, prefix, display.ExtendedPrice, sign, percent))
+		view.extendedLabel.SetStyleSheet(extendedLabelStyle(col))
+	} else {
+		view.extendedLabel.SetText("")
+	}
+
+	// The line color follows what the chart shows: the last plotted close
+	// against the dashed previous-close reference.
+	lineColor := constants.ColorNeutral
+	if series.PreviousClose > 0 {
+		col, _ := changeStyle(series.Candles[len(series.Candles)-1].Close - series.PreviousClose)
+		lineColor = col
+	}
+	view.chart.setSeries(series, lineColor)
+	if display.State == chartmath.MarketAfterHours && display.DimFromIdx >= 0 {
+		view.chart.setAfterHoursOverlay(display.BoundaryTime, display.DimFromIdx)
+	}
+	view.flashPrice(headline, flash)
+}
+
+// flashPrice flashes the headline price backdrop when a live refresh moved
+// it, and records the shown price for the next comparison.
+func (view *detailView) flashPrice(last float64, flash bool) {
 	if flash && view.priceShown && last != view.shownPrice {
 		flashColor := constants.ColorUp
 		if last < view.shownPrice {
@@ -287,14 +448,28 @@ func (view *detailView) loadSidebar(flash bool) {
 // styleRangeButtons highlights the active range toggle.
 func (view *detailView) styleRangeButtons() {
 	for rangeOption, button := range view.rangeButtons {
-		background := constants.ColorCardBg
-		if rangeOption == view.rng {
-			background = constants.ColorSelected
-		}
-		button.SetStyleSheet(fmt.Sprintf(
-			"QPushButton { background-color: %s; color: %s; border: none; border-radius: %dpx; padding: 4px 10px; }"+
-				" QPushButton:hover { background-color: %s; }",
-			cssRGB(background), cssRGB(constants.ColorForeground),
-			int(constants.PanelCornerRadius), cssRGB(constants.ColorHover)))
+		button.SetStyleSheet(toggleButtonStyle(rangeOption == view.rng))
 	}
+}
+
+// extendedLabelStyle styles the separate pre/post price label; the label is
+// permanently laid out (empty when inactive), so the font size stays fixed to
+// keep the header height — and with it the chart size — stable.
+func extendedLabelStyle(textColor color.NRGBA) string {
+	return fmt.Sprintf("background: transparent; color: %s; font-size: %dpx;",
+		cssRGB(textColor), int(constants.NameTextSize))
+}
+
+// toggleButtonStyle is the pill style of the range toggles, highlighted when
+// selected.
+func toggleButtonStyle(selected bool) string {
+	background := constants.ColorCardBg
+	if selected {
+		background = constants.ColorSelected
+	}
+	return fmt.Sprintf(
+		"QPushButton { background-color: %s; color: %s; border: none; border-radius: %dpx; padding: 4px 10px; }"+
+			" QPushButton:hover { background-color: %s; }",
+		cssRGB(background), cssRGB(constants.ColorForeground),
+		int(constants.PanelCornerRadius), cssRGB(constants.ColorHover))
 }

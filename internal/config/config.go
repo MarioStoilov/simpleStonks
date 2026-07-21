@@ -114,6 +114,10 @@ type Config struct {
 	// RefreshInterval controls live-tick polling cadence for the 1D view.
 	RefreshInterval time.Duration `json:"refreshInterval"`
 
+	// ExtendedHours shows pre-market/after-hours data on the detail view's
+	// 1D chart while the market is outside regular hours.
+	ExtendedHours bool `json:"extendedHours"`
+
 	// Background styles the app window background.
 	Background Background `json:"background"`
 
@@ -138,6 +142,7 @@ func Default() Config {
 		Layout:          LayoutGrid,
 		FormFactor:      FormFactorWindow,
 		RefreshInterval: constants.DefaultRefreshInterval,
+		ExtendedHours:   true,
 		Background:      DefaultBackground(),
 		Logging: Logging{
 			Level: LogInfo,

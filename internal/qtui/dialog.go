@@ -67,6 +67,18 @@ func dialogButtonStyle(primary bool) string {
 		cssRGB(constants.ColorSelected), cssRGB(constants.ColorDisabledBg), cssRGB(constants.ColorDisabledFg))
 }
 
+// checkBoxStyle styles a checkbox for the dark card, matching inputStyle's
+// palette: a bordered indicator that fills with the selection color when on.
+func checkBoxStyle() string {
+	return fmt.Sprintf(
+		"QCheckBox { background: transparent; color: %s; spacing: 8px; }"+
+			" QCheckBox::indicator { width: 14px; height: 14px; border: 1px solid %s; border-radius: %dpx; background-color: %s; }"+
+			" QCheckBox::indicator:checked { background-color: %s; }",
+		cssRGB(constants.ColorForeground), cssRGB(constants.ColorAxis),
+		int(constants.PanelCornerRadius), cssRGB(constants.ColorChartBg),
+		cssRGB(constants.ColorSelected))
+}
+
 // inputStyle styles line edits and combo boxes for the dark card.
 func inputStyle() string {
 	return fmt.Sprintf(

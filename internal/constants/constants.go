@@ -150,6 +150,10 @@ const (
 	// e.g. "+1.23 (+0.45%)".
 	FmtPriceChange = "%s%.2f (%s%.2f%%)"
 
+	// FmtExtendedQuote renders an extended-hours quote from
+	// (prefix, price, sign, percent), e.g. "Pre-market: 185.05 (+0.85%)".
+	FmtExtendedQuote = "%s: %.2f (%s%.2f%%)"
+
 	// FmtLogArchive renders a rotated log archive name from (path, index).
 	FmtLogArchive = "%s.%d"
 

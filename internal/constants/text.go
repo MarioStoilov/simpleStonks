@@ -27,6 +27,7 @@ const (
 	// Settings form labels.
 	LabelDefaultRange      = "Default range"
 	LabelRefreshInterval   = "Refresh interval (s)"
+	LabelExtendedHours     = "Extended hours (pre/post market)"
 	LabelBackgroundColor   = "Background color"
 	LabelBackgroundOpacity = "Background opacity (%)"
 	LabelLogLevel          = "Log level"
@@ -51,6 +52,12 @@ const (
 	// Prices & tiles.
 	PricePlaceholder = "—"
 	MsgUnavailable   = "unavailable"
+
+	// Extended-hours (pre-market / after-hours) display on the detail view.
+	LabelExtendedToggle = "Pre/post market data"
+	TipExtendedHours    = "Show pre-market and after-hours prices and charting on the 1D range"
+	LabelPreMarket      = "Pre-market"
+	LabelAfterHours     = "After-hours"
 
 	// Separators used when joining symbol/name/market fragments.
 	SepTitle = "  ·  "

@@ -82,7 +82,8 @@ to this two-screen model.
   so its edits and external file edits stay consistent.
 - **Implemented:** a separate window opened by the cog, divided into
   **sections** picked from a left sidebar — **General** (default range, refresh
-  interval s), **Appearance** (window background color via a swatch + color
+  interval s, extended-hours pre/post market checkbox — shared with the detail
+  view's header toggle), **Appearance** (window background color via a swatch + color
   picker dialog plus an opacity % slider, previewed **live** while editing and
   reverted unless saved; persisted as `#RRGGBB` + opacity), and **Logging**
   (level, file, max size MB, archives kept) — with window-wide Save/Cancel.
@@ -301,6 +302,15 @@ The core MVP + polish scope is in place:
 - Settings window (cog): sectioned (General / Appearance / Logging) with a
   sidebar; includes the window background (color + opacity) with live preview —
   all applied live.
+- Extended hours on the detail view's 1D chart (detail view only; one shared
+  setting, default on, exposed as a header "Pre/post market data" checkbox —
+  shown only on 1D and only for instruments that actually trade pre/post
+  (learned from fetched candles; indexes report the windows without trading
+  in them) — and a General settings checkbox): pre-market shows the pre session's own chart plus a
+  separate "Pre-market" price next to the regular one; after-hours continues
+  the regular chart with dimmed post candles behind a dashed divider at the
+  regular close plus an "After-hours" price; regular hours and fully-closed
+  markets render exactly as without the feature.
 - Tests gated by `pre-commit` (unit) and `pre-push` (integration) hooks.
 
 ## Open items

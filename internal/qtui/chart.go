@@ -23,6 +23,12 @@ type chartWidget struct {
 	font      *qt.QFont
 	metrics   *qt.QFontMetrics
 
+	// After-hours overlay (detail view only): a dashed vertical divider at
+	// the regular close and a dimmed line from dimFromIdx on. Cleared by
+	// every setSeries so regular charts can never inherit it.
+	dividerTime time.Time
+	dimFromIdx  int
+
 	// Hover readout state (only used with hoverReadout enabled): pointer
 	// tracking plus the plotted geometry cached by the last paint.
 	hoverReadout bool
@@ -38,10 +44,11 @@ func newChartWidget(parent *qt.QWidget) *chartWidget {
 	font := qt.NewQFont()
 	font.SetPixelSize(int(constants.AxisTextSize))
 	chart := &chartWidget{
-		QWidget:   qt.NewQWidget(parent),
-		lineColor: constants.ColorNeutral,
-		font:      font,
-		metrics:   qt.NewQFontMetrics(font),
+		QWidget:    qt.NewQWidget(parent),
+		lineColor:  constants.ColorNeutral,
+		font:       font,
+		metrics:    qt.NewQFontMetrics(font),
+		dimFromIdx: -1,
 	}
 	chart.SetMinimumSize2(int(constants.ChartMinWidth), int(constants.ChartMinHeight))
 	chart.SetStyleSheet("background: " + cssRGB(constants.ColorChartBg) + ";")
@@ -56,6 +63,10 @@ func newChartWidget(parent *qt.QWidget) *chartWidget {
 func (chart *chartWidget) enableHoverReadout() {
 	chart.hoverReadout = true
 	chart.SetMouseTracking(true)
+	// Mouse tracking swallows the moves the frameless window relies on to
+	// reset its resize cursor, so the chart must carry its own cursor or a
+	// stale resize cursor sticks when entering from an edge grip.
+	chart.SetCursor(qt.NewQCursor2(qt.ArrowCursor))
 	chart.OnMouseMoveEvent(func(super func(event *qt.QMouseEvent), event *qt.QMouseEvent) {
 		chart.hovering = true
 		chart.hoverX = float32(event.Position().X())
@@ -68,10 +79,22 @@ func (chart *chartWidget) enableHoverReadout() {
 	})
 }
 
-// setSeries updates the plotted data and line color, and repaints.
+// setSeries updates the plotted data and line color, and repaints. Any
+// after-hours overlay is cleared; callers wanting one re-apply it afterwards.
 func (chart *chartWidget) setSeries(series model.Series, lineColor color.NRGBA) {
 	chart.series = series
 	chart.lineColor = lineColor
+	chart.dividerTime = time.Time{}
+	chart.dimFromIdx = -1
+	chart.Update()
+}
+
+// setAfterHoursOverlay marks the regular-close boundary on an extended-hours
+// chart: a dashed vertical divider at boundary and a dimmed line from the
+// dimFromIdx-th candle on. Call after setSeries, which clears the overlay.
+func (chart *chartWidget) setAfterHoursOverlay(boundary time.Time, dimFromIdx int) {
+	chart.dividerTime = boundary
+	chart.dimFromIdx = dimFromIdx
 	chart.Update()
 }
 
@@ -179,8 +202,18 @@ func (chart *chartWidget) paint() {
 
 	linePen := qt.NewQPen3(qColor(chart.lineColor))
 	linePen.SetWidthF(float64(constants.ChartLineWidth))
-	painter.SetPenWithPen(linePen)
+	dimColor := chart.lineColor
+	dimColor.A = constants.AfterHoursDimAlpha
+	dimPen := qt.NewQPen3(qColor(dimColor))
+	dimPen.SetWidthF(float64(constants.ChartLineWidth))
 	for idx := 1; idx < len(pts); idx++ {
+		// The after-hours tail — including the segment crossing the regular
+		// close — draws dimmed against the divider.
+		if chart.dimFromIdx >= 0 && idx >= chart.dimFromIdx {
+			painter.SetPenWithPen(dimPen)
+		} else {
+			painter.SetPenWithPen(linePen)
+		}
 		painter.DrawLine(qt.NewQLineF3(
 			float64(pts[idx-1].X+leftMargin), float64(pts[idx-1].Y),
 			float64(pts[idx].X+leftMargin), float64(pts[idx].Y),
@@ -188,6 +221,26 @@ func (chart *chartWidget) paint() {
 	}
 	if bare {
 		return
+	}
+
+	// Dashed vertical divider at the regular close of an after-hours chart.
+	if !chart.dividerTime.IsZero() && chartmath.SessionWindow(series) {
+		frac := float32(chart.dividerTime.Sub(series.SessionStart)) / float32(series.SessionEnd.Sub(series.SessionStart))
+		if frac < 0 {
+			frac = 0
+		}
+		if frac > 1 {
+			frac = 1
+		}
+		dividerPen := qt.NewQPen3(qColor(constants.ColorAxis))
+		dividerPen.SetWidthF(float64(constants.HairlineWidth))
+		dividerPen.SetDashPattern([]float64{float64(constants.DashLen), float64(constants.DashGap)})
+		painter.SetPenWithPen(dividerPen)
+		posX := float64(leftMargin + constants.ChartPadding + frac*(plotW-2*constants.ChartPadding))
+		painter.DrawLine(qt.NewQLineF3(
+			posX, float64(constants.ChartPadding),
+			posX, float64(plotH-constants.ChartPadding),
+		))
 	}
 
 	painter.SetPen(qColor(constants.ColorAxis))

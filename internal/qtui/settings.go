@@ -82,6 +82,11 @@ func showSettingsDialog(parent *qt.QWidget, store *config.Store, previewBackgrou
 	refreshEdit := qt.NewQLineEdit4(strconv.Itoa(int(cfg.RefreshInterval/time.Second)), generalPage)
 	refreshEdit.SetStyleSheet(inputStyle())
 	generalLayout.AddWidget(refreshEdit.QWidget)
+	extendedBox := qt.NewQCheckBox4(constants.LabelExtendedHours, generalPage)
+	extendedBox.SetStyleSheet(checkBoxStyle())
+	extendedBox.SetCursor(qt.NewQCursor2(qt.PointingHandCursor))
+	extendedBox.SetChecked(cfg.ExtendedHours)
+	generalLayout.AddWidget(extendedBox.QWidget)
 	generalLayout.AddStretch()
 	pages.AddWidget(generalPage)
 
@@ -187,6 +192,7 @@ func showSettingsDialog(parent *qt.QWidget, store *config.Store, previewBackgrou
 		updateErr := store.Update(func(conf *config.Config) {
 			conf.DefaultRange = model.Range(rangeBox.CurrentText())
 			conf.RefreshInterval = time.Duration(seconds) * time.Second
+			conf.ExtendedHours = extendedBox.IsChecked()
 			conf.Background.Color = hexOf(background)
 			conf.Background.Opacity = float64(opacitySlider.Value()) / constants.PercentMax
 			conf.Logging.Level = config.LogLevel(levelBox.CurrentText())

@@ -178,6 +178,7 @@ func (app *App) applyConfig(cfg config.Config) {
 	app.home.setSymbols(cfg.Symbols)
 	if app.detail != nil {
 		app.detail.setSymbols(cfg.Symbols)
+		app.detail.setExtendedHours(cfg.ExtendedHours)
 	}
 
 	interval := cfg.RefreshInterval

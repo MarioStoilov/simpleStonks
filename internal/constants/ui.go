@@ -111,6 +111,10 @@ const (
 	// FlashAlpha is the starting opacity of the price flash background.
 	FlashAlpha = 0x66
 
+	// AfterHoursDimAlpha is the line opacity of the after-hours chart
+	// segment, dimmed against the regular-session line.
+	AfterHoursDimAlpha = 0x59
+
 	// FlashPad is the extra flash width to the left of the price number.
 	FlashPad = 3
 

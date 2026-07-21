@@ -275,6 +275,23 @@ Progress is recorded in `git log`; the short version:
   `internal/constants`, `snapcraft pack`, `snapcraft upload
   --release=stable,edge <snap>`.
 
+- Extended-hours (pre-market/after-hours) on the detail view's 1D chart —
+  detail view only, controlled by one shared setting (header "Pre/post
+  market data" checkbox — visible only on 1D and only for instruments that
+  actually trade pre/post, learned per symbol from fetched extended candles
+  since Yahoo reports the windows even for indexes — + Settings → General
+  checkbox, default on, live-synced both ways):
+  during pre-market the chart shows the pre session with a separate
+  "Pre-market: price (%)" label next to the regular price; during after-hours
+  the regular chart continues with the post candles (dimmed, behind a dashed
+  divider at the regular close) plus an "After-hours:" label; while fully
+  closed (or during regular hours) everything renders exactly as before. Data
+  via `HistoryExtended` (Yahoo `includePrePost`), market state derived from
+  `currentTradingPeriod` pre/regular/post windows in pure, unit-tested
+  `chartmath` helpers (`StateAt`, `BuildExtendedDisplay`); a closed-market
+  extended response is discarded in favor of a plain `History` fetch (Yahoo
+  pairs overnight candles with the upcoming session's windows).
+
 Immediate next candidates:
 
 - Always-on-top widget form factor.

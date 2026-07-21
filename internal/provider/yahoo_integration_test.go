@@ -55,6 +55,32 @@ func TestIntegrationYahooHistory(t *testing.T) {
 	}
 }
 
+func TestIntegrationYahooHistoryExtended(t *testing.T) {
+	requireNetwork(t)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	series, err := NewYahoo(nil).HistoryExtended(ctx, "AAPL")
+	if err != nil {
+		t.Fatalf("live HistoryExtended: %v", err)
+	}
+	if len(series.Candles) == 0 {
+		t.Fatal("expected candles for the extended 1D range")
+	}
+	if series.RegularPrice <= 0 {
+		t.Fatalf("implausible regular price: %v", series.RegularPrice)
+	}
+	// AAPL has pre/post sessions; when Yahoo reports them they must bracket
+	// the regular session.
+	if !series.PreStart.IsZero() && !series.PreStart.Before(series.SessionStart) {
+		t.Errorf("PreStart %v not before SessionStart %v", series.PreStart, series.SessionStart)
+	}
+	if !series.PostEnd.IsZero() && !series.PostEnd.After(series.SessionEnd) {
+		t.Errorf("PostEnd %v not after SessionEnd %v", series.PostEnd, series.SessionEnd)
+	}
+}
+
 func TestIntegrationYahooSearch(t *testing.T) {
 	requireNetwork(t)
 

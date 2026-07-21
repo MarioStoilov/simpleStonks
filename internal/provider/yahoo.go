@@ -46,7 +46,7 @@ func (yahoo *Yahoo) Name() string { return "yahoo" }
 // Quote implements QuoteProvider. It reads the latest price and previous close
 // from the 1D chart's meta block.
 func (yahoo *Yahoo) Quote(ctx context.Context, symbol string) (model.Quote, error) {
-	res, err := yahoo.fetchChart(ctx, symbol, "1d", "1m")
+	res, err := yahoo.fetchChart(ctx, symbol, "1d", "1m", false)
 	if err != nil {
 		return model.Quote{}, err
 	}
@@ -63,8 +63,20 @@ func (yahoo *Yahoo) Quote(ctx context.Context, symbol string) (model.Quote, erro
 // History implements QuoteProvider. It maps the range to Yahoo's range+interval
 // parameters and decodes the returned timestamps and OHLC arrays.
 func (yahoo *Yahoo) History(ctx context.Context, symbol string, rng model.Range) (model.Series, error) {
+	return yahoo.history(ctx, symbol, rng, false)
+}
+
+// HistoryExtended implements QuoteProvider using the 1D chart with
+// includePrePost=true, so the candles span pre-market and after-hours too.
+func (yahoo *Yahoo) HistoryExtended(ctx context.Context, symbol string) (model.Series, error) {
+	return yahoo.history(ctx, symbol, model.Range1D, true)
+}
+
+// history fetches and decodes a chart series, optionally asking Yahoo to
+// include extended-hours (pre/post market) candles.
+func (yahoo *Yahoo) history(ctx context.Context, symbol string, rng model.Range, includePrePost bool) (model.Series, error) {
 	chartRange, interval := yahooParams(rng)
-	res, err := yahoo.fetchChart(ctx, symbol, chartRange, interval)
+	res, err := yahoo.fetchChart(ctx, symbol, chartRange, interval, includePrePost)
 	if err != nil {
 		return model.Series{}, err
 	}
@@ -79,10 +91,24 @@ func (yahoo *Yahoo) History(ctx context.Context, symbol string, rng model.Range)
 		Currency:      res.Meta.Currency,
 		Candles:       candles,
 		PreviousClose: res.Meta.previousCloseRef(),
+		RegularPrice:  res.Meta.RegularMarketPrice,
 	}
 	if period := res.Meta.CurrentTradingPeriod.Regular; period.Start > 0 && period.End > period.Start {
 		series.SessionStart = time.Unix(period.Start, 0).UTC()
 		series.SessionEnd = time.Unix(period.End, 0).UTC()
+	}
+	// The extended windows only count when they actually extend the regular
+	// session; degenerate periods stay zero and collapse downstream to the
+	// regular-only behavior.
+	if pre := res.Meta.CurrentTradingPeriod.Pre; pre.Start > 0 {
+		if start := time.Unix(pre.Start, 0).UTC(); start.Before(series.SessionStart) {
+			series.PreStart = start
+		}
+	}
+	if post := res.Meta.CurrentTradingPeriod.Post; post.End > 0 {
+		if end := time.Unix(post.End, 0).UTC(); end.After(series.SessionEnd) {
+			series.PostEnd = end
+		}
 	}
 	return series, nil
 }
@@ -128,15 +154,20 @@ func (yahoo *Yahoo) Search(ctx context.Context, query string) ([]model.SearchRes
 }
 
 // fetchChart requests the chart endpoint for a symbol and returns the first
-// result, mapping transport and API-level failures to errors.
-func (yahoo *Yahoo) fetchChart(ctx context.Context, symbol, rng, interval string) (*yahooResult, error) {
+// result, mapping transport and API-level failures to errors. includePrePost
+// asks Yahoo to include extended-hours candles in the arrays.
+func (yahoo *Yahoo) fetchChart(ctx context.Context, symbol, rng, interval string, includePrePost bool) (*yahooResult, error) {
 	if symbol == "" {
 		return nil, fmt.Errorf("yahoo: empty symbol")
 	}
-	endpoint := yahoo.baseURL + url.PathEscape(symbol) + "?" + url.Values{
+	params := url.Values{
 		"range":    {rng},
 		"interval": {interval},
-	}.Encode()
+	}
+	if includePrePost {
+		params.Set("includePrePost", "true")
+	}
+	endpoint := yahoo.baseURL + url.PathEscape(symbol) + "?" + params.Encode()
 
 	resp, err := yahoo.get(ctx, endpoint)
 	if err != nil {
@@ -209,11 +240,16 @@ type yahooMeta struct {
 	ChartPreviousClose   float64 `json:"chartPreviousClose"`
 	RegularMarketTime    int64   `json:"regularMarketTime"`
 	CurrentTradingPeriod struct {
-		Regular struct {
-			Start int64 `json:"start"`
-			End   int64 `json:"end"`
-		} `json:"regular"`
+		Pre     yahooPeriod `json:"pre"`
+		Regular yahooPeriod `json:"regular"`
+		Post    yahooPeriod `json:"post"`
 	} `json:"currentTradingPeriod"`
+}
+
+// yahooPeriod is one trading-period window in the chart meta, in Unix seconds.
+type yahooPeriod struct {
+	Start int64 `json:"start"`
+	End   int64 `json:"end"`
 }
 
 // displayName is the friendly instrument name, preferring the long form.
