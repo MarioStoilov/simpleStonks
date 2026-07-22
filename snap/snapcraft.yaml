@@ -1,6 +1,6 @@
 name: simplestonks
 base: core24
-version: "1.2.1"
+version: "1.2.2"
 icon: internal/assets/icon.svg # bundled into the binary too; see internal/assets
 license: MIT
 summary: Bare-bones stock tracker widget
@@ -9,6 +9,14 @@ description: |
   their movement, Yahoo Finance style, in a frameless translucent widget-style
   window. The tracked list is editable from the UI and persisted along with
   other settings.
+
+  What's new in 1.2.2:
+
+  - Fixed instrument names being clipped after a few characters on the home
+    grid and sidebar tiles.
+  - The pre/post market toggle now appears whenever the market is outside
+    regular hours; while fully closed, it replays the last session's
+    after-hours chart instead of hiding.
 
 grade: stable
 confinement: strict

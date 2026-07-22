@@ -306,13 +306,15 @@ The core MVP + polish scope is in place:
   setting, default on, exposed as a header "Pre/post market data" checkbox —
   shown only on 1D, only for instruments that actually trade pre/post,
   per Yahoo's hasPrePostMarketData flag (false for indexes, which report the
-  windows without trading in them), and only while a pre-market or
-  after-hours session is running — and a General settings checkbox):
+  windows without trading in them), and whenever the market is outside its
+  regular session — and a General settings checkbox):
   pre-market shows the pre session's own chart plus a
   separate "Pre-market" price next to the regular one; after-hours continues
   the regular chart with dimmed post candles behind a dashed divider at the
-  regular close plus an "After-hours" price; regular hours and fully-closed
-  markets render exactly as without the feature.
+  regular close plus an "After-hours" price; a fully-closed market replays
+  the completed session the same way (regular + dimmed after-hours tail) so
+  the last extended prices stay viewable overnight; regular hours render
+  exactly as without the feature.
 - Tests gated by `pre-commit` (unit) and `pre-push` (integration) hooks.
 
 ## Open items

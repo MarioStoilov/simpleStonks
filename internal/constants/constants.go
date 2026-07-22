@@ -19,7 +19,7 @@ const (
 
 	// AppVersion is the released application version, shown in the About
 	// dialog. Keep it in sync with the `version` key in snap/snapcraft.yaml.
-	AppVersion = "1.2.1"
+	AppVersion = "1.2.2"
 
 	// RepoURL is the public home of the project, linked from the About dialog.
 	RepoURL = "https://github.com/MarioStoilov/simpleStonks"
@@ -114,6 +114,15 @@ const (
 
 	// FlashDuration is how long a price-update flash takes to fade out.
 	FlashDuration = 900 * time.Millisecond
+
+	// SessionShiftDay is the whole-day step used to translate the upcoming
+	// session's windows back onto the fetched candles' day while the market
+	// is closed (Yahoo reports the next session's windows overnight).
+	SessionShiftDay = 24 * time.Hour
+
+	// SessionShiftMaxDays bounds that backward search; it covers weekends
+	// and holiday breaks while stopping runaway loops on garbage timestamps.
+	SessionShiftMaxDays = 7
 )
 
 // --- Formats (time layouts, numbers) ---

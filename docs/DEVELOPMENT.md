@@ -280,19 +280,22 @@ Progress is recorded in `git log`; the short version:
   market data" checkbox — visible only on 1D, only for instruments that
   actually trade pre/post (per Yahoo's hasPrePostMarketData chart-meta flag,
   which is false for indexes even though they report pre/post windows), and
-  only while a pre-market or after-hours session is running, since that is
-  when the setting has an effect — + Settings → General checkbox, default
-  on, live-synced both ways):
+  whenever the market is outside its regular session, since that is when the
+  setting has an effect — + Settings → General checkbox, default on,
+  live-synced both ways):
   during pre-market the chart shows the pre session with a separate
   "Pre-market: price (%)" label next to the regular price; during after-hours
   the regular chart continues with the post candles (dimmed, behind a dashed
   divider at the regular close) plus an "After-hours:" label; while fully
-  closed (or during regular hours) everything renders exactly as before. Data
-  via `HistoryExtended` (Yahoo `includePrePost`), market state derived from
-  `currentTradingPeriod` pre/regular/post windows in pure, unit-tested
-  `chartmath` helpers (`StateAt`, `BuildExtendedDisplay`); a closed-market
-  extended response is discarded in favor of a plain `History` fetch (Yahoo
-  pairs overnight candles with the upcoming session's windows).
+  closed the completed session replays the same way (Yahoo pairs the
+  overnight candles with the *upcoming* session's windows, so
+  `BuildExtendedDisplay` translates the windows back onto the candles' day
+  in whole-day steps); during regular hours everything renders exactly as
+  before. Data via `HistoryExtended` (Yahoo `includePrePost`), market state
+  derived from `currentTradingPeriod` pre/regular/post windows in pure,
+  unit-tested `chartmath` helpers (`StateAt`, `BuildExtendedDisplay`); when
+  no closed-market replay can be built (e.g. no post candles) the extended
+  response is discarded in favor of a plain `History` fetch.
 
 Immediate next candidates:
 

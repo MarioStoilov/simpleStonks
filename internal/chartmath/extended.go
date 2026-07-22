@@ -3,6 +3,7 @@ package chartmath
 import (
 	"time"
 
+	"github.com/MarioStoilov/simplestonks/internal/constants"
 	"github.com/MarioStoilov/simplestonks/internal/model"
 )
 
@@ -58,11 +59,16 @@ type ExtendedDisplay struct {
 //   - Regular: only the regular candles — exactly the everyday chart.
 //   - After-hours: regular + post candles against the extended window, with
 //     the divider/dim metadata set.
-//   - Closed: the input untouched; callers should fall back to a regular
-//     fetch, since a closed market pairs the previous day's candles with the
-//     upcoming session's windows (see SessionWindow).
+//   - Closed: a replay of the completed session — its regular + post candles
+//     with the divider/dim metadata — so the last after-hours prices stay
+//     viewable overnight. A closed market pairs those candles with the
+//     UPCOMING session's windows, so the windows are first translated back
+//     onto the candles' day. When no replay can be built (no post candles or
+//     windows that cannot be located) the input is returned untouched
+//     (DimFromIdx -1) and callers should fall back to a regular fetch.
 //
-// A pre-market moment without any pre candles yet also demotes to Closed.
+// A pre-market moment without any pre candles yet also demotes to the
+// closed-market replay.
 func BuildExtendedDisplay(series model.Series, now time.Time) ExtendedDisplay {
 	display := ExtendedDisplay{Series: series, State: StateAt(series, now), DimFromIdx: -1}
 	switch display.State {
@@ -70,7 +76,7 @@ func BuildExtendedDisplay(series model.Series, now time.Time) ExtendedDisplay {
 		preCandles := candlesBetween(series.Candles, series.PreStart, series.SessionStart)
 		if len(preCandles) == 0 {
 			display.State = MarketClosed
-			return display
+			return closedReplay(display)
 		}
 		display.Series.Candles = preCandles
 		display.Series.SessionStart = series.PreStart
@@ -81,13 +87,7 @@ func BuildExtendedDisplay(series model.Series, now time.Time) ExtendedDisplay {
 	case MarketAfterHours:
 		sessionCandles := candlesBetween(series.Candles, series.SessionStart, series.PostEnd)
 		display.Series.Candles = sessionCandles
-		postFrom := -1
-		for idx, candle := range sessionCandles {
-			if !candle.Time.Before(series.SessionEnd) {
-				postFrom = idx
-				break
-			}
-		}
+		postFrom := firstCandleAtOrAfter(sessionCandles, series.SessionEnd)
 		if postFrom < 0 {
 			// No post candles yet: render the completed regular day as-is.
 			display.Series.Candles = candlesBetween(series.Candles, series.SessionStart, series.SessionEnd)
@@ -97,8 +97,72 @@ func BuildExtendedDisplay(series model.Series, now time.Time) ExtendedDisplay {
 		display.BoundaryTime = series.SessionEnd
 		display.DimFromIdx = postFrom
 		display.ExtendedPrice = sessionCandles[len(sessionCandles)-1].Close
+	case MarketClosed:
+		return closedReplay(display)
 	}
 	return display
+}
+
+// closedReplay maps a closed-market extended display to a replay of its
+// completed session: the regular + post candles against the extended window,
+// with the divider/dim metadata set. When there is nothing extended to show
+// it leaves the display untouched so the caller can fall back to a regular
+// fetch.
+func closedReplay(display ExtendedDisplay) ExtendedDisplay {
+	series := display.Series
+	sessionStart, sessionEnd, postEnd, ok := completedSessionWindows(series)
+	if !ok {
+		return display
+	}
+	candles := candlesBetween(series.Candles, sessionStart, postEnd)
+	postFrom := firstCandleAtOrAfter(candles, sessionEnd)
+	if postFrom < 0 {
+		return display
+	}
+	display.Series.Candles = candles
+	display.Series.SessionStart = sessionStart
+	display.Series.SessionEnd = postEnd
+	display.BoundaryTime = sessionEnd
+	display.DimFromIdx = postFrom
+	display.ExtendedPrice = candles[len(candles)-1].Close
+	return display
+}
+
+// completedSessionWindows translates the series' session windows onto the day
+// of its last candle: while the market is closed the provider reports the
+// UPCOMING session's windows alongside the COMPLETED session's candles, so
+// the windows are stepped back in whole days until the regular open no longer
+// lies past the last candle (one step overnight, three across a weekend).
+// The whole-day step means a DST change between the two days shifts the
+// boundary by an hour — a rare, cosmetic inaccuracy. It reports failure when
+// the series has no candles, no post window, or windows that stay ahead of
+// the candles within the lookback bound.
+func completedSessionWindows(series model.Series) (sessionStart, sessionEnd, postEnd time.Time, ok bool) {
+	if len(series.Candles) == 0 || !series.PostEnd.After(series.SessionEnd) {
+		return time.Time{}, time.Time{}, time.Time{}, false
+	}
+	lastCandle := series.Candles[len(series.Candles)-1].Time
+	sessionStart, sessionEnd, postEnd = series.SessionStart, series.SessionEnd, series.PostEnd
+	for shifted := 0; sessionStart.After(lastCandle); shifted++ {
+		if shifted >= constants.SessionShiftMaxDays {
+			return time.Time{}, time.Time{}, time.Time{}, false
+		}
+		sessionStart = sessionStart.Add(-constants.SessionShiftDay)
+		sessionEnd = sessionEnd.Add(-constants.SessionShiftDay)
+		postEnd = postEnd.Add(-constants.SessionShiftDay)
+	}
+	return sessionStart, sessionEnd, postEnd, true
+}
+
+// firstCandleAtOrAfter returns the index of the first candle at or after the
+// boundary, or -1 when there is none.
+func firstCandleAtOrAfter(candles []model.Candle, boundary time.Time) int {
+	for idx, candle := range candles {
+		if !candle.Time.Before(boundary) {
+			return idx
+		}
+	}
+	return -1
 }
 
 // candlesBetween returns the candles whose time falls in [from, to).

@@ -189,13 +189,113 @@ func TestBuildExtendedDisplayAfterHoursWithoutPostCandles(t *testing.T) {
 	}
 }
 
-func TestBuildExtendedDisplayClosedPassesThrough(t *testing.T) {
+func TestBuildExtendedDisplayClosedWithoutPostCandlesPassesThrough(t *testing.T) {
+	// No post candles: nothing to replay, so the caller can fall back to a
+	// regular fetch (signalled by the untouched series and DimFromIdx -1).
 	series := extendedSeries(clock(10, 0), clock(15, 0))
 	display := BuildExtendedDisplay(series, clock(23, 0))
 	if display.State != MarketClosed {
 		t.Fatalf("State = %v, want MarketClosed", display.State)
 	}
 	if len(display.Series.Candles) != 2 || !display.Series.SessionEnd.Equal(series.SessionEnd) {
-		t.Errorf("closed display must pass the series through untouched")
+		t.Errorf("closed display without post candles must pass the series through untouched")
+	}
+	if display.DimFromIdx != -1 || display.ExtendedPrice != 0 || !display.BoundaryTime.IsZero() {
+		t.Errorf("expected no overlay/extended price: %+v", display)
+	}
+}
+
+// shiftWindows moves every session window forward by whole days, mimicking
+// the upcoming-session windows a closed-market response carries.
+func shiftWindows(series model.Series, days int) model.Series {
+	shift := time.Duration(days) * 24 * time.Hour
+	series.PreStart = series.PreStart.Add(shift)
+	series.SessionStart = series.SessionStart.Add(shift)
+	series.SessionEnd = series.SessionEnd.Add(shift)
+	series.PostEnd = series.PostEnd.Add(shift)
+	return series
+}
+
+func TestBuildExtendedDisplayClosedReplaysAfterHours(t *testing.T) {
+	// Late night, same-day windows: the completed session replays with its
+	// after-hours tail dimmed behind the regular-close divider.
+	series := extendedSeries(clock(9, 0), clock(10, 0), clock(15, 0), clock(17, 0))
+	display := BuildExtendedDisplay(series, clock(23, 0))
+
+	if display.State != MarketClosed {
+		t.Fatalf("State = %v, want MarketClosed", display.State)
+	}
+	// The 09:00 pre candle is dropped; regular + post remain.
+	if len(display.Series.Candles) != 3 || display.Series.Candles[0].Time != clock(10, 0) {
+		t.Fatalf("candles = %+v, want the regular + post ones", display.Series.Candles)
+	}
+	if !display.Series.SessionStart.Equal(clock(9, 30)) || !display.Series.SessionEnd.Equal(clock(20, 0)) {
+		t.Errorf("display window = %v..%v, want 09:30..20:00",
+			display.Series.SessionStart, display.Series.SessionEnd)
+	}
+	if !display.BoundaryTime.Equal(clock(16, 0)) {
+		t.Errorf("BoundaryTime = %v, want 16:00", display.BoundaryTime)
+	}
+	if display.DimFromIdx != 2 {
+		t.Errorf("DimFromIdx = %d, want 2", display.DimFromIdx)
+	}
+	if display.ExtendedPrice != 103 {
+		t.Errorf("ExtendedPrice = %v, want 103", display.ExtendedPrice)
+	}
+}
+
+func TestBuildExtendedDisplayClosedShiftsUpcomingWindows(t *testing.T) {
+	// Overnight (windows one day ahead) and over a weekend (three days
+	// ahead) the windows must translate back onto the candles' day.
+	for _, daysAhead := range []int{1, 3} {
+		series := shiftWindows(extendedSeries(clock(10, 0), clock(15, 0), clock(17, 0)), daysAhead)
+		now := clock(7, 0).Add(time.Duration(daysAhead) * 24 * time.Hour)
+		display := BuildExtendedDisplay(series, now)
+
+		if display.State != MarketClosed {
+			t.Fatalf("%d days ahead: State = %v, want MarketClosed", daysAhead, display.State)
+		}
+		if len(display.Series.Candles) != 3 {
+			t.Fatalf("%d days ahead: candles = %+v, want all 3", daysAhead, display.Series.Candles)
+		}
+		if !display.Series.SessionStart.Equal(clock(9, 30)) || !display.Series.SessionEnd.Equal(clock(20, 0)) {
+			t.Errorf("%d days ahead: display window = %v..%v, want 09:30..20:00",
+				daysAhead, display.Series.SessionStart, display.Series.SessionEnd)
+		}
+		if !display.BoundaryTime.Equal(clock(16, 0)) {
+			t.Errorf("%d days ahead: BoundaryTime = %v, want 16:00", daysAhead, display.BoundaryTime)
+		}
+		if display.DimFromIdx != 2 || display.ExtendedPrice != 102 {
+			t.Errorf("%d days ahead: DimFromIdx = %d, ExtendedPrice = %v, want 2 and 102",
+				daysAhead, display.DimFromIdx, display.ExtendedPrice)
+		}
+	}
+}
+
+func TestBuildExtendedDisplayPreMarketWithoutDataReplaysLastSession(t *testing.T) {
+	// Early pre-market with no pre candles yet: the response still carries
+	// the previous session's candles, so its after-hours replay shows.
+	series := shiftWindows(extendedSeries(clock(10, 0), clock(15, 0), clock(17, 0)), 1)
+	now := clock(8, 30).Add(24 * time.Hour) // inside the upcoming pre window
+	display := BuildExtendedDisplay(series, now)
+
+	if display.State != MarketClosed {
+		t.Fatalf("State = %v, want MarketClosed", display.State)
+	}
+	if display.DimFromIdx != 2 || !display.BoundaryTime.Equal(clock(16, 0)) {
+		t.Errorf("expected the replay overlay: %+v", display)
+	}
+}
+
+func TestBuildExtendedDisplayClosedWindowsTooFarAhead(t *testing.T) {
+	// Windows further ahead than the lookback bound cannot be located; the
+	// series passes through untouched.
+	series := shiftWindows(extendedSeries(clock(10, 0), clock(17, 0)), 10)
+	display := BuildExtendedDisplay(series, clock(23, 0))
+	if display.State != MarketClosed || display.DimFromIdx != -1 {
+		t.Errorf("expected an untouched closed display: %+v", display)
+	}
+	if len(display.Series.Candles) != 2 {
+		t.Errorf("candles must pass through untouched: %+v", display.Series.Candles)
 	}
 }

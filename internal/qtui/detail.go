@@ -188,7 +188,8 @@ func (view *detailView) showSymbol(symbol string) {
 	view.priceShown = false
 	view.rng = view.store.Get().DefaultRange
 	view.styleRangeButtons()
-	view.marketState = chartmath.MarketClosed // unknown until the first fetch
+	// Regular hides the toggle until the first fetch classifies the session.
+	view.marketState = chartmath.MarketRegular
 	view.updateToggleVisibility()
 	view.generation++
 	view.loadMain(false)
@@ -236,12 +237,13 @@ func (view *detailView) setExtendedHours(enabled bool) {
 }
 
 // updateToggleVisibility shows the extended-hours toggle only when it has an
-// effect: on the 1D range, for symbols known to trade pre/post, while the
-// market is actually in a pre-market or after-hours session. Unknown symbols
-// keep it hidden until their first fetch reports the capability flag.
+// effect: on the 1D range, for symbols known to trade pre/post, outside the
+// regular session — the live pre-market/after-hours views and the
+// closed-market replay of the last session. Unknown symbols keep it hidden
+// until their first fetch reports the capability flag.
 func (view *detailView) updateToggleVisibility() {
-	relevant := view.marketState == chartmath.MarketPreMarket || view.marketState == chartmath.MarketAfterHours
-	view.extendedToggle.SetVisible(view.extendedKnown[view.symbol] && view.rng.Intraday() && relevant)
+	view.extendedToggle.SetVisible(view.extendedKnown[view.symbol] && view.rng.Intraday() &&
+		view.marketState != chartmath.MarketRegular)
 }
 
 // setSymbols reconciles the sidebar with the tracked list.
@@ -274,8 +276,9 @@ func (view *detailView) setSymbols(symbols []string) {
 
 // loadMain fetches the main chart's series off the UI thread. On 1D with the
 // extended-hours setting on it fetches pre/post market data too; a closed
-// market falls back to the regular fetch, whose candles Yahoo pairs reliably
-// (see chartmath.BuildExtendedDisplay).
+// market replays the completed session's after-hours tail, falling back to
+// the regular fetch when no replay can be built (see
+// chartmath.BuildExtendedDisplay).
 func (view *detailView) loadMain(flash bool) {
 	symbol, rng, requestGen := view.symbol, view.rng, view.generation
 	capable, known := view.extendedKnown[symbol]
@@ -290,10 +293,11 @@ func (view *detailView) loadMain(flash bool) {
 			series, err = view.quotes.HistoryExtended(ctx, symbol)
 			if err == nil {
 				display = chartmath.BuildExtendedDisplay(series, time.Now())
-				if display.State == chartmath.MarketClosed {
+				if display.State == chartmath.MarketClosed && display.DimFromIdx < 0 {
 					// A closed market pairs the previous day's candles with
-					// the upcoming session's windows; only the regular fetch
-					// renders those correctly.
+					// the upcoming session's windows; when no after-hours
+					// replay could be built from them, only the regular
+					// fetch renders those correctly.
 					extended = false
 				} else {
 					series = display.Series
@@ -333,7 +337,7 @@ func (view *detailView) loadMain(flash bool) {
 func (view *detailView) applyMain(series model.Series, flash bool) {
 	// Regular fetches carry the session windows too; while the market is
 	// closed they belong to the upcoming session, which StateAt classifies
-	// as closed — exactly when the toggle has nothing to offer.
+	// as closed — the toggle then offers the last session's replay.
 	view.marketState = chartmath.StateAt(series, time.Now())
 	view.updateToggleVisibility()
 	view.nameLabel.SetText(series.Name)
@@ -383,7 +387,8 @@ func (view *detailView) applyExtended(display chartmath.ExtendedDisplay, flash b
 	// Separate extended-hours price, measured against the regular price.
 	if display.ExtendedPrice > 0 && series.RegularPrice > 0 && display.State != chartmath.MarketRegular {
 		prefix := constants.LabelPreMarket
-		if display.State == chartmath.MarketAfterHours {
+		if display.State != chartmath.MarketPreMarket {
+			// The after-hours live view or the closed-market replay.
 			prefix = constants.LabelAfterHours
 		}
 		change := display.ExtendedPrice - series.RegularPrice
@@ -403,7 +408,7 @@ func (view *detailView) applyExtended(display chartmath.ExtendedDisplay, flash b
 		lineColor = col
 	}
 	view.chart.setSeries(series, lineColor)
-	if display.State == chartmath.MarketAfterHours && display.DimFromIdx >= 0 {
+	if display.DimFromIdx >= 0 { // after-hours live view or closed replay
 		view.chart.setAfterHoursOverlay(display.BoundaryTime, display.DimFromIdx)
 	}
 	view.flashPrice(headline, flash)
