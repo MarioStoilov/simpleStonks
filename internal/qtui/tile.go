@@ -79,8 +79,10 @@ func newTile(parent *qt.QWidget, symbol string, compact bool, onOpen func()) *ti
 	nameLabel.SetSizePolicy2(qt.QSizePolicy__Ignored, qt.QSizePolicy__Preferred)
 	ident.AddWidget(symbolLabel.QWidget)
 	ident.AddWidget(nameLabel.QWidget)
-	head.AddLayout(ident.QLayout)
-	head.AddStretch()
+	// The ident column takes the header's spare width (instead of a stretch
+	// spacer): with its size hint ignored, the name label would otherwise be
+	// clipped at the symbol label's width.
+	head.AddLayout2(ident.QLayout, 1)
 
 	quote := qt.NewQVBoxLayout2()
 	priceLabel := qt.NewQLabel5(constants.PricePlaceholder, frame.QWidget)
