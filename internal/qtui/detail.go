@@ -400,6 +400,14 @@ func (view *detailView) applyExtended(display chartmath.ExtendedDisplay, flash b
 		view.extendedLabel.SetText("")
 	}
 
+	// The pre-market chart reads against the regular close, Yahoo-style:
+	// the dashed reference sits at yesterday's close and the line, hover
+	// percentage, and color follow the pre-market change. The header math
+	// above keeps the session's own previous close.
+	if display.State == chartmath.MarketPreMarket && series.RegularPrice > 0 {
+		series.PreviousClose = series.RegularPrice
+	}
+
 	// The line color follows what the chart shows: the last plotted close
 	// against the dashed previous-close reference.
 	lineColor := constants.ColorNeutral
