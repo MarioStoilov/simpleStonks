@@ -69,6 +69,25 @@ from the UI, and the list plus other settings are persisted to a config file.
 - Common commands are wrapped in the `Makefile` (`make check`, `make
   test-integration`, `make hooks`, …).
 
+## Snap release runbook
+
+When building and publishing a new snap version, follow these steps in order
+(machine specifics — LXD, Docker firewall, upload commands — are in
+[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)):
+
+0. **Preflight:** verify the Docker/LXD firewall fix is applied (container
+   networking works) and that snapcraft is logged in.
+1. **Clean tree:** all code must be committed and pushed before building.
+2. **Version bump:** ask the user whether this is a major, minor, or fix
+   release, then bump both the `version` in `snap/snapcraft.yaml` and
+   `constants.AppVersion` in `internal/constants` (keep them in sync).
+3. **Tag:** create a git tag for the new version (`v<version>`, e.g. `v1.2.1`).
+4. **Changelog:** update the `description` in `snap/snapcraft.yaml` to include
+   a simple changelog of what has changed / been fixed in this release.
+5. **Build:** build the snap (`snapcraft pack`).
+6. **Publish:** ask the user which channels to release to (e.g. `edge`,
+   `stable`), then upload/release the snap to those channels.
+
 ## Notes
 
 - Requirements and architecture are still being finalized; check with the user
