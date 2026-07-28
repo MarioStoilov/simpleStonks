@@ -57,7 +57,7 @@ func showAboutDialog(parent *qt.QWidget) {
 	body.AddWidget(centered(linksLabel).QWidget)
 
 	disclaimerLabel := qt.NewQLabel5(constants.AboutDisclaimer, dialog.QWidget)
-	disclaimerLabel.SetStyleSheet(fmt.Sprintf("background: transparent; color: %s; font-size: %dpx;",
+	disclaimerLabel.SetStyleSheet(fmt.Sprintf(constants.StyleSmallText,
 		cssRGB(constants.ColorNeutral), int(constants.NameTextSize)))
 	body.AddWidget(centered(disclaimerLabel).QWidget)
 

@@ -37,16 +37,7 @@ func alphaByte(opacity float64) uint8 {
 // scrollAreaStyle is the stylesheet for transparent scroll areas with slim
 // dark scrollbars matching the widget look (replaces the chunky theme ones).
 func scrollAreaStyle() string {
-	return fmt.Sprintf(
-		"QScrollArea { background: transparent; border: none; }"+
-			" QScrollBar { background: transparent; }"+
-			" QScrollBar:vertical { width: %dpx; }"+
-			" QScrollBar:horizontal { height: %dpx; }"+
-			" QScrollBar::handle { background: %s; border-radius: %dpx; }"+
-			" QScrollBar::handle:vertical { min-height: %dpx; }"+
-			" QScrollBar::handle:hover { background: %s; }"+
-			" QScrollBar::add-line, QScrollBar::sub-line { width: 0; height: 0; }"+
-			" QScrollBar::add-page, QScrollBar::sub-page { background: transparent; }",
+	return fmt.Sprintf(constants.StyleScrollArea,
 		int(constants.ScrollBarWidth), int(constants.ScrollBarWidth),
 		cssRGB(constants.ColorHover), int(constants.PanelCornerRadius),
 		int(constants.ScrollBarMinHandle), cssRGB(constants.ColorSelected))

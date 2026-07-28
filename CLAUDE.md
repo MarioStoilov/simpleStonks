@@ -53,6 +53,12 @@ from the UI, and the list plus other settings are persisted to a config file.
   typed enum values (`model.Range`, `config.LogLevel`), struct tags, protocol
   mapping tables (e.g. `yahooParams`), diagnostic log/error-wrap messages, and
   test fixtures.
+- **Qt stylesheet templates live in `internal/constants/styles.go`.**
+  Multi-rule stylesheets (anything with several QSS rules or pseudo-states,
+  e.g. a button's hover/disabled variants) are `fmt.Sprintf` templates named
+  `Style*` there, filled in with palette colors and metrics at their use
+  sites. Small single-rule inline styles (e.g. `"background: transparent;"`
+  or one-color concatenations) may stay at their use sites.
 - Match the style, naming, and structure of existing code.
 
 ## Testing

@@ -47,8 +47,7 @@ func tileStyle(selected bool) string {
 		base = constants.ColorSelected
 		hover = constants.ColorSelected
 	}
-	return fmt.Sprintf(
-		"#tile { background-color: %s; border-radius: %dpx; } #tile:hover { background-color: %s; }",
+	return fmt.Sprintf(constants.StyleTile,
 		cssRGB(base), int(constants.TileCornerRadius), cssRGB(hover))
 }
 
@@ -72,7 +71,7 @@ func newTile(parent *qt.QWidget, symbol string, compact bool, onOpen func()) *ti
 	symbolLabel := qt.NewQLabel5(symbol, frame.QWidget)
 	symbolLabel.SetStyleSheet("background: transparent; font-weight: 600;")
 	nameLabel := qt.NewQLabel(frame.QWidget)
-	nameLabel.SetStyleSheet(fmt.Sprintf("background: transparent; color: %s; font-size: %dpx;",
+	nameLabel.SetStyleSheet(fmt.Sprintf(constants.StyleSmallText,
 		cssRGB(constants.ColorAxis), int(constants.NameTextSize)))
 	// A long friendly name must never widen the tile beyond its cell: let the
 	// label be clipped instead of driving the layout's minimum width.
@@ -207,7 +206,7 @@ func (cell *tile) setSeries(series model.Series, flash bool) {
 		if last < cell.shownPrice {
 			flashColor = constants.ColorDown
 		}
-		cell.priceLabel.SetStyleSheet(fmt.Sprintf("%s background-color: %s; border-radius: %dpx;",
+		cell.priceLabel.SetStyleSheet(fmt.Sprintf(constants.StylePriceFlash,
 			priceBaseStyle, cssRGBA(flashColor, constants.FlashAlpha), int(constants.FlashCornerRadius)))
 		cell.flashTimer.Start(int(constants.FlashDuration / time.Millisecond))
 	}

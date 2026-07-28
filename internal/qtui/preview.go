@@ -35,7 +35,7 @@ func showPreviewDialog(parent *qt.QWidget, quotes provider.QuoteProvider, store 
 	}
 	head := qt.NewQHBoxLayout2()
 	metaLabel := qt.NewQLabel5(strings.Join(meta, constants.SepMeta), dialog.QWidget)
-	metaLabel.SetStyleSheet(fmt.Sprintf("background: transparent; color: %s; font-size: %dpx;",
+	metaLabel.SetStyleSheet(fmt.Sprintf(constants.StyleSmallText,
 		cssRGB(constants.ColorNeutral), int(constants.NameTextSize)))
 	head.AddWidget(metaLabel.QWidget)
 	head.AddStretch()

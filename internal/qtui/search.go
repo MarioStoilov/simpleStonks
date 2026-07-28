@@ -29,10 +29,7 @@ func showSearchDialog(parent *qt.QWidget, quotes provider.QuoteProvider, store *
 
 	results := qt.NewQListWidget(dialog.QWidget)
 	results.SetMinimumSize2(int(constants.SearchScrollMinWidth), int(constants.SearchScrollMinHeight))
-	results.SetStyleSheet(fmt.Sprintf(
-		"QListWidget { background: transparent; border: none; }"+
-			" QListWidget::item { border-radius: %dpx; }"+
-			" QListWidget::item:hover, QListWidget::item:selected { background-color: %s; }",
+	results.SetStyleSheet(fmt.Sprintf(constants.StyleSearchResults,
 		int(constants.PanelCornerRadius), cssRGB(constants.ColorHover)))
 	body.AddWidget2(results.QWidget, 1)
 
@@ -137,7 +134,7 @@ func newResultRow(parent *qt.QWidget, match model.SearchResult) *qt.QWidget {
 	}
 	if len(meta) > 0 {
 		metaLabel := qt.NewQLabel5(strings.Join(meta, constants.SepMeta), row)
-		metaLabel.SetStyleSheet(fmt.Sprintf("background: transparent; color: %s; font-size: %dpx;",
+		metaLabel.SetStyleSheet(fmt.Sprintf(constants.StyleSmallText,
 			cssRGB(constants.ColorNeutral), int(constants.NameTextSize)))
 		metaLabel.SetSizePolicy2(qt.QSizePolicy__Ignored, qt.QSizePolicy__Preferred)
 		layout.AddWidget(metaLabel.QWidget)
