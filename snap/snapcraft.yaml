@@ -1,9 +1,17 @@
 name: simplestonks
+title: simpleStonks
 base: core24
 version: "1.2.3"
 icon: internal/assets/icon.svg # bundled into the binary too; see internal/assets
 license: MIT
 summary: Bare-bones stock tracker widget
+# Store listing links, synced from the snap on upload. The listing category
+# (Finance) and the screenshots are store-side only: set them once in the
+# snapcraft.io listing editor and they persist across revisions.
+website: https://github.com/MarioStoilov/simpleStonks
+contact: https://github.com/MarioStoilov/simpleStonks/issues
+issues: https://github.com/MarioStoilov/simpleStonks/issues
+source-code: https://github.com/MarioStoilov/simpleStonks
 description: |
   simpleStonks shows a configurable list of stock indexes and tickers and charts
   their movement, Yahoo Finance style, in a frameless translucent widget-style
