@@ -19,7 +19,7 @@ const (
 
 	// AppVersion is the released application version, shown in the About
 	// dialog. Keep it in sync with the `version` key in snap/snapcraft.yaml.
-	AppVersion = "1.2.3"
+	AppVersion = "1.3.0"
 
 	// RepoURL is the public home of the project, linked from the About dialog.
 	RepoURL = "https://github.com/MarioStoilov/simpleStonks"
@@ -63,6 +63,23 @@ const (
 	// dark-theme window background at full opacity.
 	DefaultBackgroundColor   = "#171718"
 	DefaultBackgroundOpacity = 1.0
+
+	// DefaultChartBackground is the default chart plot background color
+	// (the hex form of ColorChartBg — keep them in sync).
+	DefaultChartBackground = "#1e1e24"
+
+	// DefaultChartGridSize/MinChartGridSize size the chart grid squares in
+	// pixels; the minimum keeps the grid drawable and the paint loop sane.
+	DefaultChartGridSize = 24
+	MinChartGridSize     = 4
+
+	// DefaultChartGridColor is the default chart grid line color, a shade
+	// above the plot background.
+	DefaultChartGridColor = "#2a2a33"
+
+	// DefaultChartFillOpacity is the default opacity of the chart area fill,
+	// matching the app logo's fill.
+	DefaultChartFillOpacity = 0.25
 
 	// BytesPerMiB converts the config's MB numbers into bytes.
 	BytesPerMiB = 1024 * 1024

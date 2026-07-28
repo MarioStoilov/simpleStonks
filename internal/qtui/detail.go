@@ -246,6 +246,15 @@ func (view *detailView) updateToggleVisibility() {
 		view.marketState != chartmath.MarketRegular)
 }
 
+// repaintCharts repaints the main chart and every sidebar tile chart (the
+// chart styling changed).
+func (view *detailView) repaintCharts() {
+	view.chart.Update()
+	for _, cell := range view.sidebarTiles {
+		cell.chart.Update()
+	}
+}
+
 // setSymbols reconciles the sidebar with the tracked list.
 func (view *detailView) setSymbols(symbols []string) {
 	next := map[string]*tile{}

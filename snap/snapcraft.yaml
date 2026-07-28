@@ -1,7 +1,7 @@
 name: simplestonks
 title: simpleStonks
 base: core24
-version: "1.2.3"
+version: "1.3.0"
 icon: internal/assets/icon.svg # bundled into the binary too; see internal/assets
 license: MIT
 summary: Bare-bones stock tracker widget
@@ -18,11 +18,15 @@ description: |
   window. The tracked list is editable from the UI and persisted along with
   other settings.
 
-  What's new in 1.2.3:
+  What's new in 1.3.0:
 
-  - Fixed the pre-market chart reading against the wrong reference: its
-    dashed line now sits at the regular close and the chart colors by the
-    pre-market change, matching the Pre-market price in the header.
+  - New chart styling in Settings → Appearance, all with live preview:
+    - Up/down area shading between the price line and the previous-close
+      reference — green above, red below, like the app logo — with the
+      line itself colored per side (on by default; opacity configurable).
+    - An optional checkered graph-paper grid behind the charts, with
+      configurable square size and line color.
+    - A configurable chart background color.
 
 grade: stable
 confinement: strict

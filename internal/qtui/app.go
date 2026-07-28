@@ -76,7 +76,7 @@ func (app *App) Run() {
 
 	app.home = newHomeView(card, app.quotes, app.store)
 	app.home.onOpenSettings = func() {
-		showSettingsDialog(window, app.store, app.applyBackgroundStyle)
+		showSettingsDialog(window, app.store, app.applyBackgroundStyle, app.previewChartStyle)
 		// Revert any unsaved appearance preview to the persisted values (a
 		// save also lands here, harmlessly re-applying the new config).
 		app.applyConfig(app.store.Get())
@@ -162,6 +162,22 @@ func (app *App) applyBackgroundStyle(background color.NRGBA, opacity float64) {
 		cssRGB(constants.ColorForeground)))
 }
 
+// previewChartStyle applies chart styling immediately (the settings dialog's
+// live preview); unsaved edits are reverted by the applyConfig that runs when
+// the dialog closes.
+func (app *App) previewChartStyle(cfg config.Chart) {
+	setChartStyle(cfg)
+	app.repaintCharts()
+}
+
+// repaintCharts repaints every live chart after a chart-style change.
+func (app *App) repaintCharts() {
+	app.home.repaintCharts()
+	if app.detail != nil {
+		app.detail.repaintCharts()
+	}
+}
+
 // applyConfig applies a config snapshot: background styling, tracked symbols,
 // and the refresh cadence. Runs on the UI thread.
 func (app *App) applyConfig(cfg config.Config) {
@@ -174,6 +190,8 @@ func (app *App) applyConfig(cfg config.Config) {
 		opacity = constants.DefaultBackgroundOpacity
 	}
 	app.applyBackgroundStyle(background, opacity)
+	setChartStyle(cfg.Chart)
+	app.repaintCharts()
 
 	app.home.setSymbols(cfg.Symbols)
 	if app.detail != nil {

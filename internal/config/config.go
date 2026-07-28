@@ -99,6 +99,41 @@ func DefaultBackground() Background {
 	}
 }
 
+// Chart styles the chart plot area.
+type Chart struct {
+	// Background is the plot background color as a "#RRGGBB" hex string.
+	Background string `json:"background"`
+
+	// Grid draws a graph-paper grid over the plot background.
+	Grid bool `json:"grid"`
+
+	// GridSize is the grid square size in pixels.
+	GridSize int `json:"gridSize"`
+
+	// GridColor is the grid line color as a "#RRGGBB" hex string.
+	GridColor string `json:"gridColor"`
+
+	// Fill shades the area between the price line and the previous-close
+	// reference — green above, red below (the logo look).
+	Fill bool `json:"fill"`
+
+	// FillOpacity is the fill opacity from 0 (invisible) to 1 (solid).
+	FillOpacity float64 `json:"fillOpacity"`
+}
+
+// DefaultChart is the out-of-the-box chart styling: the logo-style area fill
+// on, the grid off but ready with subtle defaults.
+func DefaultChart() Chart {
+	return Chart{
+		Background:  constants.DefaultChartBackground,
+		Grid:        false,
+		GridSize:    constants.DefaultChartGridSize,
+		GridColor:   constants.DefaultChartGridColor,
+		Fill:        true,
+		FillOpacity: constants.DefaultChartFillOpacity,
+	}
+}
+
 // Config is the full persisted configuration.
 type Config struct {
 	// Symbols is the ordered list of tracked tickers/indexes (e.g. "AAPL", "^GSPC").
@@ -120,6 +155,9 @@ type Config struct {
 
 	// Background styles the app window background.
 	Background Background `json:"background"`
+
+	// Chart styles the chart plot area (background, grid, area fill).
+	Chart Chart `json:"chart"`
 
 	// Logging configures the leveled, rotating file logger.
 	Logging Logging `json:"logging"`
@@ -144,6 +182,7 @@ func Default() Config {
 		RefreshInterval: constants.DefaultRefreshInterval,
 		ExtendedHours:   true,
 		Background:      DefaultBackground(),
+		Chart:           DefaultChart(),
 		Logging: Logging{
 			Level: LogInfo,
 			// File stays empty so the default path is resolved at runtime:

@@ -174,6 +174,13 @@ func (home *homeView) setSymbols(symbols []string) {
 	}
 }
 
+// repaintCharts repaints every tile chart (the chart styling changed).
+func (home *homeView) repaintCharts() {
+	for _, cell := range home.tiles {
+		cell.chart.Update()
+	}
+}
+
 // loadAll refreshes every tile; flash enables the price-change flash.
 func (home *homeView) loadAll(flash bool) {
 	for _, symbol := range home.order {

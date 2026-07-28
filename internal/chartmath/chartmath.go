@@ -235,6 +235,88 @@ func YFor(value, low, high float64, height, pad float32) float32 {
 	return pad + (height-2*pad)*float32(1-normalized)
 }
 
+// FillRegion is one closed polygon enclosed between the plotted line and a
+// horizontal reference line, lying entirely on one side of it.
+type FillRegion struct {
+	// Points are the polygon vertices: the run of plotted points on one side
+	// of the reference followed by the closing corners on the reference line.
+	Points []Point
+
+	// Above reports whether the region sits above the reference on screen
+	// (smaller y) — i.e. prices above the reference value.
+	Above bool
+}
+
+// FillRegions splits a plotted path into the areas enclosed between the line
+// and the horizontal reference at refY (the logo-style up/down shading): one
+// region per contiguous run on a single side, with the crossing points
+// interpolated onto the reference. Runs lying exactly on the reference
+// enclose no area and are dropped.
+func FillRegions(points []Point, refY float32) []FillRegion {
+	if len(points) < 2 {
+		return nil
+	}
+	var regions []FillRegion
+	var run []Point
+	sided := false // the run holds at least one point off the reference
+	above := false
+	flush := func() {
+		if sided {
+			poly := append([]Point{}, run...)
+			if last := poly[len(poly)-1]; last.Y != refY {
+				poly = append(poly, Point{X: last.X, Y: refY})
+			}
+			if first := poly[0]; first.Y != refY {
+				poly = append(poly, Point{X: first.X, Y: refY})
+			}
+			regions = append(regions, FillRegion{Points: poly, Above: above})
+		}
+		run, sided = nil, false
+	}
+	for _, point := range points {
+		pointAbove := point.Y < refY
+		switch {
+		case point.Y == refY:
+			// Touching the reference closes the current region; the touch
+			// point also seeds the next run.
+			run = append(run, point)
+			flush()
+			run = []Point{point}
+		case !sided || pointAbove == above:
+			sided, above = true, pointAbove
+			run = append(run, point)
+		default:
+			// Crossed to the other side mid-segment: split at the crossing.
+			crossing := crossingAt(run[len(run)-1], point, refY)
+			run = append(run, crossing)
+			flush()
+			run = []Point{crossing, point}
+			sided, above = true, pointAbove
+		}
+	}
+	flush()
+	return regions
+}
+
+// crossingAt interpolates where the segment from→to meets the horizontal
+// reference at refY. The segment must actually cross it (from and to on
+// opposite sides).
+func crossingAt(from, to Point, refY float32) Point {
+	frac := (refY - from.Y) / (to.Y - from.Y)
+	return Point{X: from.X + frac*(to.X-from.X), Y: refY}
+}
+
+// SegmentCrossing reports whether the segment from→to strictly crosses the
+// horizontal reference at refY — endpoints touching the reference do not
+// count — and the interpolated crossing point when it does. It lets renderers
+// split a line segment so each half can carry its side's up/down color.
+func SegmentCrossing(from, to Point, refY float32) (Point, bool) {
+	if from.Y == refY || to.Y == refY || (from.Y < refY) == (to.Y < refY) {
+		return Point{}, false
+	}
+	return crossingAt(from, to, refY), true
+}
+
 // NearestPoint returns the index of the point whose x coordinate is closest to
 // targetX. Points must be ordered by non-decreasing x (as plotted points are).
 func NearestPoint(points []Point, targetX float32) int {

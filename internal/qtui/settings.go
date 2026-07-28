@@ -21,9 +21,9 @@ var logLevels = []config.LogLevel{
 
 // showSettingsDialog runs the sectioned settings editor (General / Appearance
 // / Logging). Appearance edits preview live through previewBackground and
-// nothing persists until Save; the caller restores the persisted background
-// when the dialog closes unsaved.
-func showSettingsDialog(parent *qt.QWidget, store *config.Store, previewBackground func(color.NRGBA, float64)) {
+// previewChart and nothing persists until Save; the caller restores the
+// persisted appearance when the dialog closes unsaved.
+func showSettingsDialog(parent *qt.QWidget, store *config.Store, previewBackground func(color.NRGBA, float64), previewChart func(config.Chart)) {
 	cfg := store.Get()
 	dialog, body := newCardDialog(parent, constants.TitleSettings)
 	dialog.Resize(int(constants.SettingsWindowWidth), int(constants.SettingsWindowHeight))
@@ -64,7 +64,9 @@ func showSettingsDialog(parent *qt.QWidget, store *config.Store, previewBackgrou
 	}
 	fieldLabel := func(page *qt.QWidget, text string) *qt.QLabel {
 		label := qt.NewQLabel5(text, page)
-		label.SetStyleSheet("background: transparent; color: " + cssRGB(constants.ColorNeutral) + ";")
+		label.SetStyleSheet(fmt.Sprintf(
+			"QLabel { background: transparent; color: %s; } QLabel:disabled { color: %s; }",
+			cssRGB(constants.ColorNeutral), cssRGBA(constants.ColorNeutral, constants.SwatchDisabledAlpha)))
 		return label
 	}
 
@@ -101,17 +103,26 @@ func showSettingsDialog(parent *qt.QWidget, store *config.Store, previewBackgrou
 	if !ok {
 		background, _ = parseHexColor(constants.DefaultBackgroundColor)
 	}
+	chartBackground, ok := parseHexColor(cfg.Chart.Background)
+	if !ok {
+		chartBackground = constants.ColorChartBg
+	}
+	gridColor, ok := parseHexColor(cfg.Chart.GridColor)
+	if !ok {
+		gridColor, _ = parseHexColor(constants.DefaultChartGridColor)
+	}
+
+	// The preview closures are wired after all the controls exist.
+	var preview func()
+	var chartPreview func()
+
+	// Window background.
 	opacityPercent := int(cfg.Background.Opacity*constants.PercentMax + 0.5)
 	appearanceLayout.AddWidget(fieldLabel(appearancePage, constants.LabelBackgroundColor).QWidget)
-	swatch := qt.NewQPushButton(appearancePage)
-	swatch.SetFixedSize2(int(constants.SwatchWidth), int(constants.SwatchHeight))
-	swatch.SetCursor(qt.NewQCursor2(qt.PointingHandCursor))
-	styleSwatch := func() {
-		swatch.SetStyleSheet(fmt.Sprintf(
-			"QPushButton { background-color: %s; border: 1px solid %s; border-radius: %dpx; }",
-			cssRGB(background), cssRGB(constants.ColorAxis), int(constants.PanelCornerRadius)))
-	}
-	styleSwatch()
+	swatch := colorSwatch(appearancePage, dialog.QWidget, background, constants.TitleColorPicker, func(picked color.NRGBA) {
+		background = picked
+		preview()
+	})
 	appearanceLayout.AddWidget(swatch.QWidget)
 	appearanceLayout.AddWidget(fieldLabel(appearancePage, constants.LabelBackgroundOpacity).QWidget)
 	opacitySlider := qt.NewQSlider4(qt.Horizontal, appearancePage)
@@ -119,22 +130,104 @@ func showSettingsDialog(parent *qt.QWidget, store *config.Store, previewBackgrou
 	opacitySlider.SetMaximum(int(constants.PercentMax))
 	opacitySlider.SetValue(opacityPercent)
 	appearanceLayout.AddWidget(opacitySlider.QWidget)
+
+	chartSeparator := qt.NewQFrame(appearancePage)
+	chartSeparator.SetFixedHeight(int(constants.HairlineWidth))
+	chartSeparator.SetStyleSheet("background-color: " + cssRGB(constants.ColorAxis) + ";")
+	appearanceLayout.AddWidget(chartSeparator.QWidget)
+
+	// Chart plot styling: background, checkered grid, up/down area fill.
+	appearanceLayout.AddWidget(fieldLabel(appearancePage, constants.LabelChartBackground).QWidget)
+	chartSwatch := colorSwatch(appearancePage, dialog.QWidget, chartBackground, constants.TitleChartColorPicker, func(picked color.NRGBA) {
+		chartBackground = picked
+		chartPreview()
+	})
+	appearanceLayout.AddWidget(chartSwatch.QWidget)
+	gridBox := qt.NewQCheckBox4(constants.LabelChartGrid, appearancePage)
+	gridBox.SetStyleSheet(checkBoxStyle())
+	gridBox.SetCursor(qt.NewQCursor2(qt.PointingHandCursor))
+	gridBox.SetToolTip(constants.TipChartGrid)
+	gridBox.SetChecked(cfg.Chart.Grid)
+	appearanceLayout.AddWidget(gridBox.QWidget)
+	gridSizeLabel := fieldLabel(appearancePage, constants.LabelChartGridSize)
+	appearanceLayout.AddWidget(gridSizeLabel.QWidget)
+	gridSizeEdit := qt.NewQLineEdit4(strconv.Itoa(cfg.Chart.GridSize), appearancePage)
+	gridSizeEdit.SetStyleSheet(inputStyle())
+	appearanceLayout.AddWidget(gridSizeEdit.QWidget)
+	gridColorLabel := fieldLabel(appearancePage, constants.LabelChartGridColor)
+	appearanceLayout.AddWidget(gridColorLabel.QWidget)
+	gridSwatch := colorSwatch(appearancePage, dialog.QWidget, gridColor, constants.TitleGridColorPicker, func(picked color.NRGBA) {
+		gridColor = picked
+		chartPreview()
+	})
+	appearanceLayout.AddWidget(gridSwatch.QWidget)
+	fillBox := qt.NewQCheckBox4(constants.LabelChartFill, appearancePage)
+	fillBox.SetStyleSheet(checkBoxStyle())
+	fillBox.SetCursor(qt.NewQCursor2(qt.PointingHandCursor))
+	fillBox.SetToolTip(constants.TipChartFill)
+	fillBox.SetChecked(cfg.Chart.Fill)
+	appearanceLayout.AddWidget(fillBox.QWidget)
+	fillOpacityLabel := fieldLabel(appearancePage, constants.LabelChartFillOpacity)
+	appearanceLayout.AddWidget(fillOpacityLabel.QWidget)
+	fillSlider := qt.NewQSlider4(qt.Horizontal, appearancePage)
+	fillSlider.SetMinimum(0)
+	fillSlider.SetMaximum(int(constants.PercentMax))
+	fillSlider.SetValue(int(cfg.Chart.FillOpacity*constants.PercentMax + 0.5))
+	appearanceLayout.AddWidget(fillSlider.QWidget)
 	appearanceLayout.AddStretch()
 	pages.AddWidget(appearancePage)
 
-	preview := func() {
+	// A disabled effect grays out the settings that only apply to it.
+	applyEffectStates := func() {
+		for _, widget := range []*qt.QWidget{
+			gridSizeLabel.QWidget, gridSizeEdit.QWidget, gridColorLabel.QWidget, gridSwatch.QWidget,
+		} {
+			widget.SetEnabled(gridBox.IsChecked())
+		}
+		fillOpacityLabel.SetEnabled(fillBox.IsChecked())
+		fillSlider.SetEnabled(fillBox.IsChecked())
+	}
+	applyEffectStates()
+
+	preview = func() {
 		previewBackground(background, float64(opacitySlider.Value())/constants.PercentMax)
 	}
-	swatch.OnClicked(func() {
-		picked := qt.QColorDialog_GetColor3(qColor(background), dialog.QWidget, constants.TitleColorPicker)
-		if !picked.IsValid() {
-			return
+	// gridSizeValue parses the grid square size; -1 flags an invalid entry.
+	gridSizeValue := func() int {
+		size, err := parseWhole(gridSizeEdit.Text())
+		if err != nil || size < constants.MinChartGridSize {
+			return -1
 		}
-		background = color.NRGBA{R: uint8(picked.Red()), G: uint8(picked.Green()), B: uint8(picked.Blue()), A: 0xff}
-		styleSwatch()
-		preview()
-	})
+		return size
+	}
+	chartOf := func(gridSize int) config.Chart {
+		return config.Chart{
+			Background:  hexOf(chartBackground),
+			Grid:        gridBox.IsChecked(),
+			GridSize:    gridSize,
+			GridColor:   hexOf(gridColor),
+			Fill:        fillBox.IsChecked(),
+			FillOpacity: float64(fillSlider.Value()) / constants.PercentMax,
+		}
+	}
+	chartPreview = func() {
+		size := gridSizeValue()
+		if size < 0 { // not yet valid: preview with the saved size
+			size = cfg.Chart.GridSize
+		}
+		previewChart(chartOf(size))
+	}
 	opacitySlider.OnValueChanged(func(value int) { preview() })
+	gridBox.OnClicked(func() {
+		applyEffectStates()
+		chartPreview()
+	})
+	gridSizeEdit.OnTextChanged(func(text string) { chartPreview() })
+	fillBox.OnClicked(func() {
+		applyEffectStates()
+		chartPreview()
+	})
+	fillSlider.OnValueChanged(func(value int) { chartPreview() })
 
 	// --- Logging ---
 	loggingPage, loggingLayout := newPage()
@@ -184,6 +277,11 @@ func showSettingsDialog(parent *qt.QWidget, store *config.Store, previewBackgrou
 			errorLabel.SetText(constants.MsgErrRefreshInterval)
 			return
 		}
+		gridSize := gridSizeValue()
+		if gridSize < 0 {
+			errorLabel.SetText(constants.MsgErrGridSize)
+			return
+		}
 		maxSize, err := parseWhole(maxSizeEdit.Text())
 		if err != nil {
 			errorLabel.SetText(constants.MsgErrLogMaxSize)
@@ -200,6 +298,7 @@ func showSettingsDialog(parent *qt.QWidget, store *config.Store, previewBackgrou
 			conf.ExtendedHours = extendedBox.IsChecked()
 			conf.Background.Color = hexOf(background)
 			conf.Background.Opacity = float64(opacitySlider.Value()) / constants.PercentMax
+			conf.Chart = chartOf(gridSize)
 			conf.Logging.Level = config.LogLevel(levelBox.CurrentText())
 			conf.Logging.File = strings.TrimSpace(fileEdit.Text())
 			conf.Logging.MaxSizeMB = maxSize
@@ -215,6 +314,34 @@ func showSettingsDialog(parent *qt.QWidget, store *config.Store, previewBackgrou
 	body.AddLayout(actions.QLayout)
 
 	dialog.Exec()
+}
+
+// colorSwatch builds a color-picker button: a swatch showing the current
+// color that opens the picker (titled title, parented to dialogParent) and
+// restyles itself and reports through onPicked when a color is chosen.
+func colorSwatch(parent *qt.QWidget, dialogParent *qt.QWidget, initial color.NRGBA, title string, onPicked func(color.NRGBA)) *qt.QPushButton {
+	swatch := qt.NewQPushButton(parent)
+	swatch.SetFixedSize2(int(constants.SwatchWidth), int(constants.SwatchHeight))
+	swatch.SetCursor(qt.NewQCursor2(qt.PointingHandCursor))
+	current := initial
+	styleSwatch := func() {
+		swatch.SetStyleSheet(fmt.Sprintf(
+			"QPushButton { background-color: %s; border: 1px solid %s; border-radius: %dpx; }"+
+				" QPushButton:disabled { background-color: %s; border-color: %s; }",
+			cssRGB(current), cssRGB(constants.ColorAxis), int(constants.PanelCornerRadius),
+			cssRGBA(current, constants.SwatchDisabledAlpha), cssRGB(constants.ColorDisabledBg)))
+	}
+	styleSwatch()
+	swatch.OnClicked(func() {
+		picked := qt.QColorDialog_GetColor3(qColor(current), dialogParent, title)
+		if !picked.IsValid() {
+			return
+		}
+		current = color.NRGBA{R: uint8(picked.Red()), G: uint8(picked.Green()), B: uint8(picked.Blue()), A: 0xff}
+		styleSwatch()
+		onPicked(current)
+	})
+	return swatch
 }
 
 // parseWhole parses a non-negative whole number.

@@ -8,9 +8,61 @@ import (
 	qt "github.com/mappu/miqt/qt6"
 
 	"github.com/MarioStoilov/simplestonks/internal/chartmath"
+	"github.com/MarioStoilov/simplestonks/internal/config"
 	"github.com/MarioStoilov/simplestonks/internal/constants"
 	"github.com/MarioStoilov/simplestonks/internal/model"
 )
+
+// chartStyle is the parsed, config-driven chart appearance shared by every
+// chart widget: the plot background, the optional checkered grid, and the
+// optional up/down area fill. Only read and replaced on the UI thread.
+type chartStyle struct {
+	background color.NRGBA
+	grid       bool
+	gridSize   float32
+	gridColor  color.NRGBA
+	fill       bool
+	fillAlpha  uint8
+}
+
+// activeChartStyle is what charts paint with; setChartStyle replaces it and
+// callers repaint the existing charts afterwards.
+var activeChartStyle = chartStyleOf(config.DefaultChart())
+
+// chartStyleOf parses a chart config section into paint-ready form, falling
+// back to the defaults for invalid colors, sizes, or opacities.
+func chartStyleOf(cfg config.Chart) chartStyle {
+	background, ok := parseHexColor(cfg.Background)
+	if !ok {
+		background = constants.ColorChartBg
+	}
+	gridColor, ok := parseHexColor(cfg.GridColor)
+	if !ok {
+		gridColor, _ = parseHexColor(constants.DefaultChartGridColor)
+	}
+	gridSize := cfg.GridSize
+	if gridSize < constants.MinChartGridSize {
+		gridSize = constants.DefaultChartGridSize
+	}
+	opacity := cfg.FillOpacity
+	if opacity < 0 || opacity > 1 {
+		opacity = constants.DefaultChartFillOpacity
+	}
+	return chartStyle{
+		background: background,
+		grid:       cfg.Grid,
+		gridSize:   float32(gridSize),
+		gridColor:  gridColor,
+		fill:       cfg.Fill,
+		fillAlpha:  alphaByte(opacity),
+	}
+}
+
+// setChartStyle replaces the shared chart appearance; callers must repaint
+// existing charts for it to show.
+func setChartStyle(cfg config.Chart) {
+	activeChartStyle = chartStyleOf(cfg)
+}
 
 // chartWidget plots a price series as a line, colored by the caller (up/down),
 // with y price labels, range-aware x time labels, and a dashed previous-close
@@ -105,9 +157,10 @@ func (chart *chartWidget) paint() {
 	painter := qt.NewQPainter2(chart.QPaintDevice)
 	defer painter.End()
 
+	style := activeChartStyle
 	width := float32(chart.Width())
 	height := float32(chart.Height())
-	painter.FillRect(qt.NewQRectF4(0, 0, float64(width), float64(height)), qt.NewQBrush3(qColor(constants.ColorChartBg)))
+	painter.FillRect(qt.NewQRectF4(0, 0, float64(width), float64(height)), qt.NewQBrush3(qColor(style.background)))
 
 	chart.hoverPts, chart.hoverVals = nil, nil
 	series := chart.series
@@ -187,37 +240,115 @@ func (chart *chartWidget) paint() {
 	}
 	defer chart.drawHover(painter, width, height)
 
+	// Checkered grid over the plot area, anchored to its bottom-left corner
+	// (under everything else the plot draws).
+	if style.grid {
+		gridPen := qt.NewQPen3(qColor(style.gridColor))
+		gridPen.SetWidthF(float64(constants.HairlineWidth))
+		painter.SetPenWithPen(gridPen)
+		for posX := leftMargin + style.gridSize; posX < width; posX += style.gridSize {
+			painter.DrawLine(qt.NewQLineF3(float64(posX), 0, float64(posX), float64(plotH)))
+		}
+		for posY := plotH - style.gridSize; posY > 0; posY -= style.gridSize {
+			painter.DrawLine(qt.NewQLineF3(float64(leftMargin), float64(posY), float64(width), float64(posY)))
+		}
+	}
+
+	// The previous-close reference's y position drives the dashed line, the
+	// area fill, and — with the fill on — the up/down splitting of the line.
+	refY := float32(0)
+	if prevClose > 0 {
+		refY = chartmath.YFor(prevClose, low, high, plotH, constants.ChartPadding)
+	}
+	splitLine := style.fill && prevClose > 0
+
+	// Up/down shading between the line and the previous-close reference,
+	// split at the crossings — the logo look: green above, red below.
+	if style.fill && prevClose > 0 {
+		for _, region := range chartmath.FillRegions(pts, refY) {
+			fillColor := constants.ColorDown
+			if region.Above {
+				fillColor = constants.ColorUp
+			}
+			fillColor.A = style.fillAlpha
+			path := qt.NewQPainterPath()
+			path.MoveTo2(float64(region.Points[0].X+leftMargin), float64(region.Points[0].Y))
+			for _, vertex := range region.Points[1:] {
+				path.LineTo2(float64(vertex.X+leftMargin), float64(vertex.Y))
+			}
+			path.CloseSubpath()
+			painter.FillPath(path, qt.NewQBrush3(qColor(fillColor)))
+		}
+	}
+
 	// Dashed reference line at the previous interval's close (under the series).
 	if prevClose > 0 {
 		axisPen := qt.NewQPen3(qColor(constants.ColorAxis))
 		axisPen.SetWidthF(float64(constants.HairlineWidth))
 		axisPen.SetDashPattern([]float64{float64(constants.DashLen), float64(constants.DashGap)})
 		painter.SetPenWithPen(axisPen)
-		posY := float64(chartmath.YFor(prevClose, low, high, plotH, constants.ChartPadding))
 		painter.DrawLine(qt.NewQLineF3(
-			float64(leftMargin+constants.ChartPadding), posY,
-			float64(leftMargin+plotW-constants.ChartPadding), posY,
+			float64(leftMargin+constants.ChartPadding), float64(refY),
+			float64(leftMargin+plotW-constants.ChartPadding), float64(refY),
 		))
 	}
 
-	linePen := qt.NewQPen3(qColor(chart.lineColor))
-	linePen.SetWidthF(float64(constants.ChartLineWidth))
-	dimColor := chart.lineColor
-	dimColor.A = constants.AfterHoursDimAlpha
-	dimPen := qt.NewQPen3(qColor(dimColor))
-	dimPen.SetWidthF(float64(constants.ChartLineWidth))
+	// Line pens: the caller's single color, or — with the area fill on — the
+	// up/down colors split at the reference like the fill itself; each side
+	// gets a dimmed after-hours variant.
+	makePen := func(penColor color.NRGBA, dimmed bool) *qt.QPen {
+		if dimmed {
+			penColor.A = constants.AfterHoursDimAlpha
+		}
+		pen := qt.NewQPen3(qColor(penColor))
+		pen.SetWidthF(float64(constants.ChartLineWidth))
+		return pen
+	}
+	linePen, lineDimPen := makePen(chart.lineColor, false), makePen(chart.lineColor, true)
+	upPen, upDimPen := makePen(constants.ColorUp, false), makePen(constants.ColorUp, true)
+	downPen, downDimPen := makePen(constants.ColorDown, false), makePen(constants.ColorDown, true)
+	segmentPen := func(from, to chartmath.Point, dimmed bool) *qt.QPen {
+		if !splitLine {
+			if dimmed {
+				return lineDimPen
+			}
+			return linePen
+		}
+		// A segment belongs to the side its midpoint lies on.
+		above := from.Y+to.Y < 2*refY
+		switch {
+		case above && dimmed:
+			return upDimPen
+		case above:
+			return upPen
+		case dimmed:
+			return downDimPen
+		default:
+			return downPen
+		}
+	}
+	drawSegment := func(pen *qt.QPen, from, to chartmath.Point) {
+		painter.SetPenWithPen(pen)
+		painter.DrawLine(qt.NewQLineF3(
+			float64(from.X+leftMargin), float64(from.Y),
+			float64(to.X+leftMargin), float64(to.Y),
+		))
+	}
 	for idx := 1; idx < len(pts); idx++ {
 		// The after-hours tail — including the segment crossing the regular
 		// close — draws dimmed against the divider.
-		if chart.dimFromIdx >= 0 && idx >= chart.dimFromIdx {
-			painter.SetPenWithPen(dimPen)
-		} else {
-			painter.SetPenWithPen(linePen)
+		dimmed := chart.dimFromIdx >= 0 && idx >= chart.dimFromIdx
+		from, to := pts[idx-1], pts[idx]
+		if splitLine {
+			// A segment crossing the reference splits so each half carries
+			// its side's color.
+			if crossing, ok := chartmath.SegmentCrossing(from, to, refY); ok {
+				drawSegment(segmentPen(from, crossing, dimmed), from, crossing)
+				drawSegment(segmentPen(crossing, to, dimmed), crossing, to)
+				continue
+			}
 		}
-		painter.DrawLine(qt.NewQLineF3(
-			float64(pts[idx-1].X+leftMargin), float64(pts[idx-1].Y),
-			float64(pts[idx].X+leftMargin), float64(pts[idx].Y),
-		))
+		drawSegment(segmentPen(from, to, dimmed), from, to)
 	}
 	if bare {
 		return

@@ -30,15 +30,26 @@ const (
 	LabelExtendedHours     = "Extended hours (pre/post market)"
 	LabelBackgroundColor   = "Background color"
 	LabelBackgroundOpacity = "Background opacity (%)"
+	LabelChartBackground   = "Chart background color"
+	LabelChartGrid         = "Checkered chart grid"
+	LabelChartGridSize     = "Grid square size (px)"
+	LabelChartGridColor    = "Grid line color"
+	LabelChartFill         = "Chart area fill (up/down shading)"
+	LabelChartFillOpacity  = "Fill opacity (%)"
+	TipChartGrid           = "Draw a checkered graph-paper grid behind the charts"
+	TipChartFill           = "Shade the area between the price line and the dashed previous-close reference — green above the line, red below"
 	LabelLogLevel          = "Log level"
 	LabelLogFile           = "Log file (blank = default)"
 	LabelLogMaxSize        = "Log max size (MB)"
 	LabelLogArchives       = "Log archives kept"
+	TitleChartColorPicker  = "Chart background color"
+	TitleGridColorPicker   = "Grid line color"
 
 	// Settings validation messages (shown in error dialogs).
 	MsgErrRefreshInterval = "refresh interval must be a whole number of seconds ≥ 1"
 	MsgErrLogMaxSize      = "log max size must be a non-negative whole number of MB"
 	MsgErrLogArchives     = "log archives kept must be a non-negative whole number"
+	MsgErrGridSize        = "grid square size must be a whole number of pixels ≥ 4"
 
 	// Search dialog.
 	PlaceholderSearch = "Search name or symbol — e.g. Apple or AAPL"

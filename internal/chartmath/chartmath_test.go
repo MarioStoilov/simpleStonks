@@ -27,6 +27,92 @@ func TestNearestPoint(t *testing.T) {
 	}
 }
 
+func TestFillRegionsSingleSide(t *testing.T) {
+	// Everything above the reference: one region, closed along it.
+	pts := []Point{{X: 0, Y: 10}, {X: 10, Y: 20}, {X: 20, Y: 15}}
+	regions := FillRegions(pts, 30)
+	if len(regions) != 1 {
+		t.Fatalf("got %d regions, want 1: %+v", len(regions), regions)
+	}
+	region := regions[0]
+	if !region.Above {
+		t.Errorf("region.Above = false, want true")
+	}
+	want := []Point{{X: 0, Y: 10}, {X: 10, Y: 20}, {X: 20, Y: 15}, {X: 20, Y: 30}, {X: 0, Y: 30}}
+	if len(region.Points) != len(want) {
+		t.Fatalf("polygon = %+v, want %+v", region.Points, want)
+	}
+	for idx := range want {
+		if region.Points[idx] != want[idx] {
+			t.Errorf("vertex %d = %+v, want %+v", idx, region.Points[idx], want[idx])
+		}
+	}
+}
+
+func TestFillRegionsSplitsAtCrossing(t *testing.T) {
+	// One segment crossing the reference at (5,20): a triangle above and a
+	// triangle below, split at the interpolated crossing.
+	pts := []Point{{X: 0, Y: 10}, {X: 10, Y: 30}}
+	regions := FillRegions(pts, 20)
+	if len(regions) != 2 {
+		t.Fatalf("got %d regions, want 2: %+v", len(regions), regions)
+	}
+	if !regions[0].Above || regions[1].Above {
+		t.Errorf("sides = %v/%v, want above/below", regions[0].Above, regions[1].Above)
+	}
+	crossing := Point{X: 5, Y: 20}
+	if regions[0].Points[1] != crossing {
+		t.Errorf("above region crossing = %+v, want %+v", regions[0].Points[1], crossing)
+	}
+	if regions[1].Points[0] != crossing {
+		t.Errorf("below region crossing = %+v, want %+v", regions[1].Points[0], crossing)
+	}
+}
+
+func TestFillRegionsSplitsAtTouchPoint(t *testing.T) {
+	// A point exactly on the reference splits two same-side regions.
+	pts := []Point{{X: 0, Y: 10}, {X: 10, Y: 20}, {X: 20, Y: 10}}
+	regions := FillRegions(pts, 20)
+	if len(regions) != 2 {
+		t.Fatalf("got %d regions, want 2: %+v", len(regions), regions)
+	}
+	for idx, region := range regions {
+		if !region.Above {
+			t.Errorf("region %d Above = false, want true", idx)
+		}
+	}
+}
+
+func TestSegmentCrossing(t *testing.T) {
+	refY := float32(20)
+	crossing, ok := SegmentCrossing(Point{X: 0, Y: 10}, Point{X: 10, Y: 30}, refY)
+	if !ok || crossing != (Point{X: 5, Y: 20}) {
+		t.Errorf("crossing = %+v/%v, want {5 20}/true", crossing, ok)
+	}
+	sameSide := [][2]Point{
+		{{X: 0, Y: 10}, {X: 10, Y: 15}}, // both above
+		{{X: 0, Y: 25}, {X: 10, Y: 30}}, // both below
+		{{X: 0, Y: 20}, {X: 10, Y: 30}}, // starts on the reference
+		{{X: 0, Y: 10}, {X: 10, Y: 20}}, // ends on the reference
+	}
+	for _, segment := range sameSide {
+		if _, crossed := SegmentCrossing(segment[0], segment[1], refY); crossed {
+			t.Errorf("SegmentCrossing(%+v, %+v) = true, want false", segment[0], segment[1])
+		}
+	}
+}
+
+func TestFillRegionsFlatOnReference(t *testing.T) {
+	// A line lying on the reference encloses nothing.
+	pts := []Point{{X: 0, Y: 20}, {X: 10, Y: 20}, {X: 20, Y: 20}}
+	if regions := FillRegions(pts, 20); len(regions) != 0 {
+		t.Errorf("got %d regions, want 0: %+v", len(regions), regions)
+	}
+	if regions := FillRegions([]Point{{X: 0, Y: 10}}, 20); regions != nil {
+		t.Errorf("single point must yield nil, got %+v", regions)
+	}
+}
+
 func TestPlotPathMapsExtremes(t *testing.T) {
 	// values: min=10 (should map to bottom), max=20 (top).
 	pts := PlotPath([]float64{10, 20, 15}, EvenFracs(3), 100, 50, 0, 10, 20)

@@ -300,8 +300,13 @@ The core MVP + polish scope is in place:
   tooltip).
 - Live two-way config reload; leveled rotating file logging.
 - Settings window (cog): sectioned (General / Appearance / Logging) with a
-  sidebar; includes the window background (color + opacity) with live preview —
-  all applied live.
+  sidebar; includes the window background (color + opacity) and the chart
+  styling — plot background color, an optional checkered grid (square size +
+  line color), and the logo-style up/down area fill between the price line
+  and the previous-close reference (green above/red below, configurable
+  opacity, on by default; with the fill on, the price line itself also
+  colors green/red per side of the reference) — all with live preview and
+  applied live.
 - Extended hours on the detail view's 1D chart (detail view only; one shared
   setting, default on, exposed as a header "Pre/post market data" checkbox —
   shown only on 1D, only for instruments that actually trade pre/post,

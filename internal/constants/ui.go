@@ -11,7 +11,7 @@ const (
 
 	// SettingsWindowWidth/Height is the size of the settings window.
 	SettingsWindowWidth  = 600
-	SettingsWindowHeight = 420
+	SettingsWindowHeight = 560
 
 	// SearchDialogWidth/Height is the size of the add-symbol search dialog.
 	SearchDialogWidth  = 500
@@ -47,6 +47,9 @@ const (
 	// SwatchWidth/Height is the size of the background color swatch.
 	SwatchWidth  = 48
 	SwatchHeight = 28
+
+	// SwatchDisabledAlpha dims a disabled color swatch's color.
+	SwatchDisabledAlpha = 0x40
 
 	// DisabledAddWidth/Height is the size of the disabled Add stand-in.
 	DisabledAddWidth  = 72

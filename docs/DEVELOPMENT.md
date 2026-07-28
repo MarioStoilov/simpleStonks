@@ -224,6 +224,18 @@ Progress is recorded in `git log`; the short version:
   swatch + color-picker dialog and an opacity slider, live-previewed via a
   theme override), and Logging (level/file/size/archives) — applied live via
   the store.
+- Chart styling (Settings → Appearance, all live-previewed and live-reloaded
+  via `config.Chart` → the shared `chartStyle` in `internal/qtui/chart.go`):
+  configurable plot background color; an optional checkered graph-paper grid
+  (off by default; square size in px + line color); and the logo-style
+  up/down area fill between the price line and the dashed previous-close
+  reference (on by default; green above, red below, split at the crossings
+  by the pure `chartmath.FillRegions`, opacity configurable). With the fill
+  on, the price line itself also splits at the reference
+  (`chartmath.SegmentCrossing`) — green above, red below, logo-style; with
+  it off the line keeps its single overall up/down color. In the settings,
+  a disabled effect grays out its dependent controls, and the effect
+  toggles carry explanatory tooltips.
 - Chart axis labels: size-adaptive y-axis price ticks and range-aware x-axis
   time labels (hours for 1D, days/dates/months/years for longer ranges) on both
   the home-grid mini charts and the detail chart.
@@ -300,7 +312,7 @@ Progress is recorded in `git log`; the short version:
 Immediate next candidates:
 
 - Always-on-top widget form factor.
-- Chart polish: gridlines, currency formatting. (Hover readout is done: a dot
-  marks the nearest data point under the pointer, with its price in a tooltip.)
+- Chart polish: currency formatting. (Hover readout and gridlines are done —
+  the checkered grid and the up/down area fill live in Settings → Appearance.)
 - Drag-to-reorder in edit mode (currently up/down buttons).
 - CI mirroring the pre-push checks.

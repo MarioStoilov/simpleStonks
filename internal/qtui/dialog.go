@@ -84,8 +84,10 @@ func checkBoxStyle() string {
 func inputStyle() string {
 	return fmt.Sprintf(
 		"QLineEdit, QComboBox { background-color: %s; color: %s; border: 1px solid %s; border-radius: %dpx; padding: 5px 8px; }"+
+			" QLineEdit:disabled, QComboBox:disabled { background-color: %s; color: %s; border-color: %s; }"+
 			" QComboBox QAbstractItemView { background-color: %s; color: %s; selection-background-color: %s; }",
 		cssRGB(constants.ColorChartBg), cssRGB(constants.ColorForeground), cssRGB(constants.ColorAxis),
 		int(constants.PanelCornerRadius),
+		cssRGB(constants.ColorDisabledBg), cssRGB(constants.ColorDisabledFg), cssRGB(constants.ColorDisabledBg),
 		cssRGB(constants.ColorCardBg), cssRGB(constants.ColorForeground), cssRGB(constants.ColorSelected))
 }
