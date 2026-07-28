@@ -25,6 +25,14 @@ const (
 	PreviewDialogWidth  = 520
 	PreviewDialogHeight = 440
 
+	// AlertDialogWidth/Height is the size of the price-alert dialog.
+	AlertDialogWidth  = 400
+	AlertDialogHeight = 260
+
+	// ConfirmDialogWidth is the width of confirmation modals (the height
+	// follows the wrapped message).
+	ConfirmDialogWidth = 420
+
 	// AboutDialogWidth is the width of the About dialog.
 	AboutDialogWidth = 460
 

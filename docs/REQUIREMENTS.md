@@ -320,6 +320,23 @@ The core MVP + polish scope is in place:
   the completed session the same way (regular + dimmed after-hours tail) so
   the last extended prices stay viewable overnight; regular hours render
   exactly as without the feature.
+- Price alerts with desktop notifications: a bell button in the detail-view
+  header opens a dialog showing the current price and live-previewing the
+  entered threshold's % distance from it (colored up/down; the input must be
+  positive with at most 2 decimals, differ from the current price, and not
+  duplicate an existing alert). Pending alerts show as removable pills under
+  the detail chart. Alerts are one-shot: they fire when the live price
+  reaches or passes the threshold in the direction it was set (ticks that
+  jump past it included), raise a freedesktop desktop notification, and are
+  removed. They persist in the config (`alerts`) and are dropped together
+  with their symbol when it is untracked. Notifications have their own
+  settings section (Settings → Notifications + config `notifications`): an
+  on/off toggle (off hides the bell and the pending-alert pills and pauses
+  triggering — alerts are kept, not consumed silently), a
+  quick/moderate/long on-screen duration, and a "Clear all price alerts"
+  button behind an irreversible-action confirmation modal. Clicking a
+  notification raises the window and opens the detail view of the alert's
+  symbol.
 - Tests gated by `pre-commit` (unit) and `pre-push` (integration) hooks.
 
 ## Open items

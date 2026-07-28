@@ -14,6 +14,7 @@ import (
 	"github.com/MarioStoilov/simplestonks/internal/config"
 	"github.com/MarioStoilov/simplestonks/internal/constants"
 	"github.com/MarioStoilov/simplestonks/internal/model"
+	"github.com/MarioStoilov/simplestonks/internal/notify"
 	"github.com/MarioStoilov/simplestonks/internal/provider"
 )
 
@@ -26,6 +27,10 @@ type detailView struct {
 	store  *config.Store
 	onBack func()
 
+	// onPrice reports every fresh sidebar quote (symbol, latest close) so
+	// the app can check the pending price alerts.
+	onPrice func(symbol string, price float64)
+
 	root           *qt.QWidget
 	sidebarContent *qt.QWidget
 	sidebarBox     *qt.QVBoxLayout
@@ -35,6 +40,9 @@ type detailView struct {
 	changeLabel    *qt.QLabel
 	extendedLabel  *qt.QLabel // separate pre-market/after-hours price
 	extendedToggle *qt.QCheckBox
+	alertButton    *qt.QPushButton
+	alertsBox      *qt.QHBoxLayout // pending-alert pills under the chart
+	alertPills     []*qt.QFrame
 	chart          *chartWidget
 	rangeButtons   map[model.Range]*qt.QPushButton
 
@@ -42,6 +50,10 @@ type detailView struct {
 	rng           model.Range
 	extendedHours bool // shared setting: show pre/post market data on 1D
 	generation    int  // drops stale async responses after symbol/range switches
+
+	// notificationsOn mirrors the notifications setting: off hides the
+	// alert bell and the pending-alert pills (the alerts stay stored).
+	notificationsOn bool
 
 	// Extended-hours capability per symbol, from Yahoo's
 	// hasPrePostMarketData flag on every fetched series (indexes report
@@ -107,11 +119,24 @@ func newDetailView(parent *qt.QWidget, quotes provider.QuoteProvider, store *con
 	view.symbolLabel = qt.NewQLabel(root)
 	view.symbolLabel.SetStyleSheet("background: transparent; font-weight: 600;")
 	view.nameLabel = qt.NewQLabel(root)
-	view.nameLabel.SetStyleSheet(fmt.Sprintf("background: transparent; color: %s; font-size: %dpx;",
+	view.nameLabel.SetStyleSheet(fmt.Sprintf(constants.StyleSmallText,
 		cssRGB(constants.ColorAxis), int(constants.NameTextSize)))
 	ident.AddWidget(view.symbolLabel.QWidget)
 	ident.AddWidget(view.nameLabel.QWidget)
 	head.AddLayout(ident.QLayout)
+	// Price-alert bell next to the identity block; enabled once the first
+	// fetch supplies a current price to measure alerts against.
+	view.alertButton = qt.NewQPushButton5(constants.SymbolBell, root)
+	view.alertButton.SetStyleSheet(windowButtonStyle(cssRGB(constants.ColorHover)))
+	view.alertButton.SetCursor(qt.NewQCursor2(qt.PointingHandCursor))
+	view.alertButton.SetToolTip(constants.TipSetAlert)
+	view.alertButton.SetEnabled(false)
+	view.alertButton.OnClicked(func() {
+		if view.priceShown {
+			showAlertDialog(root, view.store, view.symbol, view.shownPrice)
+		}
+	})
+	head.AddWidget(view.alertButton.QWidget)
 	// Extended-hours toggle, anchored left of the stretch so the varying
 	// width of the price block never shifts it. Only visible on the 1D range
 	// for symbols with pre/post trading; writes the shared setting — the
@@ -165,6 +190,10 @@ func newDetailView(parent *qt.QWidget, quotes provider.QuoteProvider, store *con
 	view.chart.enableHoverReadout()
 	main.AddWidget2(view.chart.QWidget, 1)
 
+	// Pending price alerts for the shown symbol, as removable pills.
+	view.alertsBox = qt.NewQHBoxLayout2()
+	main.AddLayout(view.alertsBox.QLayout)
+
 	outer.AddLayout2(main.QLayout, 1)
 
 	view.flashTimer = qt.NewQTimer2(root.QObject)
@@ -186,6 +215,8 @@ func (view *detailView) showSymbol(symbol string) {
 	view.changeLabel.SetText("")
 	view.extendedLabel.SetText("")
 	view.priceShown = false
+	view.alertButton.SetEnabled(false)
+	view.setAlerts(view.store.Get().Alerts)
 	view.rng = view.store.Get().DefaultRange
 	view.styleRangeButtons()
 	// Regular hides the toggle until the first fetch classifies the session.
@@ -244,6 +275,60 @@ func (view *detailView) setExtendedHours(enabled bool) {
 func (view *detailView) updateToggleVisibility() {
 	view.extendedToggle.SetVisible(view.extendedKnown[view.symbol] && view.rng.Intraday() &&
 		view.marketState != chartmath.MarketRegular)
+}
+
+// setNotificationsEnabled shows or hides the alert bell with the
+// notifications setting; setAlerts consults the flag too, so callers apply
+// it before rebuilding the pills.
+func (view *detailView) setNotificationsEnabled(enabled bool) {
+	view.notificationsOn = enabled
+	view.alertButton.SetVisible(enabled)
+}
+
+// setAlerts rebuilds the pending-alert pills under the chart for the shown
+// symbol: each pill shows the alert's direction and threshold with a remove
+// button. Alert changes (adds, removals, fired alerts, external file edits)
+// all land here through the config subscription. With notifications
+// disabled the row stays empty.
+func (view *detailView) setAlerts(alerts []notify.Alert) {
+	for _, pill := range view.alertPills {
+		pill.SetParent(nil)
+		pill.DeleteLater()
+	}
+	view.alertPills = nil
+	for view.alertsBox.Count() > 0 { // drop the stretch and stale items
+		view.alertsBox.TakeAt(0).Delete()
+	}
+	if !view.notificationsOn {
+		view.alertsBox.AddStretch()
+		return
+	}
+	for _, alert := range alerts {
+		if alert.Symbol != view.symbol {
+			continue
+		}
+		removed := alert // capture per iteration for the remove callback
+		direction, directionColor := constants.SymbolAlertUp, constants.ColorUp
+		if !alert.Above {
+			direction, directionColor = constants.SymbolAlertDown, constants.ColorDown
+		}
+		pill := qt.NewQFrame(view.root)
+		pill.SetObjectName(*qt.NewQAnyStringView3("pill"))
+		pill.SetStyleSheet(fmt.Sprintf(constants.StyleAlertPill,
+			cssRGB(constants.ColorCardBg), int(constants.PanelCornerRadius)))
+		pillBox := qt.NewQHBoxLayout(pill.QWidget)
+		priceLabel := qt.NewQLabel5(fmt.Sprintf(constants.FmtAlertPill, direction, alert.Price), pill.QWidget)
+		priceLabel.SetStyleSheet("background: transparent; color: " + cssRGB(directionColor) + ";")
+		pillBox.AddWidget(priceLabel.QWidget)
+		removeButton := qt.NewQPushButton5("✕", pill.QWidget)
+		removeButton.SetStyleSheet(windowButtonStyle(cssRGB(constants.ColorDown)))
+		removeButton.SetCursor(qt.NewQCursor2(qt.PointingHandCursor))
+		removeButton.OnClicked(func() { removeAlert(view.store, removed) })
+		pillBox.AddWidget(removeButton.QWidget)
+		view.alertsBox.AddWidget(pill.QWidget)
+		view.alertPills = append(view.alertPills, pill)
+	}
+	view.alertsBox.AddStretch()
 }
 
 // repaintCharts repaints the main chart and every sidebar tile chart (the
@@ -331,6 +416,7 @@ func (view *detailView) loadMain(flash bool) {
 				view.extendedLabel.SetText("")
 				view.chart.setSeries(model.Series{}, constants.ColorNeutral)
 				view.priceShown = false
+				view.alertButton.SetEnabled(false)
 				return
 			}
 			if extended {
@@ -439,12 +525,13 @@ func (view *detailView) flashPrice(last float64, flash bool) {
 		if last < view.shownPrice {
 			flashColor = constants.ColorDown
 		}
-		view.priceLabel.SetStyleSheet(fmt.Sprintf("%s background-color: %s; border-radius: %dpx;",
+		view.priceLabel.SetStyleSheet(fmt.Sprintf(constants.StylePriceFlash,
 			priceBaseStyle, cssRGBA(flashColor, constants.FlashAlpha), int(constants.FlashCornerRadius)))
 		view.flashTimer.Start(int(constants.FlashDuration / time.Millisecond))
 	}
 	view.shownPrice = last
 	view.priceShown = true
+	view.alertButton.SetEnabled(true)
 }
 
 // loadSidebar refreshes every sidebar tile at 1D.
@@ -465,6 +552,9 @@ func (view *detailView) loadSidebar(flash bool) {
 					return
 				}
 				cell.setSeries(series, flash)
+				if view.onPrice != nil {
+					view.onPrice(tracked, series.Candles[len(series.Candles)-1].Close)
+				}
 			})
 		}()
 	}
@@ -481,8 +571,7 @@ func (view *detailView) styleRangeButtons() {
 // permanently laid out (empty when inactive), so the font size stays fixed to
 // keep the header height — and with it the chart size — stable.
 func extendedLabelStyle(textColor color.NRGBA) string {
-	return fmt.Sprintf("background: transparent; color: %s; font-size: %dpx;",
-		cssRGB(textColor), int(constants.NameTextSize))
+	return fmt.Sprintf(constants.StyleSmallText, cssRGB(textColor), int(constants.NameTextSize))
 }
 
 // toggleButtonStyle is the pill style of the range toggles, highlighted when
@@ -492,9 +581,7 @@ func toggleButtonStyle(selected bool) string {
 	if selected {
 		background = constants.ColorSelected
 	}
-	return fmt.Sprintf(
-		"QPushButton { background-color: %s; color: %s; border: none; border-radius: %dpx; padding: 4px 10px; }"+
-			" QPushButton:hover { background-color: %s; }",
+	return fmt.Sprintf(constants.StyleToggleButton,
 		cssRGB(background), cssRGB(constants.ColorForeground),
 		int(constants.PanelCornerRadius), cssRGB(constants.ColorHover))
 }

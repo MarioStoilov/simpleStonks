@@ -236,6 +236,32 @@ Progress is recorded in `git log`; the short version:
   it off the line keeps its single overall up/down color. In the settings,
   a disabled effect grays out its dependent controls, and the effect
   toggles carry explanatory tooltips.
+- Price alerts (`internal/notify` owns the model, the pure `Triggered`
+  check, and the D-Bus notification; alerts persist as `config.Config.Alerts`
+  and re-render live via the store subscription): the detail header's bell
+  opens a dialog (current price, live colored %-distance preview; validation:
+  positive, ≤2 decimals, ≠ current price, no duplicates); pending alerts are
+  removable pills under the detail chart; every fresh 1D quote (the home
+  tiles and the detail sidebar each cover all tracked symbols per tick) runs
+  through `App.handlePrice` — fired alerts are one-shot: removed from the
+  config and announced via org.freedesktop.Notifications on the session bus
+  (godbus/dbus; works natively and under the snap's desktop interface).
+  Untracking a symbol drops its alerts. Notification settings
+  (`config.Notifications`, own Settings → Notifications section): an
+  enabled toggle — off hides the bell and the pending-alert pills (detail
+  `setNotificationsEnabled`, applied before `setAlerts`) and gates
+  `handlePrice`, so pending alerts pause instead of firing silently — a
+  quick/moderate/long duration (`notify.Duration` → the freedesktop
+  expire_timeout), and a "Clear all price alerts" button that applies
+  immediately after a confirmation modal (the reusable `showConfirmDialog`
+  in dialog.go). Notifications carry the app logo (materialized to the
+  user cache, since the daemon reads the icon path itself) and a default
+  click action: notify tracks sent notification IDs, watches the
+  service's ActionInvoked/NotificationClosed signals, and
+  `notify.OnActivate` (on a D-Bus goroutine) hands the clicked alert to
+  the app, which raises the window and opens the symbol's detail view.
+  A `-tags manual` test in internal/notify pops a real clickable
+  notification for end-to-end verification.
 - Chart axis labels: size-adaptive y-axis price ticks and range-aware x-axis
   time labels (hours for 1D, days/dates/months/years for longer ranges) on both
   the home-grid mini charts and the detail chart.

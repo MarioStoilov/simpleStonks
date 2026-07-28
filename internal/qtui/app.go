@@ -6,6 +6,7 @@ package qtui
 import (
 	"fmt"
 	"image/color"
+	"log/slog"
 	"os"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 
 	"github.com/MarioStoilov/simplestonks/internal/config"
 	"github.com/MarioStoilov/simplestonks/internal/constants"
+	"github.com/MarioStoilov/simplestonks/internal/notify"
 	"github.com/MarioStoilov/simplestonks/internal/provider"
 )
 
@@ -88,6 +90,16 @@ func (app *App) Run() {
 		app.detail.showSymbol(symbol)
 		app.stack.SetCurrentWidget(app.detail.root)
 	}
+	// Every fresh quote runs through the price-alert check; the home tiles
+	// and the detail sidebar each cover all tracked symbols every tick, so
+	// alerts fire whichever view is showing.
+	app.home.onPrice = app.handlePrice
+	app.detail.onPrice = app.handlePrice
+	// A clicked alert notification brings the window up on the alert's
+	// symbol; the callback arrives on a D-Bus goroutine.
+	notify.OnActivate(func(alert notify.Alert) {
+		mainthread.Wait(func() { app.openAlertSymbol(alert.Symbol) })
+	})
 
 	app.stack = qt.NewQStackedWidget(card)
 	app.stack.AddWidget(app.home.root)
@@ -155,11 +167,58 @@ func (app *App) Run() {
 // applyBackgroundStyle paints the card with a background color at an opacity
 // (also used by the settings dialog's live preview).
 func (app *App) applyBackgroundStyle(background color.NRGBA, opacity float64) {
-	app.card.SetStyleSheet(fmt.Sprintf(
-		"#card { background-color: %s; border-radius: %dpx; } QLabel { color: %s; }",
+	app.card.SetStyleSheet(fmt.Sprintf(constants.StyleWindowCard,
 		cssRGBA(background, alphaByte(opacity)),
 		int(constants.TileCornerRadius),
 		cssRGB(constants.ColorForeground)))
+}
+
+// handlePrice checks the pending price alerts against a fresh quote: fired
+// alerts raise a desktop notification and are removed (one-shot). With
+// notifications disabled the alerts stay pending instead of firing
+// silently. Runs on the UI thread via the fetch callbacks; the alert-list
+// re-render follows through the config subscription.
+func (app *App) handlePrice(symbol string, price float64) {
+	cfg := app.store.Get()
+	if !cfg.Notifications.Enabled {
+		return
+	}
+	fired, _ := notify.Triggered(cfg.Alerts, symbol, price)
+	if len(fired) == 0 {
+		return
+	}
+	if err := app.store.Update(func(conf *config.Config) {
+		_, conf.Alerts = notify.Triggered(conf.Alerts, symbol, price)
+	}); err != nil {
+		slog.Error("removing fired alerts failed", "symbol", symbol, "err", err)
+	}
+	for _, alert := range fired {
+		triggered := alert // capture per iteration for the goroutine
+		// Off the UI thread: the session-bus call may block briefly.
+		go func() {
+			if err := notify.SendAlert(triggered, price, cfg.Notifications.Duration); err != nil {
+				slog.Error("desktop notification failed",
+					"symbol", triggered.Symbol, "price", triggered.Price, "err", err)
+			}
+		}()
+	}
+}
+
+// openAlertSymbol brings the window to the front and opens the detail view
+// of the symbol whose alert notification was clicked (when it is still
+// tracked). Wayland compositors may only flash the taskbar entry instead of
+// stealing focus — that is compositor policy.
+func (app *App) openAlertSymbol(symbol string) {
+	app.window.ShowNormal()
+	app.window.Raise()
+	app.window.ActivateWindow()
+	for _, tracked := range app.store.Get().Symbols {
+		if tracked == symbol {
+			app.detail.showSymbol(symbol)
+			app.stack.SetCurrentWidget(app.detail.root)
+			return
+		}
+	}
 }
 
 // previewChartStyle applies chart styling immediately (the settings dialog's
@@ -197,6 +256,9 @@ func (app *App) applyConfig(cfg config.Config) {
 	if app.detail != nil {
 		app.detail.setSymbols(cfg.Symbols)
 		app.detail.setExtendedHours(cfg.ExtendedHours)
+		// The notifications flag gates the alert pills, so apply it first.
+		app.detail.setNotificationsEnabled(cfg.Notifications.Enabled)
+		app.detail.setAlerts(cfg.Alerts)
 	}
 
 	interval := cfg.RefreshInterval
@@ -246,8 +308,6 @@ func resizeCursor(edges qt.Edge) qt.CursorShape {
 
 // windowButtonStyle styles a window-control button with the given hover color.
 func windowButtonStyle(hoverColor string) string {
-	return fmt.Sprintf(
-		"QPushButton { background: transparent; color: %s; border: none; border-radius: %dpx; padding: 4px 10px; }"+
-			" QPushButton:hover { background-color: %s; color: %s; }",
+	return fmt.Sprintf(constants.StyleWindowButton,
 		cssRGB(constants.ColorNeutral), int(constants.PanelCornerRadius), hoverColor, cssRGB(constants.ColorForeground))
 }

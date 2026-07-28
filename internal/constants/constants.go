@@ -114,6 +114,47 @@ const (
 	FetchTimeout = 15 * time.Second
 )
 
+// --- Desktop notifications (freedesktop D-Bus) ---
+
+const (
+	// NotifyDBusService/Path/Method address the freedesktop notification
+	// service on the session bus (reachable under snap confinement through
+	// the desktop interface).
+	NotifyDBusService = "org.freedesktop.Notifications"
+	NotifyDBusPath    = "/org/freedesktop/Notifications"
+	NotifyDBusMethod  = "org.freedesktop.Notifications.Notify"
+
+	// NotifyExpireDefault lets the desktop pick the notification timeout.
+	NotifyExpireDefault = -1
+
+	// NotifyIconFileName is where (under the user cache dir + AppDirName)
+	// the embedded app logo is materialized so the notification daemon —
+	// which runs outside any snap confinement — can read it for the
+	// notification icon.
+	NotifyIconFileName = "notify-icon.svg"
+
+	// NotifyActionDefault is the reserved freedesktop action key for a
+	// click on the notification body itself.
+	NotifyActionDefault = "default"
+
+	// NotifyMemberActionInvoked/Closed are the notification service's
+	// signal member names (a clicked action; a dismissed notification);
+	// NotifySignalActionInvoked/Closed their fully qualified names.
+	NotifyMemberActionInvoked = "ActionInvoked"
+	NotifyMemberClosed        = "NotificationClosed"
+	NotifySignalActionInvoked = NotifyDBusService + "." + NotifyMemberActionInvoked
+	NotifySignalClosed        = NotifyDBusService + "." + NotifyMemberClosed
+
+	// NotifySignalBuffer bounds the queued notification signals.
+	NotifySignalBuffer = 16
+
+	// NotifyQuick/Moderate/LongDuration are the on-screen times behind the
+	// notification-duration setting.
+	NotifyQuickDuration    = 3 * time.Second
+	NotifyModerateDuration = 7 * time.Second
+	NotifyLongDuration     = 15 * time.Second
+)
+
 // --- Timing ---
 
 const (
@@ -185,4 +226,8 @@ const (
 
 	// PercentMax converts between a 0..1 fraction and a 0..100 percentage.
 	PercentMax = 100
+
+	// AlertPriceDecimals is how many digits an alert price may carry after
+	// the decimal dot.
+	AlertPriceDecimals = 2
 )

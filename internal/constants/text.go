@@ -20,9 +20,10 @@ const (
 	LabelChoose = "Choose…"
 
 	// Settings sections.
-	SectionGeneral    = "General"
-	SectionAppearance = "Appearance"
-	SectionLogging    = "Logging"
+	SectionGeneral       = "General"
+	SectionAppearance    = "Appearance"
+	SectionNotifications = "Notifications"
+	SectionLogging       = "Logging"
 
 	// Settings form labels.
 	LabelDefaultRange      = "Default range"
@@ -69,6 +70,38 @@ const (
 	TipExtendedHours    = "Show pre-market and after-hours prices and charting on the 1D range"
 	LabelPreMarket      = "Pre-market"
 	LabelAfterHours     = "After-hours"
+
+	// Price alerts: the detail-view bell dialog, the pending-alert pills
+	// under the chart, and the fired-alert desktop notification.
+	SymbolBell       = "🔔"
+	TipSetAlert      = "Set a price alert"
+	FmtTitleAlert    = "Price alert — %s"
+	FmtAlertCurrent  = "Current price: %.2f"
+	LabelAlertPrice  = "Alert price"
+	LabelAddAlert    = "Add alert"
+	FmtAlertDelta    = "%s%.2f%% vs current"
+	MsgErrAlertPrice = "alert price must be a positive number with up to 2 decimals"
+	MsgErrAlertSame  = "alert price must differ from the current price"
+	MsgErrAlertDup   = "an identical alert already exists"
+	SymbolAlertUp    = "▲"
+	SymbolAlertDown  = "▼"
+	FmtAlertPill     = "%s %.2f"
+	FmtAlertSummary  = "%s price alert"
+	MsgAlertRose     = "Rose above"
+	MsgAlertFell     = "Fell below"
+	FmtAlertBody     = "%s %.2f — now %.2f"
+	LabelNotifyOpen  = "Open"
+
+	// Notification settings (Settings → Notifications).
+	LabelNotifications    = "Price alert notifications"
+	TipNotifications      = "Fire desktop notifications when a price alert is hit; hides the alert bell and the pending alerts when off"
+	LabelNotifyDuration   = "Notification duration"
+	LabelClearAlerts      = "Clear all price alerts"
+	TitleClearAlerts      = "Clear all price alerts"
+	LabelClear            = "Clear"
+	MsgConfirmClearAlerts = "Are you sure you want to clear all price alerts?\n\n" +
+		"Please note that this action is not reversible and you will be " +
+		"required to recreate any alert you have removed"
 
 	// Separators used when joining symbol/name/market fragments.
 	SepTitle = "  ·  "

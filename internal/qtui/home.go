@@ -22,6 +22,10 @@ type homeView struct {
 	onOpen         func(symbol string) // opens the detail view
 	onOpenSettings func()
 
+	// onPrice reports every fresh tile quote (symbol, latest close) so the
+	// app can check the pending price alerts.
+	onPrice func(symbol string, price float64)
+
 	root       *qt.QWidget
 	editButton *qt.QPushButton
 	scroll     *qt.QScrollArea
@@ -205,6 +209,9 @@ func (home *homeView) loadSymbol(symbol string, flash bool) {
 				return
 			}
 			cell.setSeries(series, flash)
+			if home.onPrice != nil {
+				home.onPrice(symbol, series.Candles[len(series.Candles)-1].Close)
+			}
 		})
 	}()
 }

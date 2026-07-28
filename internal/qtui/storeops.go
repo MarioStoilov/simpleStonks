@@ -4,6 +4,7 @@ import (
 	"log/slog"
 
 	"github.com/MarioStoilov/simplestonks/internal/config"
+	"github.com/MarioStoilov/simplestonks/internal/notify"
 )
 
 // Tracked-list mutations persist through the config store; the resulting
@@ -25,7 +26,9 @@ func addSymbol(store *config.Store, symbol string) {
 	}
 }
 
-// removeSymbol drops a symbol from the tracked list.
+// removeSymbol drops a symbol from the tracked list, along with its pending
+// price alerts — an untracked symbol is never fetched, so they could neither
+// fire nor be managed.
 func removeSymbol(store *config.Store, symbol string) {
 	err := store.Update(func(conf *config.Config) {
 		kept := make([]string, 0, len(conf.Symbols))
@@ -35,9 +38,42 @@ func removeSymbol(store *config.Store, symbol string) {
 			}
 		}
 		conf.Symbols = kept
+		keptAlerts := make([]notify.Alert, 0, len(conf.Alerts))
+		for _, alert := range conf.Alerts {
+			if alert.Symbol != symbol {
+				keptAlerts = append(keptAlerts, alert)
+			}
+		}
+		conf.Alerts = keptAlerts
 	})
 	if err != nil {
 		slog.Error("remove symbol failed", "symbol", symbol, "err", err)
+	}
+}
+
+// clearAlerts drops every pending price alert.
+func clearAlerts(store *config.Store) {
+	err := store.Update(func(conf *config.Config) {
+		conf.Alerts = nil
+	})
+	if err != nil {
+		slog.Error("clear alerts failed", "err", err)
+	}
+}
+
+// removeAlert drops one pending price alert.
+func removeAlert(store *config.Store, alert notify.Alert) {
+	err := store.Update(func(conf *config.Config) {
+		kept := make([]notify.Alert, 0, len(conf.Alerts))
+		for _, existing := range conf.Alerts {
+			if existing != alert {
+				kept = append(kept, existing)
+			}
+		}
+		conf.Alerts = kept
+	})
+	if err != nil {
+		slog.Error("remove alert failed", "symbol", alert.Symbol, "price", alert.Price, "err", err)
 	}
 }
 

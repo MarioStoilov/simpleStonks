@@ -16,6 +16,7 @@ import (
 
 	"github.com/MarioStoilov/simplestonks/internal/constants"
 	"github.com/MarioStoilov/simplestonks/internal/model"
+	"github.com/MarioStoilov/simplestonks/internal/notify"
 )
 
 // Layout selects how tracked symbols are arranged. v1 ships Grid; ListDetail is
@@ -134,6 +135,21 @@ func DefaultChart() Chart {
 	}
 }
 
+// Notifications configures the price-alert desktop notifications.
+type Notifications struct {
+	// Enabled turns the alert notifications on; when off the detail view
+	// hides the alert bell and pending alerts pause instead of firing.
+	Enabled bool `json:"enabled"`
+
+	// Duration is how long a notification stays on screen.
+	Duration notify.Duration `json:"duration"`
+}
+
+// DefaultNotifications is the out-of-the-box notification behavior.
+func DefaultNotifications() Notifications {
+	return Notifications{Enabled: true, Duration: notify.DurationModerate}
+}
+
 // Config is the full persisted configuration.
 type Config struct {
 	// Symbols is the ordered list of tracked tickers/indexes (e.g. "AAPL", "^GSPC").
@@ -153,6 +169,12 @@ type Config struct {
 	// 1D chart while the market is outside regular hours.
 	ExtendedHours bool `json:"extendedHours"`
 
+	// Alerts are the pending one-shot price alerts (see notify.Triggered).
+	Alerts []notify.Alert `json:"alerts"`
+
+	// Notifications configures the alert desktop notifications.
+	Notifications Notifications `json:"notifications"`
+
 	// Background styles the app window background.
 	Background Background `json:"background"`
 
@@ -169,6 +191,7 @@ type Config struct {
 func (cfg Config) clone() Config {
 	copied := cfg
 	copied.Symbols = append([]string(nil), cfg.Symbols...)
+	copied.Alerts = append([]notify.Alert(nil), cfg.Alerts...)
 	return copied
 }
 
@@ -181,6 +204,7 @@ func Default() Config {
 		FormFactor:      FormFactorWindow,
 		RefreshInterval: constants.DefaultRefreshInterval,
 		ExtendedHours:   true,
+		Notifications:   DefaultNotifications(),
 		Background:      DefaultBackground(),
 		Chart:           DefaultChart(),
 		Logging: Logging{

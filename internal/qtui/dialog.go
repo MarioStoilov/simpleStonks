@@ -24,8 +24,7 @@ func newCardDialog(parent *qt.QWidget, title string) (*qt.QDialog, *qt.QVBoxLayo
 
 	card := qt.NewQFrame(dialog.QWidget)
 	card.SetObjectName(*qt.NewQAnyStringView3("dialogCard"))
-	card.SetStyleSheet(fmt.Sprintf(
-		"#dialogCard { background-color: %s; border-radius: %dpx; } QLabel { color: %s; }",
+	card.SetStyleSheet(fmt.Sprintf(constants.StyleDialogCard,
 		cssRGB(constants.ColorCardBg), int(constants.TileCornerRadius), cssRGB(constants.ColorForeground)))
 	outer.AddWidget(card.QWidget)
 
@@ -52,6 +51,32 @@ func newCardDialog(parent *qt.QWidget, title string) (*qt.QDialog, *qt.QVBoxLayo
 	return dialog, body
 }
 
+// showConfirmDialog runs a modal confirmation with Cancel and a labeled
+// confirm action, reporting whether the user confirmed.
+func showConfirmDialog(parent *qt.QWidget, title, message, confirmLabel string) bool {
+	dialog, body := newCardDialog(parent, title)
+	dialog.SetFixedWidth(int(constants.ConfirmDialogWidth))
+	messageLabel := qt.NewQLabel5(message, dialog.QWidget)
+	messageLabel.SetStyleSheet("background: transparent;")
+	messageLabel.SetWordWrap(true)
+	body.AddWidget(messageLabel.QWidget)
+	body.AddStretch()
+	actions := qt.NewQHBoxLayout2()
+	actions.AddStretch()
+	cancelButton := qt.NewQPushButton5(constants.LabelCancel, dialog.QWidget)
+	cancelButton.SetStyleSheet(dialogButtonStyle(false))
+	cancelButton.SetCursor(qt.NewQCursor2(qt.PointingHandCursor))
+	cancelButton.OnClicked(func() { dialog.Reject() })
+	actions.AddWidget(cancelButton.QWidget)
+	confirmButton := qt.NewQPushButton5(confirmLabel, dialog.QWidget)
+	confirmButton.SetStyleSheet(dialogButtonStyle(true))
+	confirmButton.SetCursor(qt.NewQCursor2(qt.PointingHandCursor))
+	confirmButton.OnClicked(func() { dialog.Accept() })
+	actions.AddWidget(confirmButton.QWidget)
+	body.AddLayout(actions.QLayout)
+	return dialog.Exec() == int(qt.QDialog__Accepted)
+}
+
 // dialogButtonStyle styles a dialog action button; primary marks the default
 // action with the selection color.
 func dialogButtonStyle(primary bool) string {
@@ -59,10 +84,7 @@ func dialogButtonStyle(primary bool) string {
 	if primary {
 		background = constants.ColorSelected
 	}
-	return fmt.Sprintf(
-		"QPushButton { background-color: %s; color: %s; border: none; border-radius: %dpx; padding: 5px 14px; }"+
-			" QPushButton:hover { background-color: %s; }"+
-			" QPushButton:disabled { background-color: %s; color: %s; }",
+	return fmt.Sprintf(constants.StyleDialogButton,
 		cssRGB(background), cssRGB(constants.ColorForeground), int(constants.PanelCornerRadius),
 		cssRGB(constants.ColorSelected), cssRGB(constants.ColorDisabledBg), cssRGB(constants.ColorDisabledFg))
 }
@@ -71,10 +93,7 @@ func dialogButtonStyle(primary bool) string {
 // palette: a bordered indicator that, when on, fills with the selection
 // color around a bright center dot so the state reads at a glance.
 func checkBoxStyle() string {
-	return fmt.Sprintf(
-		"QCheckBox { background: transparent; color: %s; spacing: 8px; }"+
-			" QCheckBox::indicator { width: 14px; height: 14px; border: 1px solid %s; border-radius: %dpx; background-color: %s; }"+
-			" QCheckBox::indicator:checked { background-color: qradialgradient(cx: 0.5, cy: 0.5, radius: 0.5, fx: 0.5, fy: 0.5, stop: 0.45 %s, stop: 0.6 %s); }",
+	return fmt.Sprintf(constants.StyleCheckBox,
 		cssRGB(constants.ColorForeground), cssRGB(constants.ColorAxis),
 		int(constants.PanelCornerRadius), cssRGB(constants.ColorChartBg),
 		cssRGB(constants.ColorForeground), cssRGB(constants.ColorSelected))
@@ -82,10 +101,7 @@ func checkBoxStyle() string {
 
 // inputStyle styles line edits and combo boxes for the dark card.
 func inputStyle() string {
-	return fmt.Sprintf(
-		"QLineEdit, QComboBox { background-color: %s; color: %s; border: 1px solid %s; border-radius: %dpx; padding: 5px 8px; }"+
-			" QLineEdit:disabled, QComboBox:disabled { background-color: %s; color: %s; border-color: %s; }"+
-			" QComboBox QAbstractItemView { background-color: %s; color: %s; selection-background-color: %s; }",
+	return fmt.Sprintf(constants.StyleInput,
 		cssRGB(constants.ColorChartBg), cssRGB(constants.ColorForeground), cssRGB(constants.ColorAxis),
 		int(constants.PanelCornerRadius),
 		cssRGB(constants.ColorDisabledBg), cssRGB(constants.ColorDisabledFg), cssRGB(constants.ColorDisabledBg),

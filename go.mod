@@ -4,6 +4,7 @@ go 1.23.5
 
 require (
 	github.com/fsnotify/fsnotify v1.9.0
+	github.com/godbus/dbus/v5 v5.2.2
 	github.com/mappu/miqt v0.14.0
 )
 

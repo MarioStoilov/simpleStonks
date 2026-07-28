@@ -12,6 +12,7 @@ import (
 	"github.com/MarioStoilov/simplestonks/internal/config"
 	"github.com/MarioStoilov/simplestonks/internal/constants"
 	"github.com/MarioStoilov/simplestonks/internal/model"
+	"github.com/MarioStoilov/simplestonks/internal/notify"
 )
 
 // logLevels is the ordered set of log levels shown in the settings form.
@@ -33,7 +34,8 @@ func showSettingsDialog(parent *qt.QWidget, store *config.Store, previewBackgrou
 	// Section navigation on the left, one form page per section on the right.
 	sections := qt.NewQVBoxLayout2()
 	pages := qt.NewQStackedWidget(dialog.QWidget)
-	sectionNames := []string{constants.SectionGeneral, constants.SectionAppearance, constants.SectionLogging}
+	sectionNames := []string{constants.SectionGeneral, constants.SectionAppearance,
+		constants.SectionNotifications, constants.SectionLogging}
 	sectionButtons := make([]*qt.QPushButton, 0, len(sectionNames))
 	styleSections := func(active int) {
 		for idx, button := range sectionButtons {
@@ -64,8 +66,7 @@ func showSettingsDialog(parent *qt.QWidget, store *config.Store, previewBackgrou
 	}
 	fieldLabel := func(page *qt.QWidget, text string) *qt.QLabel {
 		label := qt.NewQLabel5(text, page)
-		label.SetStyleSheet(fmt.Sprintf(
-			"QLabel { background: transparent; color: %s; } QLabel:disabled { color: %s; }",
+		label.SetStyleSheet(fmt.Sprintf(constants.StyleFieldLabel,
 			cssRGB(constants.ColorNeutral), cssRGBA(constants.ColorNeutral, constants.SwatchDisabledAlpha)))
 		return label
 	}
@@ -229,6 +230,49 @@ func showSettingsDialog(parent *qt.QWidget, store *config.Store, previewBackgrou
 	})
 	fillSlider.OnValueChanged(func(value int) { chartPreview() })
 
+	// --- Notifications (price alerts) ---
+	notifyPage, notifyLayout := newPage()
+	notifyBox := qt.NewQCheckBox4(constants.LabelNotifications, notifyPage)
+	notifyBox.SetStyleSheet(checkBoxStyle())
+	notifyBox.SetCursor(qt.NewQCursor2(qt.PointingHandCursor))
+	notifyBox.SetToolTip(constants.TipNotifications)
+	notifyBox.SetChecked(cfg.Notifications.Enabled)
+	notifyLayout.AddWidget(notifyBox.QWidget)
+	durationLabel := fieldLabel(notifyPage, constants.LabelNotifyDuration)
+	notifyLayout.AddWidget(durationLabel.QWidget)
+	durationBox := qt.NewQComboBox(notifyPage)
+	durationBox.SetStyleSheet(inputStyle())
+	for _, durationOption := range notify.Durations {
+		durationBox.AddItem(string(durationOption))
+	}
+	durationBox.SetCurrentText(string(cfg.Notifications.Duration))
+	notifyLayout.AddWidget(durationBox.QWidget)
+	// Disabled notifications gray out the setting that only applies to them.
+	applyNotifyState := func() {
+		durationLabel.SetEnabled(notifyBox.IsChecked())
+		durationBox.SetEnabled(notifyBox.IsChecked())
+	}
+	applyNotifyState()
+	notifyBox.OnClicked(func() { applyNotifyState() })
+	notifySeparator := qt.NewQFrame(notifyPage)
+	notifySeparator.SetFixedHeight(int(constants.HairlineWidth))
+	notifySeparator.SetStyleSheet("background-color: " + cssRGB(constants.ColorAxis) + ";")
+	notifyLayout.AddWidget(notifySeparator.QWidget)
+	// Clearing alerts applies immediately (it is not part of Save) after an
+	// explicit, irreversible-action confirmation.
+	clearButton := qt.NewQPushButton5(constants.LabelClearAlerts, notifyPage)
+	clearButton.SetStyleSheet(dialogButtonStyle(false))
+	clearButton.SetCursor(qt.NewQCursor2(qt.PointingHandCursor))
+	clearButton.OnClicked(func() {
+		if showConfirmDialog(dialog.QWidget, constants.TitleClearAlerts,
+			constants.MsgConfirmClearAlerts, constants.LabelClear) {
+			clearAlerts(store)
+		}
+	})
+	notifyLayout.AddWidget(clearButton.QWidget)
+	notifyLayout.AddStretch()
+	pages.AddWidget(notifyPage)
+
 	// --- Logging ---
 	loggingPage, loggingLayout := newPage()
 	loggingLayout.AddWidget(fieldLabel(loggingPage, constants.LabelLogLevel).QWidget)
@@ -296,6 +340,8 @@ func showSettingsDialog(parent *qt.QWidget, store *config.Store, previewBackgrou
 			conf.DefaultRange = model.Range(rangeBox.CurrentText())
 			conf.RefreshInterval = time.Duration(seconds) * time.Second
 			conf.ExtendedHours = extendedBox.IsChecked()
+			conf.Notifications.Enabled = notifyBox.IsChecked()
+			conf.Notifications.Duration = notify.Duration(durationBox.CurrentText())
 			conf.Background.Color = hexOf(background)
 			conf.Background.Opacity = float64(opacitySlider.Value()) / constants.PercentMax
 			conf.Chart = chartOf(gridSize)
@@ -325,9 +371,7 @@ func colorSwatch(parent *qt.QWidget, dialogParent *qt.QWidget, initial color.NRG
 	swatch.SetCursor(qt.NewQCursor2(qt.PointingHandCursor))
 	current := initial
 	styleSwatch := func() {
-		swatch.SetStyleSheet(fmt.Sprintf(
-			"QPushButton { background-color: %s; border: 1px solid %s; border-radius: %dpx; }"+
-				" QPushButton:disabled { background-color: %s; border-color: %s; }",
+		swatch.SetStyleSheet(fmt.Sprintf(constants.StyleSwatch,
 			cssRGB(current), cssRGB(constants.ColorAxis), int(constants.PanelCornerRadius),
 			cssRGBA(current, constants.SwatchDisabledAlpha), cssRGB(constants.ColorDisabledBg)))
 	}
