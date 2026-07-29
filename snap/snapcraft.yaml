@@ -1,7 +1,7 @@
 name: simplestonks
 title: simpleStonks
 base: core24
-version: "1.4.0"
+version: "1.4.1"
 icon: internal/assets/icon.svg # bundled into the binary too; see internal/assets
 license: MIT
 summary: Bare-bones stock tracker widget
@@ -18,16 +18,15 @@ description: |
   window. The tracked list is editable from the UI and persisted along with
   other settings.
 
-  What's new in 1.4.0:
+  What's new in 1.4.1:
 
-  - Price alerts with desktop notifications: press the bell on a stock's
-    detail view to set an alert at a chosen price. Alerts fire once when
-    the live price reaches or passes the threshold — the notification
-    shows the app logo and clicking it opens the app on that stock.
-    Pending alerts are listed under the detail chart and can be removed.
-  - New Notifications settings section: enable/disable the alerts, pick
-    how long notifications stay on screen (quick/moderate/long), and
-    clear all pending alerts in one confirmed action.
+  - Fixed the price-alert bell rendering inconsistently on some systems:
+    it is now a crisp built-in icon.
+  - Alert notifications now play the desktop's standard message sound and
+    appear in the desktop's notification history.
+  - Losing the network no longer blanks charts that already have data:
+    the app keeps showing the last loaded prices and displays a
+    connection-lost icon in the header until the connection returns.
 
 grade: stable
 confinement: strict
