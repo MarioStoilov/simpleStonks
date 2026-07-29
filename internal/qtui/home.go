@@ -22,9 +22,9 @@ type homeView struct {
 	onOpen         func(symbol string) // opens the detail view
 	onOpenSettings func()
 
-	// onPrice reports every fresh tile quote (symbol, latest close) so the
-	// app can check the pending price alerts.
-	onPrice func(symbol string, price float64)
+	// onQuote reports every tile fetch outcome (latest close on success) so
+	// the app can track connectivity and check the pending price alerts.
+	onQuote func(symbol string, price float64, ok bool)
 
 	root       *qt.QWidget
 	editButton *qt.QPushButton
@@ -205,12 +205,19 @@ func (home *homeView) loadSymbol(symbol string, flash bool) {
 				return
 			}
 			if err != nil || len(series.Candles) == 0 {
-				cell.setFailed()
+				// Keep showing the last data (e.g. network loss); only a
+				// tile that never had any shows the failure state.
+				if !cell.priceShown {
+					cell.setFailed()
+				}
+				if home.onQuote != nil {
+					home.onQuote(symbol, 0, false)
+				}
 				return
 			}
 			cell.setSeries(series, flash)
-			if home.onPrice != nil {
-				home.onPrice(symbol, series.Candles[len(series.Candles)-1].Close)
+			if home.onQuote != nil {
+				home.onQuote(symbol, series.Candles[len(series.Candles)-1].Close, true)
 			}
 		})
 	}()

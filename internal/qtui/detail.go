@@ -10,6 +10,7 @@ import (
 	qt "github.com/mappu/miqt/qt6"
 	"github.com/mappu/miqt/qt6/mainthread"
 
+	"github.com/MarioStoilov/simplestonks/internal/assets"
 	"github.com/MarioStoilov/simplestonks/internal/chartmath"
 	"github.com/MarioStoilov/simplestonks/internal/config"
 	"github.com/MarioStoilov/simplestonks/internal/constants"
@@ -27,9 +28,9 @@ type detailView struct {
 	store  *config.Store
 	onBack func()
 
-	// onPrice reports every fresh sidebar quote (symbol, latest close) so
-	// the app can check the pending price alerts.
-	onPrice func(symbol string, price float64)
+	// onQuote reports every sidebar fetch outcome (latest close on success)
+	// so the app can track connectivity and check the pending price alerts.
+	onQuote func(symbol string, price float64, ok bool)
 
 	root           *qt.QWidget
 	sidebarContent *qt.QWidget
@@ -125,8 +126,12 @@ func newDetailView(parent *qt.QWidget, quotes provider.QuoteProvider, store *con
 	ident.AddWidget(view.nameLabel.QWidget)
 	head.AddLayout(ident.QLayout)
 	// Price-alert bell next to the identity block; enabled once the first
-	// fetch supplies a current price to measure alerts against.
-	view.alertButton = qt.NewQPushButton5(constants.SymbolBell, root)
+	// fetch supplies a current price to measure alerts against. The icon is
+	// an embedded SVG — the bell emoji rendered font-dependently across
+	// machines.
+	view.alertButton = qt.NewQPushButton(root)
+	view.alertButton.SetIcon(qt.NewQIcon2(svgPixmap(assets.BellPlusSVG, int(constants.HeaderIconSize))))
+	view.alertButton.SetIconSize(qt.NewQSize2(int(constants.HeaderIconSize), int(constants.HeaderIconSize)))
 	view.alertButton.SetStyleSheet(windowButtonStyle(cssRGB(constants.ColorHover)))
 	view.alertButton.SetCursor(qt.NewQCursor2(qt.PointingHandCursor))
 	view.alertButton.SetToolTip(constants.TipSetAlert)
@@ -410,13 +415,17 @@ func (view *detailView) loadMain(flash bool) {
 				return
 			}
 			if err != nil || len(series.Candles) == 0 {
-				view.priceLabel.SetText(constants.PricePlaceholder)
-				view.changeLabel.SetText(constants.MsgUnavailable)
-				view.changeLabel.SetStyleSheet("background: transparent; color: " + cssRGB(constants.ColorNeutral) + ";")
-				view.extendedLabel.SetText("")
-				view.chart.setSeries(model.Series{}, constants.ColorNeutral)
-				view.priceShown = false
-				view.alertButton.SetEnabled(false)
+				// Keep the last rendered chart on refresh failures (e.g.
+				// network loss); only a view that never had data for this
+				// symbol/range shows the unavailable state.
+				if !view.priceShown {
+					view.priceLabel.SetText(constants.PricePlaceholder)
+					view.changeLabel.SetText(constants.MsgUnavailable)
+					view.changeLabel.SetStyleSheet("background: transparent; color: " + cssRGB(constants.ColorNeutral) + ";")
+					view.extendedLabel.SetText("")
+					view.chart.setSeries(model.Series{}, constants.ColorNeutral)
+					view.alertButton.SetEnabled(false)
+				}
 				return
 			}
 			if extended {
@@ -548,12 +557,19 @@ func (view *detailView) loadSidebar(flash bool) {
 					return
 				}
 				if err != nil || len(series.Candles) == 0 {
-					cell.setFailed()
+					// Keep showing the last data (e.g. network loss); only
+					// a tile that never had any shows the failure state.
+					if !cell.priceShown {
+						cell.setFailed()
+					}
+					if view.onQuote != nil {
+						view.onQuote(tracked, 0, false)
+					}
 					return
 				}
 				cell.setSeries(series, flash)
-				if view.onPrice != nil {
-					view.onPrice(tracked, series.Candles[len(series.Candles)-1].Close)
+				if view.onQuote != nil {
+					view.onQuote(tracked, series.Candles[len(series.Candles)-1].Close, true)
 				}
 			})
 		}()

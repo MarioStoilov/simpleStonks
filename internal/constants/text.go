@@ -65,6 +65,9 @@ const (
 	PricePlaceholder = "—"
 	MsgUnavailable   = "unavailable"
 
+	// Offline indicator (window header, assets.OfflineSVG).
+	TipOffline = "Network connection lost — showing the last loaded data"
+
 	// Extended-hours (pre-market / after-hours) display on the detail view.
 	LabelExtendedToggle = "Pre/post market data"
 	TipExtendedHours    = "Show pre-market and after-hours prices and charting on the 1D range"
@@ -72,8 +75,8 @@ const (
 	LabelAfterHours     = "After-hours"
 
 	// Price alerts: the detail-view bell dialog, the pending-alert pills
-	// under the chart, and the fired-alert desktop notification.
-	SymbolBell       = "🔔"
+	// under the chart, and the fired-alert desktop notification. (The bell
+	// button itself renders the embedded assets.BellPlusSVG.)
 	TipSetAlert      = "Set a price alert"
 	FmtTitleAlert    = "Price alert — %s"
 	FmtAlertCurrent  = "Current price: %.2f"

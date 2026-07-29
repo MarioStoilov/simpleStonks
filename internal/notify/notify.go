@@ -132,19 +132,36 @@ func send(summary, body string, clickable bool, expireMs int32) (uint32, error) 
 		actions = []string{constants.NotifyActionDefault, constants.LabelNotifyOpen}
 		watchActivations(conn)
 	}
+	// The sound-name hint plays the desktop's standard message sound, and
+	// desktop-entry ties the notification to the app — desktops keep such
+	// notifications in the notification history and offer per-app settings.
+	hints := map[string]dbus.Variant{
+		constants.NotifyHintSoundName:    dbus.MakeVariant(constants.NotifySoundName),
+		constants.NotifyHintDesktopEntry: dbus.MakeVariant(desktopEntry()),
+	}
 	service := conn.Object(constants.NotifyDBusService, dbus.ObjectPath(constants.NotifyDBusPath))
 	var id uint32
 	err = service.Call(constants.NotifyDBusMethod, 0,
-		constants.AppName,         // app_name
-		uint32(0),                 // replaces_id: always a new notification
-		iconPath(),                // app_icon: the materialized app logo
-		summary,                   // summary
-		body,                      // body
-		actions,                   // actions
-		map[string]dbus.Variant{}, // hints
-		expireMs,                  // expire_timeout
+		constants.AppName, // app_name
+		uint32(0),         // replaces_id: always a new notification
+		iconPath(),        // app_icon: the materialized app logo
+		summary,           // summary
+		body,              // body
+		actions,           // actions
+		hints,             // hints
+		expireMs,          // expire_timeout
 	).Store(&id)
 	return id, err
+}
+
+// desktopEntry names the desktop file owning our notifications: snapd
+// installs snap desktop entries as <snap>_<app>, and native runs use the
+// plain app name.
+func desktopEntry() string {
+	if snapName := os.Getenv(constants.EnvSnapName); snapName != "" {
+		return fmt.Sprintf(constants.FmtSnapDesktopEntry, snapName, snapName)
+	}
+	return constants.AppDirName
 }
 
 // watchActivations subscribes (once) to the notification service's signals:

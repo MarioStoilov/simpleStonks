@@ -59,6 +59,10 @@ const (
 	// SwatchDisabledAlpha dims a disabled color swatch's color.
 	SwatchDisabledAlpha = 0x40
 
+	// HeaderIconSize is the rendered size of the SVG header icons (the
+	// alert bell, the offline indicator).
+	HeaderIconSize = 18
+
 	// DisabledAddWidth/Height is the size of the disabled Add stand-in.
 	DisabledAddWidth  = 72
 	DisabledAddHeight = 32

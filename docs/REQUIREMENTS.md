@@ -336,7 +336,14 @@ The core MVP + polish scope is in place:
   quick/moderate/long on-screen duration, and a "Clear all price alerts"
   button behind an irreversible-action confirmation modal. Clicking a
   notification raises the window and opens the detail view of the alert's
-  symbol.
+  symbol; notifications play the desktop's standard message sound and land
+  in its notification history. The bell button is an embedded SVG icon
+  (font-independent, unlike the emoji it replaced).
+- Offline resilience: once a tile/chart has shown data, failed refreshes
+  (e.g. network loss) keep the last data instead of blanking to
+  "unavailable" (which remains the initial-launch failure state); while
+  every tracked symbol is unfetchable an unplugged-connector icon shows in
+  the window header, clearing on the first successful fetch.
 - Tests gated by `pre-commit` (unit) and `pre-push` (integration) hooks.
 
 ## Open items

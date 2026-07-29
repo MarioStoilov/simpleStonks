@@ -153,6 +153,21 @@ const (
 	NotifyQuickDuration    = 3 * time.Second
 	NotifyModerateDuration = 7 * time.Second
 	NotifyLongDuration     = 15 * time.Second
+
+	// NotifyHintSoundName/DesktopEntry are the freedesktop notification
+	// hints for the event sound and the owning desktop entry (the latter
+	// also lands notifications in the desktop's notification history).
+	NotifyHintSoundName    = "sound-name"
+	NotifyHintDesktopEntry = "desktop-entry"
+
+	// NotifySoundName is the XDG sound-naming-spec event played with alert
+	// notifications — the desktop's standard incoming-message sound.
+	NotifySoundName = "message-new-instant"
+
+	// EnvSnapName holds the snap name under snap confinement; snap desktop
+	// entries are named <snap>_<app> (FmtSnapDesktopEntry).
+	EnvSnapName         = "SNAP_NAME"
+	FmtSnapDesktopEntry = "%s_%s"
 )
 
 // --- Timing ---

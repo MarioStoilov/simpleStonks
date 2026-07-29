@@ -254,7 +254,12 @@ Progress is recorded in `git log`; the short version:
   quick/moderate/long duration (`notify.Duration` → the freedesktop
   expire_timeout), and a "Clear all price alerts" button that applies
   immediately after a confirmation modal (the reusable `showConfirmDialog`
-  in dialog.go). Notifications carry the app logo (materialized to the
+  in dialog.go). The bell renders the embedded `assets.BellPlusSVG` as a
+  QIcon (the emoji glyph was font-dependent across machines), and
+  notifications carry the freedesktop `sound-name`
+  (message-new-instant — the desktop's standard message sound) and
+  `desktop-entry` hints, the latter landing them in the desktop's
+  notification history (snap desktop id `<snap>_<app>`). Notifications carry the app logo (materialized to the
   user cache, since the daemon reads the icon path itself) and a default
   click action: notify tracks sent notification IDs, watches the
   service's ActionInvoked/NotificationClosed signals, and
@@ -262,6 +267,14 @@ Progress is recorded in `git log`; the short version:
   the app, which raises the window and opens the symbol's detail view.
   A `-tags manual` test in internal/notify pops a real clickable
   notification for end-to-end verification.
+- Offline resilience: fetch failures only show the "unavailable" state on
+  tiles/charts that never had data (initial launch); once data is shown, a
+  failed refresh keeps the last rendered chart. Every fetch outcome flows
+  through `App.handleQuote` into a per-symbol result map; when all tracked
+  symbols' latest fetches failed (one bad ticker alone never trips it — the
+  pure `offlineNow`, tested), an unplugged-connector icon
+  (`assets.OfflineSVG`) appears in the window header with a
+  "connection lost" tooltip, clearing on the first successful fetch.
 - Chart axis labels: size-adaptive y-axis price ticks and range-aware x-axis
   time labels (hours for 1D, days/dates/months/years for longer ranges) on both
   the home-grid mini charts and the detail chart.

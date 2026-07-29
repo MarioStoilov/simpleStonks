@@ -8,11 +8,13 @@ import (
 	"image/color"
 	"log/slog"
 	"os"
+	"slices"
 	"time"
 
 	qt "github.com/mappu/miqt/qt6"
 	"github.com/mappu/miqt/qt6/mainthread"
 
+	"github.com/MarioStoilov/simplestonks/internal/assets"
 	"github.com/MarioStoilov/simplestonks/internal/config"
 	"github.com/MarioStoilov/simplestonks/internal/constants"
 	"github.com/MarioStoilov/simplestonks/internal/notify"
@@ -24,19 +26,24 @@ type App struct {
 	quotes provider.QuoteProvider
 	store  *config.Store
 
-	window  *qt.QWidget
-	card    *qt.QWidget
-	stack   *qt.QStackedWidget
-	home    *homeView
-	detail  *detailView
-	refresh *qt.QTimer
+	window       *qt.QWidget
+	card         *qt.QWidget
+	stack        *qt.QStackedWidget
+	home         *homeView
+	detail       *detailView
+	refresh      *qt.QTimer
+	offlineLabel *qt.QLabel
+
+	// fetchOK records each tracked symbol's latest fetch outcome; the
+	// offline indicator shows once they have all failed.
+	fetchOK map[string]bool
 
 	refreshInterval time.Duration
 }
 
 // New builds the application shell.
 func New(quotes provider.QuoteProvider, store *config.Store) *App {
-	return &App{quotes: quotes, store: store}
+	return &App{quotes: quotes, store: store, fetchOK: map[string]bool{}}
 }
 
 // Run builds the window and blocks until the app exits.
@@ -63,6 +70,15 @@ func (app *App) Run() {
 	rootLayout := qt.NewQVBoxLayout(card)
 
 	topBar := qt.NewQHBoxLayout2()
+	// Connection-lost indicator: shown while every tracked symbol's latest
+	// fetch failed; the views keep showing their last data meanwhile.
+	offlineLabel := qt.NewQLabel(card)
+	offlineLabel.SetPixmap(svgPixmap(assets.OfflineSVG, int(constants.HeaderIconSize)))
+	offlineLabel.SetToolTip(constants.TipOffline)
+	offlineLabel.SetStyleSheet("background: transparent;")
+	offlineLabel.SetVisible(false)
+	app.offlineLabel = offlineLabel
+	topBar.AddWidget(offlineLabel.QWidget)
 	topBar.AddStretch()
 	minimiseButton := qt.NewQPushButton5("—", card)
 	minimiseButton.SetStyleSheet(windowButtonStyle(cssRGB(constants.ColorHover)))
@@ -90,11 +106,12 @@ func (app *App) Run() {
 		app.detail.showSymbol(symbol)
 		app.stack.SetCurrentWidget(app.detail.root)
 	}
-	// Every fresh quote runs through the price-alert check; the home tiles
-	// and the detail sidebar each cover all tracked symbols every tick, so
-	// alerts fire whichever view is showing.
-	app.home.onPrice = app.handlePrice
-	app.detail.onPrice = app.handlePrice
+	// Every fetch outcome feeds the offline indicator, and every fresh
+	// quote runs through the price-alert check; the home tiles and the
+	// detail sidebar each cover all tracked symbols every tick, so both
+	// work whichever view is showing.
+	app.home.onQuote = app.handleQuote
+	app.detail.onQuote = app.handleQuote
 	// A clicked alert notification brings the window up on the alert's
 	// symbol; the callback arrives on a D-Bus goroutine.
 	notify.OnActivate(func(alert notify.Alert) {
@@ -171,6 +188,39 @@ func (app *App) applyBackgroundStyle(background color.NRGBA, opacity float64) {
 		cssRGBA(background, alphaByte(opacity)),
 		int(constants.TileCornerRadius),
 		cssRGB(constants.ColorForeground)))
+}
+
+// handleQuote digests one fetch outcome on the UI thread: the result feeds
+// the offline indicator, and successful quotes run the price-alert check.
+func (app *App) handleQuote(symbol string, price float64, ok bool) {
+	app.fetchOK[symbol] = ok
+	app.updateOfflineIndicator()
+	if ok {
+		app.handlePrice(symbol, price)
+	}
+}
+
+// updateOfflineIndicator shows the header's connection-lost icon while no
+// tracked symbol is fetchable.
+func (app *App) updateOfflineIndicator() {
+	if app.offlineLabel != nil {
+		app.offlineLabel.SetVisible(offlineNow(app.fetchOK))
+	}
+}
+
+// offlineNow reports whether every recorded fetch result is a failure: one
+// unreachable symbol keeps the app "online" (a bad ticker must not raise the
+// indicator), but all of them failing means the network is gone.
+func offlineNow(results map[string]bool) bool {
+	if len(results) == 0 {
+		return false
+	}
+	for _, fetched := range results {
+		if fetched {
+			return false
+		}
+	}
+	return true
 }
 
 // handlePrice checks the pending price alerts against a fresh quote: fired
@@ -251,6 +301,15 @@ func (app *App) applyConfig(cfg config.Config) {
 	app.applyBackgroundStyle(background, opacity)
 	setChartStyle(cfg.Chart)
 	app.repaintCharts()
+
+	// Forget fetch results of untracked symbols so stale entries cannot
+	// skew the offline indicator.
+	for symbol := range app.fetchOK {
+		if !slices.Contains(cfg.Symbols, symbol) {
+			delete(app.fetchOK, symbol)
+		}
+	}
+	app.updateOfflineIndicator()
 
 	app.home.setSymbols(cfg.Symbols)
 	if app.detail != nil {

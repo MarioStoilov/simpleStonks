@@ -10,3 +10,14 @@ import (
 //
 //go:embed icon.svg
 var IconSVG []byte
+
+// BellPlusSVG is the add-price-alert bell icon: a white outline bell with a
+// plus sign at its side (font-independent, unlike the bell emoji).
+//
+//go:embed bell-plus.svg
+var BellPlusSVG []byte
+
+// OfflineSVG is the connection-lost indicator: an unplugged connector pair.
+//
+//go:embed offline.svg
+var OfflineSVG []byte
