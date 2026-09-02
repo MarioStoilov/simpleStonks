@@ -1,7 +1,7 @@
 name: simplestonks
 title: simpleStonks
 base: core24
-version: "1.4.1"
+version: "1.4.2"
 icon: internal/assets/icon.svg # bundled into the binary too; see internal/assets
 license: MIT
 summary: Bare-bones stock tracker widget
@@ -18,15 +18,13 @@ description: |
   window. The tracked list is editable from the UI and persisted along with
   other settings.
 
-  What's new in 1.4.1:
+  What's new in 1.4.2:
 
-  - Fixed the price-alert bell rendering inconsistently on some systems:
-    it is now a crisp built-in icon.
-  - Alert notifications now play the desktop's standard message sound and
-    appear in the desktop's notification history.
-  - Losing the network no longer blanks charts that already have data:
-    the app keeps showing the last loaded prices and displays a
-    connection-lost icon in the header until the connection returns.
+  - Reordering symbols on the home grid now reorders the detail view's
+    sidebar immediately instead of after a restart.
+  - The detail view's headline price and its sidebar tile now always show
+    the same price: the headline keeps ticking on every chart range, and
+    both are fed by one shared request.
 
 grade: stable
 confinement: strict
