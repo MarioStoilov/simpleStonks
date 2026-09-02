@@ -46,7 +46,9 @@ func main() {
 
 	slog.Info("simplestonks starting", "symbols", len(store.Get().Symbols))
 
-	prov := provider.NewYahoo(nil)
+	// Identical fetches issued together (e.g. the detail view's main chart
+	// and its sidebar tile) share one request, so both show the same price.
+	prov := provider.Coalesce(provider.NewYahoo(nil))
 
 	qtui.New(prov, store).Run()
 }

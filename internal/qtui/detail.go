@@ -249,13 +249,14 @@ func (view *detailView) setRange(rng model.Range) {
 	view.loadMain(false)
 }
 
-// refresh is the periodic tick: sidebar tiles always (1D), the main chart
-// only when it shows an intraday range.
+// refresh is the periodic tick: the sidebar tiles (1D) and the main chart
+// at whatever range it shows, so the headline price keeps ticking alongside
+// the sidebar on every range (a series' last candle is always the latest
+// price). On 1D the two fetches of the shown symbol are one shared request
+// (provider.Coalesced), so header and sidebar tile agree.
 func (view *detailView) refresh() {
 	view.loadSidebar(true)
-	if view.rng.Intraday() {
-		view.loadMain(true)
-	}
+	view.loadMain(true)
 }
 
 // setExtendedHours applies the shared extended-hours setting: syncs the
@@ -345,7 +346,9 @@ func (view *detailView) repaintCharts() {
 	}
 }
 
-// setSymbols reconciles the sidebar with the tracked list.
+// setSymbols reconciles the sidebar with the tracked list: tiles are created
+// for new symbols, dropped for removed ones, and the whole column is re-laid
+// in tracked order so a reorder on the home grid shows here immediately.
 func (view *detailView) setSymbols(symbols []string) {
 	next := map[string]*tile{}
 	for _, symbol := range symbols {
@@ -354,11 +357,9 @@ func (view *detailView) setSymbols(symbols []string) {
 			continue
 		}
 		opened := symbol // capture per iteration for the click callback
-		cell := newTile(view.sidebarContent, opened, true, func() {
+		next[symbol] = newTile(view.sidebarContent, opened, true, func() {
 			view.showSymbol(opened)
 		})
-		view.sidebarBox.InsertWidget(view.sidebarBox.Count()-1, cell.frame.QWidget) // before the stretch
-		next[symbol] = cell
 	}
 	for symbol, cell := range view.sidebarTiles {
 		if _, keep := next[symbol]; !keep {
@@ -368,9 +369,15 @@ func (view *detailView) setSymbols(symbols []string) {
 	}
 	view.order = append([]string{}, symbols...)
 	view.sidebarTiles = next
-	for tracked, cell := range next {
-		cell.setSelected(tracked == view.symbol)
+	for view.sidebarBox.Count() > 0 { // drop the stretch and stale items
+		view.sidebarBox.TakeAt(0).Delete()
 	}
+	for _, symbol := range view.order {
+		cell := next[symbol]
+		cell.setSelected(symbol == view.symbol)
+		view.sidebarBox.AddWidget(cell.frame.QWidget)
+	}
+	view.sidebarBox.AddStretch()
 }
 
 // loadMain fetches the main chart's series off the UI thread. On 1D with the
