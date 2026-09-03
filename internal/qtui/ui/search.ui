@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+  <class>SearchDialog</class>
+  <widget class="QWidget" name="searchContent">
+    <layout class="QVBoxLayout" name="content" stretch="0,1,0">
+      <property name="leftMargin">
+        <number>0</number>
+      </property>
+      <property name="topMargin">
+        <number>0</number>
+      </property>
+      <property name="rightMargin">
+        <number>0</number>
+      </property>
+      <property name="bottomMargin">
+        <number>0</number>
+      </property>
+      <item>
+        <widget class="QLineEdit" name="query">
+          <property name="placeholderText">
+            <string>Search name or symbol — e.g. Apple or AAPL</string>
+          </property>
+        </widget>
+      </item>
+      <item>
+        <widget class="QListWidget" name="results">
+          <property name="minimumSize">
+            <size>
+              <width>360</width>
+              <height>240</height>
+            </size>
+          </property>
+        </widget>
+      </item>
+      <item>
+        <widget class="QLabel" name="statusLabel"/>
+      </item>
+    </layout>
+  </widget>
+  <resources/>
+  <connections/>
+</ui>

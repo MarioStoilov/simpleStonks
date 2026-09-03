@@ -1,0 +1,514 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+  <class>SettingsDialog</class>
+  <widget class="QWidget" name="settingsContent">
+    <layout class="QVBoxLayout" name="content" stretch="1,0,0">
+      <property name="leftMargin">
+        <number>0</number>
+      </property>
+      <property name="topMargin">
+        <number>0</number>
+      </property>
+      <property name="rightMargin">
+        <number>0</number>
+      </property>
+      <property name="bottomMargin">
+        <number>0</number>
+      </property>
+      <item>
+        <layout class="QHBoxLayout" name="split" stretch="0,1">
+          <item>
+            <widget class="QWidget" name="sectionBar" native="true">
+              <layout class="QVBoxLayout" name="sections">
+                <property name="leftMargin">
+                  <number>0</number>
+                </property>
+                <property name="topMargin">
+                  <number>0</number>
+                </property>
+                <property name="rightMargin">
+                  <number>0</number>
+                </property>
+                <property name="bottomMargin">
+                  <number>0</number>
+                </property>
+                <item>
+                  <widget class="QPushButton" name="generalButton">
+                    <property name="cursor">
+                      <cursorShape>PointingHandCursor</cursorShape>
+                    </property>
+                    <property name="text">
+                      <string>General</string>
+                    </property>
+                  </widget>
+                </item>
+                <item>
+                  <widget class="QPushButton" name="appearanceButton">
+                    <property name="cursor">
+                      <cursorShape>PointingHandCursor</cursorShape>
+                    </property>
+                    <property name="text">
+                      <string>Appearance</string>
+                    </property>
+                  </widget>
+                </item>
+                <item>
+                  <widget class="QPushButton" name="notificationsButton">
+                    <property name="cursor">
+                      <cursorShape>PointingHandCursor</cursorShape>
+                    </property>
+                    <property name="text">
+                      <string>Notifications</string>
+                    </property>
+                  </widget>
+                </item>
+                <item>
+                  <widget class="QPushButton" name="loggingButton">
+                    <property name="cursor">
+                      <cursorShape>PointingHandCursor</cursorShape>
+                    </property>
+                    <property name="text">
+                      <string>Logging</string>
+                    </property>
+                  </widget>
+                </item>
+                <item>
+                  <spacer name="sectionsSpacer">
+                    <property name="orientation">
+                      <enum>Qt::Vertical</enum>
+                    </property>
+                    <property name="sizeHint" stdset="0">
+                      <size>
+                        <width>0</width>
+                        <height>0</height>
+                      </size>
+                    </property>
+                  </spacer>
+                </item>
+              </layout>
+            </widget>
+          </item>
+          <item>
+            <widget class="QStackedWidget" name="pages">
+              <widget class="QWidget" name="generalPage">
+                <layout class="QVBoxLayout" name="generalLayout">
+                  <item>
+                    <widget class="QLabel" name="defaultRangeLabel">
+                      <property name="text">
+                        <string>Default range</string>
+                      </property>
+                    </widget>
+                  </item>
+                  <item>
+                    <widget class="QComboBox" name="rangeBox"/>
+                  </item>
+                  <item>
+                    <widget class="QLabel" name="refreshLabel">
+                      <property name="text">
+                        <string>Refresh interval (s)</string>
+                      </property>
+                    </widget>
+                  </item>
+                  <item>
+                    <widget class="QLineEdit" name="refreshEdit"/>
+                  </item>
+                  <item>
+                    <widget class="QFrame" name="generalSeparator">
+                      <property name="minimumSize">
+                        <size>
+                          <width>0</width>
+                          <height>1</height>
+                        </size>
+                      </property>
+                      <property name="maximumSize">
+                        <size>
+                          <width>16777215</width>
+                          <height>1</height>
+                        </size>
+                      </property>
+                    </widget>
+                  </item>
+                  <item>
+                    <widget class="QCheckBox" name="extendedBox">
+                      <property name="cursor">
+                        <cursorShape>PointingHandCursor</cursorShape>
+                      </property>
+                      <property name="toolTip">
+                        <string>Show pre-market and after-hours prices and charting on the 1D range</string>
+                      </property>
+                      <property name="text">
+                        <string>Extended hours (pre/post market)</string>
+                      </property>
+                    </widget>
+                  </item>
+                  <item>
+                    <spacer name="generalSpacer">
+                      <property name="orientation">
+                        <enum>Qt::Vertical</enum>
+                      </property>
+                      <property name="sizeHint" stdset="0">
+                        <size>
+                          <width>0</width>
+                          <height>0</height>
+                        </size>
+                      </property>
+                    </spacer>
+                  </item>
+                </layout>
+              </widget>
+              <widget class="QWidget" name="appearancePage">
+                <layout class="QVBoxLayout" name="appearanceLayout">
+                  <item>
+                    <widget class="QLabel" name="backgroundLabel">
+                      <property name="text">
+                        <string>Background color</string>
+                      </property>
+                    </widget>
+                  </item>
+                  <item>
+                    <widget class="QPushButton" name="backgroundSwatch">
+                      <property name="cursor">
+                        <cursorShape>PointingHandCursor</cursorShape>
+                      </property>
+                      <property name="minimumSize">
+                        <size>
+                          <width>44</width>
+                          <height>22</height>
+                        </size>
+                      </property>
+                      <property name="maximumSize">
+                        <size>
+                          <width>44</width>
+                          <height>22</height>
+                        </size>
+                      </property>
+                    </widget>
+                  </item>
+                  <item>
+                    <widget class="QLabel" name="opacityLabel">
+                      <property name="text">
+                        <string>Background opacity (%)</string>
+                      </property>
+                    </widget>
+                  </item>
+                  <item>
+                    <widget class="QSlider" name="opacitySlider">
+                      <property name="orientation">
+                        <enum>Qt::Horizontal</enum>
+                      </property>
+                      <property name="maximum">
+                        <number>100</number>
+                      </property>
+                    </widget>
+                  </item>
+                  <item>
+                    <widget class="QFrame" name="chartSeparator">
+                      <property name="minimumSize">
+                        <size>
+                          <width>0</width>
+                          <height>1</height>
+                        </size>
+                      </property>
+                      <property name="maximumSize">
+                        <size>
+                          <width>16777215</width>
+                          <height>1</height>
+                        </size>
+                      </property>
+                    </widget>
+                  </item>
+                  <item>
+                    <widget class="QLabel" name="chartBackgroundLabel">
+                      <property name="text">
+                        <string>Chart background color</string>
+                      </property>
+                    </widget>
+                  </item>
+                  <item>
+                    <widget class="QPushButton" name="chartSwatch">
+                      <property name="cursor">
+                        <cursorShape>PointingHandCursor</cursorShape>
+                      </property>
+                      <property name="minimumSize">
+                        <size>
+                          <width>44</width>
+                          <height>22</height>
+                        </size>
+                      </property>
+                      <property name="maximumSize">
+                        <size>
+                          <width>44</width>
+                          <height>22</height>
+                        </size>
+                      </property>
+                    </widget>
+                  </item>
+                  <item>
+                    <widget class="QCheckBox" name="gridBox">
+                      <property name="cursor">
+                        <cursorShape>PointingHandCursor</cursorShape>
+                      </property>
+                      <property name="toolTip">
+                        <string>Draw a checkered graph-paper grid behind the charts</string>
+                      </property>
+                      <property name="text">
+                        <string>Checkered chart grid</string>
+                      </property>
+                    </widget>
+                  </item>
+                  <item>
+                    <widget class="QLabel" name="gridSizeLabel">
+                      <property name="text">
+                        <string>Grid square size (px)</string>
+                      </property>
+                    </widget>
+                  </item>
+                  <item>
+                    <widget class="QLineEdit" name="gridSizeEdit"/>
+                  </item>
+                  <item>
+                    <widget class="QLabel" name="gridColorLabel">
+                      <property name="text">
+                        <string>Grid line color</string>
+                      </property>
+                    </widget>
+                  </item>
+                  <item>
+                    <widget class="QPushButton" name="gridSwatch">
+                      <property name="cursor">
+                        <cursorShape>PointingHandCursor</cursorShape>
+                      </property>
+                      <property name="minimumSize">
+                        <size>
+                          <width>44</width>
+                          <height>22</height>
+                        </size>
+                      </property>
+                      <property name="maximumSize">
+                        <size>
+                          <width>44</width>
+                          <height>22</height>
+                        </size>
+                      </property>
+                    </widget>
+                  </item>
+                  <item>
+                    <widget class="QCheckBox" name="fillBox">
+                      <property name="cursor">
+                        <cursorShape>PointingHandCursor</cursorShape>
+                      </property>
+                      <property name="toolTip">
+                        <string>Shade the area between the price line and the dashed previous-close reference — green above the line, red below</string>
+                      </property>
+                      <property name="text">
+                        <string>Chart area fill (up/down shading)</string>
+                      </property>
+                    </widget>
+                  </item>
+                  <item>
+                    <widget class="QLabel" name="fillOpacityLabel">
+                      <property name="text">
+                        <string>Fill opacity (%)</string>
+                      </property>
+                    </widget>
+                  </item>
+                  <item>
+                    <widget class="QSlider" name="fillSlider">
+                      <property name="orientation">
+                        <enum>Qt::Horizontal</enum>
+                      </property>
+                      <property name="maximum">
+                        <number>100</number>
+                      </property>
+                    </widget>
+                  </item>
+                  <item>
+                    <spacer name="appearanceSpacer">
+                      <property name="orientation">
+                        <enum>Qt::Vertical</enum>
+                      </property>
+                      <property name="sizeHint" stdset="0">
+                        <size>
+                          <width>0</width>
+                          <height>0</height>
+                        </size>
+                      </property>
+                    </spacer>
+                  </item>
+                </layout>
+              </widget>
+              <widget class="QWidget" name="notifyPage">
+                <layout class="QVBoxLayout" name="notifyLayout">
+                  <item>
+                    <widget class="QCheckBox" name="notifyBox">
+                      <property name="cursor">
+                        <cursorShape>PointingHandCursor</cursorShape>
+                      </property>
+                      <property name="toolTip">
+                        <string>Fire desktop notifications when a price alert is hit; hides the alert bell and the pending alerts when off</string>
+                      </property>
+                      <property name="text">
+                        <string>Price alert notifications</string>
+                      </property>
+                    </widget>
+                  </item>
+                  <item>
+                    <widget class="QLabel" name="durationLabel">
+                      <property name="text">
+                        <string>Notification duration</string>
+                      </property>
+                    </widget>
+                  </item>
+                  <item>
+                    <widget class="QComboBox" name="durationBox"/>
+                  </item>
+                  <item>
+                    <widget class="QFrame" name="notifySeparator">
+                      <property name="minimumSize">
+                        <size>
+                          <width>0</width>
+                          <height>1</height>
+                        </size>
+                      </property>
+                      <property name="maximumSize">
+                        <size>
+                          <width>16777215</width>
+                          <height>1</height>
+                        </size>
+                      </property>
+                    </widget>
+                  </item>
+                  <item>
+                    <widget class="QPushButton" name="clearButton">
+                      <property name="cursor">
+                        <cursorShape>PointingHandCursor</cursorShape>
+                      </property>
+                      <property name="text">
+                        <string>Clear all price alerts</string>
+                      </property>
+                    </widget>
+                  </item>
+                  <item>
+                    <spacer name="notifySpacer">
+                      <property name="orientation">
+                        <enum>Qt::Vertical</enum>
+                      </property>
+                      <property name="sizeHint" stdset="0">
+                        <size>
+                          <width>0</width>
+                          <height>0</height>
+                        </size>
+                      </property>
+                    </spacer>
+                  </item>
+                </layout>
+              </widget>
+              <widget class="QWidget" name="loggingPage">
+                <layout class="QVBoxLayout" name="loggingLayout">
+                  <item>
+                    <widget class="QLabel" name="levelLabel">
+                      <property name="text">
+                        <string>Log level</string>
+                      </property>
+                    </widget>
+                  </item>
+                  <item>
+                    <widget class="QComboBox" name="levelBox"/>
+                  </item>
+                  <item>
+                    <widget class="QLabel" name="fileLabel">
+                      <property name="text">
+                        <string>Log file (blank = default)</string>
+                      </property>
+                    </widget>
+                  </item>
+                  <item>
+                    <widget class="QLineEdit" name="fileEdit"/>
+                  </item>
+                  <item>
+                    <widget class="QLabel" name="maxSizeLabel">
+                      <property name="text">
+                        <string>Log max size (MB)</string>
+                      </property>
+                    </widget>
+                  </item>
+                  <item>
+                    <widget class="QLineEdit" name="maxSizeEdit"/>
+                  </item>
+                  <item>
+                    <widget class="QLabel" name="archivesLabel">
+                      <property name="text">
+                        <string>Log archives kept</string>
+                      </property>
+                    </widget>
+                  </item>
+                  <item>
+                    <widget class="QLineEdit" name="archivesEdit"/>
+                  </item>
+                  <item>
+                    <spacer name="loggingSpacer">
+                      <property name="orientation">
+                        <enum>Qt::Vertical</enum>
+                      </property>
+                      <property name="sizeHint" stdset="0">
+                        <size>
+                          <width>0</width>
+                          <height>0</height>
+                        </size>
+                      </property>
+                    </spacer>
+                  </item>
+                </layout>
+              </widget>
+            </widget>
+          </item>
+        </layout>
+      </item>
+      <item>
+        <widget class="QLabel" name="errorLabel"/>
+      </item>
+      <item>
+        <layout class="QHBoxLayout" name="actions">
+          <item>
+            <spacer name="actionsSpacer">
+              <property name="orientation">
+                <enum>Qt::Horizontal</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+                <size>
+                  <width>0</width>
+                  <height>0</height>
+                </size>
+              </property>
+            </spacer>
+          </item>
+          <item>
+            <widget class="QPushButton" name="cancelButton">
+              <property name="cursor">
+                <cursorShape>PointingHandCursor</cursorShape>
+              </property>
+              <property name="text">
+                <string>Cancel</string>
+              </property>
+            </widget>
+          </item>
+          <item>
+            <widget class="QPushButton" name="saveButton">
+              <property name="cursor">
+                <cursorShape>PointingHandCursor</cursorShape>
+              </property>
+              <property name="primary" stdset="0">
+                <bool>true</bool>
+              </property>
+              <property name="text">
+                <string>Save</string>
+              </property>
+            </widget>
+          </item>
+        </layout>
+      </item>
+    </layout>
+  </widget>
+  <resources/>
+  <connections/>
+</ui>

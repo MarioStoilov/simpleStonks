@@ -48,10 +48,6 @@ const (
 	// SidebarMinWidth is the minimum width of the detail-view sidebar.
 	SidebarMinWidth = 190
 
-	// ChartMinWidth/Height is the minimum chart size (mini tiles).
-	ChartMinWidth  = 120
-	ChartMinHeight = 80
-
 	// SwatchWidth/Height is the size of the background color swatch.
 	SwatchWidth  = 48
 	SwatchHeight = 28

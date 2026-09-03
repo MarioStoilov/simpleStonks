@@ -1,17 +1,15 @@
 package qtui
 
 import (
-	"fmt"
-
 	qt "github.com/mappu/miqt/qt6"
 
 	"github.com/MarioStoilov/simplestonks/internal/constants"
 )
 
-// newCardDialog builds a frameless card-styled modal dialog matching the
-// widget look: rounded opaque card, a title row with a ✕ close button, and
-// drag-to-move on the background. The returned layout receives the dialog's
-// content; Esc rejects as usual.
+// newCardDialog builds a frameless card-styled modal dialog from the
+// CardDialog form (dialogcard.ui): a rounded opaque card with a title row
+// and a ✕ close button, dragged by its title. The returned layout receives
+// the dialog's content; Esc rejects as usual.
 func newCardDialog(parent *qt.QWidget, title string) (*qt.QDialog, *qt.QVBoxLayout) {
 	dialog := qt.NewQDialog(parent)
 	dialog.SetWindowTitle(title)
@@ -22,88 +20,39 @@ func newCardDialog(parent *qt.QWidget, title string) (*qt.QDialog, *qt.QVBoxLayo
 	outer := qt.NewQVBoxLayout(dialog.QWidget)
 	outer.SetContentsMargins(0, 0, 0, 0)
 
-	card := qt.NewQFrame(dialog.QWidget)
-	card.SetObjectName(*qt.NewQAnyStringView3("dialogCard"))
-	card.SetStyleSheet(fmt.Sprintf(constants.StyleDialogCard,
-		cssRGB(constants.ColorCardBg), int(constants.TileCornerRadius), cssRGB(constants.ColorForeground)))
+	loaded := loadForm(cardDialogForm)
+	card := loaded.frame("dialogCard")
+	// Each frameless dialog carries the theme on its card, for the same
+	// reason the main window does (see App.applyBackgroundStyle).
+	card.SetStyleSheet(themeStyleSheet)
 	outer.AddWidget(card.QWidget)
 
-	body := qt.NewQVBoxLayout(card.QWidget)
-
-	bar := qt.NewQHBoxLayout2()
-	titleLabel := qt.NewQLabel5(title, card.QWidget)
-	titleLabel.SetStyleSheet("background: transparent; font-weight: 600;")
+	titleLabel := loaded.label("titleLabel")
+	titleLabel.SetText(title)
 	// Dragging is confined to the title label: a whole-dialog drag handler
 	// would swallow presses meant for interactive content (e.g. the About
-	// dialog's links, whose activation fires on release).
+	// dialog\'s links, whose activation fires on release).
 	titleLabel.OnMousePressEvent(func(super func(event *qt.QMouseEvent), event *qt.QMouseEvent) {
 		dialog.WindowHandle().StartSystemMove()
 	})
-	bar.AddWidget(titleLabel.QWidget)
-	bar.AddStretch()
-	closeButton := qt.NewQPushButton5("✕", card.QWidget)
-	closeButton.SetStyleSheet(windowButtonStyle(cssRGB(constants.ColorDown)))
-	closeButton.SetCursor(qt.NewQCursor2(qt.PointingHandCursor))
-	closeButton.OnClicked(func() { dialog.Reject() })
-	bar.AddWidget(closeButton.QWidget)
-	body.AddLayout(bar.QLayout)
+	loaded.button("dialogCloseButton").OnClicked(func() { dialog.Reject() })
 
-	return dialog, body
+	return dialog, loaded.vbox("body")
 }
 
-// showConfirmDialog runs a modal confirmation with Cancel and a labeled
-// confirm action, reporting whether the user confirmed.
+// showConfirmDialog runs a modal confirmation (confirm.ui) with Cancel and
+// a labeled confirm action, reporting whether the user confirmed.
 func showConfirmDialog(parent *qt.QWidget, title, message, confirmLabel string) bool {
 	dialog, body := newCardDialog(parent, title)
 	dialog.SetFixedWidth(int(constants.ConfirmDialogWidth))
-	messageLabel := qt.NewQLabel5(message, dialog.QWidget)
-	messageLabel.SetStyleSheet("background: transparent;")
-	messageLabel.SetWordWrap(true)
-	body.AddWidget(messageLabel.QWidget)
-	body.AddStretch()
-	actions := qt.NewQHBoxLayout2()
-	actions.AddStretch()
-	cancelButton := qt.NewQPushButton5(constants.LabelCancel, dialog.QWidget)
-	cancelButton.SetStyleSheet(dialogButtonStyle(false))
-	cancelButton.SetCursor(qt.NewQCursor2(qt.PointingHandCursor))
-	cancelButton.OnClicked(func() { dialog.Reject() })
-	actions.AddWidget(cancelButton.QWidget)
-	confirmButton := qt.NewQPushButton5(confirmLabel, dialog.QWidget)
-	confirmButton.SetStyleSheet(dialogButtonStyle(true))
-	confirmButton.SetCursor(qt.NewQCursor2(qt.PointingHandCursor))
+	loaded := loadForm(confirmForm)
+	body.AddWidget(loaded.root)
+	body.SetStretchFactor(loaded.root, 1)
+
+	loaded.label("messageLabel").SetText(message)
+	confirmButton := loaded.button("confirmButton")
+	confirmButton.SetText(confirmLabel)
 	confirmButton.OnClicked(func() { dialog.Accept() })
-	actions.AddWidget(confirmButton.QWidget)
-	body.AddLayout(actions.QLayout)
+	loaded.button("cancelButton").OnClicked(func() { dialog.Reject() })
 	return dialog.Exec() == int(qt.QDialog__Accepted)
-}
-
-// dialogButtonStyle styles a dialog action button; primary marks the default
-// action with the selection color.
-func dialogButtonStyle(primary bool) string {
-	background := constants.ColorHover
-	if primary {
-		background = constants.ColorSelected
-	}
-	return fmt.Sprintf(constants.StyleDialogButton,
-		cssRGB(background), cssRGB(constants.ColorForeground), int(constants.PanelCornerRadius),
-		cssRGB(constants.ColorSelected), cssRGB(constants.ColorDisabledBg), cssRGB(constants.ColorDisabledFg))
-}
-
-// checkBoxStyle styles a checkbox for the dark card, matching inputStyle's
-// palette: a bordered indicator that, when on, fills with the selection
-// color around a bright center dot so the state reads at a glance.
-func checkBoxStyle() string {
-	return fmt.Sprintf(constants.StyleCheckBox,
-		cssRGB(constants.ColorForeground), cssRGB(constants.ColorAxis),
-		int(constants.PanelCornerRadius), cssRGB(constants.ColorChartBg),
-		cssRGB(constants.ColorForeground), cssRGB(constants.ColorSelected))
-}
-
-// inputStyle styles line edits and combo boxes for the dark card.
-func inputStyle() string {
-	return fmt.Sprintf(constants.StyleInput,
-		cssRGB(constants.ColorChartBg), cssRGB(constants.ColorForeground), cssRGB(constants.ColorAxis),
-		int(constants.PanelCornerRadius),
-		cssRGB(constants.ColorDisabledBg), cssRGB(constants.ColorDisabledFg), cssRGB(constants.ColorDisabledBg),
-		cssRGB(constants.ColorCardBg), cssRGB(constants.ColorForeground), cssRGB(constants.ColorSelected))
 }

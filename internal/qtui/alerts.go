@@ -51,28 +51,16 @@ func isDigits(text string) bool {
 func showAlertDialog(parent *qt.QWidget, store *config.Store, symbol string, current float64) {
 	dialog, body := newCardDialog(parent, fmt.Sprintf(constants.FmtTitleAlert, symbol))
 	dialog.Resize(int(constants.AlertDialogWidth), int(constants.AlertDialogHeight))
+	loaded := loadForm(alertForm)
+	body.AddWidget(loaded.root)
+	body.SetStretchFactor(loaded.root, 1)
 
-	currentLabel := qt.NewQLabel5(fmt.Sprintf(constants.FmtAlertCurrent, current), dialog.QWidget)
-	currentLabel.SetStyleSheet("background: transparent;")
-	body.AddWidget(currentLabel.QWidget)
-
-	priceLabel := qt.NewQLabel5(constants.LabelAlertPrice, dialog.QWidget)
-	priceLabel.SetStyleSheet("background: transparent; color: " + cssRGB(constants.ColorNeutral) + ";")
-	body.AddWidget(priceLabel.QWidget)
-	priceEdit := qt.NewQLineEdit4("", dialog.QWidget)
-	priceEdit.SetStyleSheet(inputStyle())
-	body.AddWidget(priceEdit.QWidget)
-
+	loaded.label("currentLabel").SetText(fmt.Sprintf(constants.FmtAlertCurrent, current))
+	priceEdit := loaded.lineEdit("priceEdit")
 	// Live distance of the entered price from the current one, colored like
 	// a price change; kept laid out (empty when invalid) for a stable form.
-	deltaLabel := qt.NewQLabel(dialog.QWidget)
-	deltaLabel.SetStyleSheet("background: transparent;")
-	body.AddWidget(deltaLabel.QWidget)
-
-	errorLabel := qt.NewQLabel(dialog.QWidget)
-	errorLabel.SetStyleSheet("background: transparent; color: " + cssRGB(constants.ColorDown) + ";")
-	body.AddWidget(errorLabel.QWidget)
-	body.AddStretch()
+	deltaLabel := loaded.label("deltaLabel")
+	errorLabel := loaded.label("errorLabel")
 
 	priceEdit.OnTextChanged(func(text string) {
 		errorLabel.SetText("")
@@ -82,22 +70,13 @@ func showAlertDialog(parent *qt.QWidget, store *config.Store, symbol string, cur
 			return
 		}
 		percent := (value - current) / current * constants.PercentMax
-		deltaColor, sign := changeStyle(percent)
+		_, sign := changeStyle(percent)
 		deltaLabel.SetText(fmt.Sprintf(constants.FmtAlertDelta, sign, percent))
-		deltaLabel.SetStyleSheet("background: transparent; color: " + cssRGB(deltaColor) + ";")
+		setState(deltaLabel.QWidget, "direction", directionOf(percent))
 	})
 
-	actions := qt.NewQHBoxLayout2()
-	actions.AddStretch()
-	cancelButton := qt.NewQPushButton5(constants.LabelCancel, dialog.QWidget)
-	cancelButton.SetStyleSheet(dialogButtonStyle(false))
-	cancelButton.SetCursor(qt.NewQCursor2(qt.PointingHandCursor))
-	cancelButton.OnClicked(func() { dialog.Reject() })
-	actions.AddWidget(cancelButton.QWidget)
-	addButton := qt.NewQPushButton5(constants.LabelAddAlert, dialog.QWidget)
-	addButton.SetStyleSheet(dialogButtonStyle(true))
-	addButton.SetCursor(qt.NewQCursor2(qt.PointingHandCursor))
-	addButton.OnClicked(func() {
+	loaded.button("cancelButton").OnClicked(func() { dialog.Reject() })
+	loaded.button("addButton").OnClicked(func() {
 		value, ok := parseAlertPrice(priceEdit.Text())
 		if !ok {
 			errorLabel.SetText(constants.MsgErrAlertPrice)
@@ -122,8 +101,6 @@ func showAlertDialog(parent *qt.QWidget, store *config.Store, symbol string, cur
 		}
 		dialog.Accept()
 	})
-	actions.AddWidget(addButton.QWidget)
-	body.AddLayout(actions.QLayout)
 
 	dialog.Exec()
 }

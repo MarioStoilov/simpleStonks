@@ -1,0 +1,195 @@
+/* simpleStonks theme: every look the forms need. State-dependent looks key
+   off dynamic properties the Go side sets (selected, direction, flash). */
+
+/* --- Base text color for everything in the main window. --- */
+
+QLabel { color: #e6e6e6; }
+
+/* --- View containers: transparent over the window card. Always select
+   by name: a bare "background: transparent;" on a widget is a universal
+   rule that outranks every application-level rule below it. --- */
+
+#homeRoot, #gridContent, #detailRoot, #sidebarContent,
+#homeBar, #topBar, #rangeBar, #alertsBar { background: transparent; }
+
+/* --- Home view: action bar and scrolling grid (home.ui) --- */
+
+#homeBar QPushButton {
+  background-color: #2c303c; color: #e6e6e6; border: none; border-radius: 4px; padding: 5px 14px;
+}
+#homeBar QPushButton:hover { background-color: #303a52; }
+#homeBar QPushButton:disabled { background-color: #3a3a40; color: #808080; }
+
+/* An application-wide stylesheet makes Qt paint the internal children of a
+   scroll area (its viewport, corner) and a stacked widget with the palette
+   background, which would cover the translucent window card. Keep them
+   transparent; the named containers above do the same for our own widgets. */
+QAbstractScrollArea, QAbstractScrollArea > QWidget, QStackedWidget { background: transparent; }
+QScrollArea { background: transparent; border: none; }
+QScrollBar { background: transparent; }
+QScrollBar:vertical { width: 8px; }
+QScrollBar:horizontal { height: 8px; }
+QScrollBar::handle { background: #2c303c; border-radius: 4px; }
+QScrollBar::handle:vertical { min-height: 24px; }
+QScrollBar::handle:hover { background: #303a52; }
+QScrollBar::add-line, QScrollBar::sub-line { width: 0; height: 0; }
+QScrollBar::add-page, QScrollBar::sub-page { background: transparent; }
+
+/* --- Window chrome (card.ui): minimise/close and other icon buttons --- */
+
+#topBar QPushButton, #detailRoot QPushButton#backButton, #detailRoot QPushButton#alertButton {
+  background: transparent; color: #8a8a8a; border: none; border-radius: 4px; padding: 4px 10px;
+}
+#topBar QPushButton:hover, #detailRoot QPushButton#backButton:hover, #detailRoot QPushButton#alertButton:hover {
+  background-color: #2c303c; color: #e6e6e6;
+}
+#topBar QPushButton#closeButton:hover { background-color: #d03a3a; color: #e6e6e6; }
+#topBar QLabel#offlineLabel { background: transparent; }
+
+/* --- Detail view (detail.ui): header, range toggles, alert pills --- */
+
+#detailRoot QLabel { background: transparent; }
+#detailRoot QLabel#symbolLabel { font-weight: 600; }
+#detailRoot QLabel#nameLabel { color: #6e727e; font-size: 11px; }
+#detailRoot QLabel#priceLabel { font-weight: 600; }
+#detailRoot QLabel#priceLabel[flash="up"] { background-color: rgba(38, 166, 91, 102); border-radius: 3px; }
+#detailRoot QLabel#priceLabel[flash="down"] { background-color: rgba(208, 58, 58, 102); border-radius: 3px; }
+#detailRoot QLabel#changeLabel[direction="up"] { color: #26a65b; }
+#detailRoot QLabel#changeLabel[direction="down"] { color: #d03a3a; }
+#detailRoot QLabel#changeLabel[direction="flat"] { color: #8a8a8a; }
+#detailRoot QLabel#extendedLabel { font-size: 11px; color: #8a8a8a; }
+#detailRoot QLabel#extendedLabel[direction="up"] { color: #26a65b; }
+#detailRoot QLabel#extendedLabel[direction="down"] { color: #d03a3a; }
+
+#rangeBar QPushButton {
+  background-color: #24262e; color: #e6e6e6; border: none; border-radius: 4px; padding: 4px 10px;
+}
+#rangeBar QPushButton:hover { background-color: #2c303c; }
+#rangeBar QPushButton[selected="true"] { background-color: #303a52; }
+
+#pill { background-color: #24262e; border-radius: 4px; }
+#pill QLabel { background: transparent; }
+#pill QLabel[direction="up"] { color: #26a65b; }
+#pill QLabel[direction="down"] { color: #d03a3a; }
+#pill QPushButton {
+  background: transparent; color: #8a8a8a; border: none; border-radius: 4px; padding: 2px 6px;
+}
+#pill QPushButton:hover { background-color: #d03a3a; color: #e6e6e6; }
+
+/* --- Check boxes --- */
+
+QCheckBox { background: transparent; color: #e6e6e6; spacing: 8px; }
+QCheckBox::indicator {
+  width: 14px; height: 14px; border: 1px solid #6e727e; border-radius: 4px; background-color: #1e1e24;
+}
+QCheckBox::indicator:checked {
+  background-color: qradialgradient(cx: 0.5, cy: 0.5, radius: 0.5, fx: 0.5, fy: 0.5,
+                                    stop: 0.45 #e6e6e6, stop: 0.6 #303a52);
+}
+
+/* --- Tracked-symbol tiles (tile.ui, sidebar_tile.ui) --- */
+
+#tile { background-color: #24262e; border-radius: 6px; }
+#tile:hover { background-color: #2c303c; }
+#tile[selected="true"], #tile[selected="true"]:hover { background-color: #303a52; }
+
+#tile QLabel { background: transparent; }
+#tile QLabel#symbolLabel { font-weight: 600; }
+#tile QLabel#nameLabel { color: #6e727e; font-size: 11px; }
+#tile QLabel#priceLabel { font-weight: 600; }
+#tile QLabel#priceLabel[flash="up"] { background-color: rgba(38, 166, 91, 102); border-radius: 3px; }
+#tile QLabel#priceLabel[flash="down"] { background-color: rgba(208, 58, 58, 102); border-radius: 3px; }
+#tile QLabel#changeLabel[direction="up"] { color: #26a65b; }
+#tile QLabel#changeLabel[direction="down"] { color: #d03a3a; }
+#tile QLabel#changeLabel[direction="flat"] { color: #8a8a8a; }
+QFrame#tile[compact="true"] QLabel#changeLabel { font-size: 11px; }
+
+/* Edit-mode controls: reorder buttons look like dialog buttons, remove like
+   a window button. */
+#tile #controls { background: transparent; }
+#tile QPushButton#moveLeftButton, #tile QPushButton#moveRightButton {
+  background-color: #2c303c; color: #e6e6e6; border: none; border-radius: 4px; padding: 5px 14px;
+}
+#tile QPushButton#moveLeftButton:hover, #tile QPushButton#moveRightButton:hover { background-color: #303a52; }
+#tile QPushButton#moveLeftButton:disabled, #tile QPushButton#moveRightButton:disabled {
+  background-color: #3a3a40; color: #808080;
+}
+#tile QPushButton#removeButton {
+  background: transparent; color: #8a8a8a; border: none; border-radius: 4px; padding: 4px 10px;
+}
+#tile QPushButton#removeButton:hover { background-color: #d03a3a; color: #e6e6e6; }
+
+/* --- Dialogs (dialogcard.ui and the content forms it hosts) --- */
+
+#dialogCard { background-color: #24262e; border-radius: 6px; }
+#dialogCard QLabel { background: transparent; }
+#dialogCard QLabel#titleLabel { font-weight: 600; }
+#dialogCard QPushButton#dialogCloseButton {
+  background: transparent; color: #8a8a8a; border: none; border-radius: 4px; padding: 4px 10px;
+}
+#dialogCard QPushButton#dialogCloseButton:hover { background-color: #d03a3a; color: #e6e6e6; }
+
+/* Dialog actions: secondary by default, primary marks the default action. */
+#dialogCard QPushButton {
+  background-color: #2c303c; color: #e6e6e6; border: none; border-radius: 4px; padding: 5px 14px;
+}
+#dialogCard QPushButton:hover { background-color: #303a52; }
+#dialogCard QPushButton:disabled { background-color: #3a3a40; color: #808080; }
+#dialogCard QPushButton[primary="true"] { background-color: #303a52; }
+
+/* Inputs. */
+#dialogCard QLineEdit, #dialogCard QComboBox {
+  background-color: #1e1e24; color: #e6e6e6; border: 1px solid #6e727e; border-radius: 4px; padding: 5px 8px;
+}
+#dialogCard QLineEdit:disabled, #dialogCard QComboBox:disabled {
+  background-color: #3a3a40; color: #808080; border-color: #3a3a40;
+}
+#dialogCard QComboBox QAbstractItemView {
+  background-color: #24262e; color: #e6e6e6; selection-background-color: #303a52;
+}
+#dialogCard QLabel:disabled { color: rgba(138, 138, 138, 64); }
+
+/* Alert dialog: the live distance from the current price. */
+#alertContent QLabel#deltaLabel[direction="up"] { color: #26a65b; }
+#alertContent QLabel#deltaLabel[direction="down"] { color: #d03a3a; }
+#alertContent QLabel#deltaLabel[direction="flat"] { color: #8a8a8a; }
+#alertContent QLabel#fieldLabel { color: #8a8a8a; }
+#alertContent QLabel#errorLabel, #settingsContent QLabel#errorLabel { color: #d03a3a; }
+
+/* About dialog. */
+#aboutContent QLabel#logoLabel { background: transparent; }
+#aboutContent QLabel#nameLabel { font-weight: 600; font-size: 18px; }
+#aboutContent QLabel#versionLabel { color: #8a8a8a; }
+#aboutContent QLabel#disclaimerLabel { color: #8a8a8a; font-size: 11px; }
+
+/* Preview dialog: the same price/change treatment as the tiles. */
+#previewContent QLabel#metaLabel { color: #8a8a8a; font-size: 11px; }
+#previewContent QLabel#priceLabel { font-weight: 600; }
+#previewContent QLabel#changeLabel[direction="up"] { color: #26a65b; }
+#previewContent QLabel#changeLabel[direction="down"] { color: #d03a3a; }
+#previewContent QLabel#changeLabel[direction="flat"] { color: #8a8a8a; }
+
+/* Search dialog: suggestion list and rows. */
+#searchContent QListWidget { background: transparent; border: none; }
+#searchContent QListWidget::item { border-radius: 4px; }
+#searchContent QListWidget::item:hover, #searchContent QListWidget::item:selected {
+  background-color: #2c303c;
+}
+#searchContent QLabel#statusLabel { color: #8a8a8a; }
+#row { background: transparent; }
+#row QLabel#titleLabel { font-weight: 600; }
+#row QLabel#metaLabel { color: #8a8a8a; font-size: 11px; }
+
+/* Settings dialog: section navigation, field labels, separators, swatches. */
+#settingsContent, #sectionBar, #generalPage, #appearancePage, #notifyPage, #loggingPage {
+  background: transparent;
+}
+#sectionBar QPushButton[selected="true"] { background-color: #303a52; }
+#generalPage QLabel, #appearancePage QLabel, #notifyPage QLabel, #loggingPage QLabel {
+  color: #8a8a8a;
+}
+#generalSeparator, #chartSeparator, #notifySeparator { background-color: #6e727e; border: none; }
+#appearancePage QPushButton#backgroundSwatch, #appearancePage QPushButton#chartSwatch,
+#appearancePage QPushButton#gridSwatch {
+  border: 1px solid #6e727e; border-radius: 4px; padding: 0;
+}

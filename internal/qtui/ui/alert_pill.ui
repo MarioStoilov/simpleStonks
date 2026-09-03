@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>AlertPill</class>
+ <widget class="QFrame" name="pill">
+  <layout class="QHBoxLayout" name="pillLayout">
+   <property name="leftMargin"><number>4</number></property>
+   <property name="topMargin"><number>0</number></property>
+   <property name="rightMargin"><number>4</number></property>
+   <property name="bottomMargin"><number>0</number></property>
+   <item>
+    <widget class="QLabel" name="priceLabel"/>
+   </item>
+   <item>
+    <widget class="QPushButton" name="removeButton">
+     <property name="cursor"><cursorShape>PointingHandCursor</cursorShape></property>
+     <property name="text"><string>✕</string></property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

@@ -34,15 +34,6 @@ func alphaByte(opacity float64) uint8 {
 	return uint8(opacity*float64(0xff) + 0.5)
 }
 
-// scrollAreaStyle is the stylesheet for transparent scroll areas with slim
-// dark scrollbars matching the widget look (replaces the chunky theme ones).
-func scrollAreaStyle() string {
-	return fmt.Sprintf(constants.StyleScrollArea,
-		int(constants.ScrollBarWidth), int(constants.ScrollBarWidth),
-		cssRGB(constants.ColorHover), int(constants.PanelCornerRadius),
-		int(constants.ScrollBarMinHandle), cssRGB(constants.ColorSelected))
-}
-
 // changeStyle returns the color and sign prefix for a price change: green
 // with "+" for gains, red for losses, neutral for no change.
 func changeStyle(change float64) (color.NRGBA, string) {

@@ -53,12 +53,42 @@ from the UI, and the list plus other settings are persisted to a config file.
   typed enum values (`model.Range`, `config.LogLevel`), struct tags, protocol
   mapping tables (e.g. `yahooParams`), diagnostic log/error-wrap messages, and
   test fixtures.
-- **Qt stylesheet templates live in `internal/constants/styles.go`.**
-  Multi-rule stylesheets (anything with several QSS rules or pseudo-states,
-  e.g. a button's hover/disabled variants) are `fmt.Sprintf` templates named
-  `Style*` there, filled in with palette colors and metrics at their use
-  sites. Small single-rule inline styles (e.g. `"background: transparent;"`
-  or one-color concatenations) may stay at their use sites.
+- **The user interface is declarative: Qt Designer forms + one stylesheet.**
+  Every view, tile, and dialog is a `.ui` file in `internal/qtui/ui/`,
+  embedded and loaded at run time with `QUiLoader` (see
+  `internal/qtui/form.go`). All looks live in `internal/qtui/ui/theme.qss`.
+  Go code only loads a form, looks widgets up by object name, wires
+  behaviour, and fills in data — it must not build layouts or set
+  stylesheets, text, sizes, or cursors.
+  - Text, tooltips, metrics, alignment, size policies, and layout stretch
+    belong in the `.ui`; colors, fonts, padding, and hover/disabled looks
+    belong in `theme.qss`. Both are exempt from the constants rule below:
+    write the values in place.
+  - State-dependent looks use Qt dynamic properties, set from Go with
+    `setState(widget, "direction", "up")` and matched in the theme with
+    `[direction="up"]`. Do not rebuild style strings in Go.
+  - **Where the theme is installed matters, and it is not the
+    application.** An application-wide stylesheet also styles the frameless
+    top-level windows, which then paint an opaque background under the
+    translucent card. So the theme is set on the window card
+    (`App.applyBackgroundStyle`, together with the config-driven
+    `constants.StyleWindowCard` rule) and on each dialog card
+    (`newCardDialog`). Scroll areas additionally carry it themselves: Qt
+    resolves a scrollbar's sub-controls against the nearest styled
+    ancestor, and without it the scrollbar track paints opaque (see the
+    `QScrollArea` case in `form.go`).
+  - **Never give a widget its own stylesheet with a bare or type-only
+    selector.** Qt ranks an ancestor's stylesheet above more distant ones,
+    so `SetStyleSheet("background: transparent;")` silently overrides the
+    theme for every descendant. Name the widget and add a rule to the theme
+    instead.
+  - Widgets a form needs must be constructed by the loader's
+    `OnCreateWidget` hook (miqt only allows event-handler overrides on
+    Go-constructed widgets); add a case there for a new widget class.
+  - `internal/qtui/form_test.go` guards the coupling: it loads every form
+    offscreen and checks the object names and types the Go code uses, so a
+    rename in Designer fails a test instead of panicking at run time. Add
+    new forms and names to it.
 - Match the style, naming, and structure of existing code.
 
 ## Testing

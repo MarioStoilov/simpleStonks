@@ -10,9 +10,11 @@ import (
 	"github.com/MarioStoilov/simplestonks/internal/model"
 )
 
-// tile is one tracked-symbol card in the home grid: symbol + friendly name,
-// the latest price with its change (colored), and a mini 1D chart. A live
-// price change flashes the price background green/red.
+// tile is one tracked-symbol card: symbol + friendly name, the latest price
+// with its change, and a mini 1D chart. Its look comes from the theme; a
+// live price change flashes the price background in the movement's
+// direction. The grid tile (tile.ui) also carries the edit-mode controls;
+// the sidebar tile (sidebar_tile.ui) is the compact variant.
 type tile struct {
 	frame  *qt.QFrame
 	symbol string
@@ -20,14 +22,13 @@ type tile struct {
 	nameLabel   *qt.QLabel
 	priceLabel  *qt.QLabel
 	changeLabel *qt.QLabel
-	changeBase  string // base stylesheet, differs for compact tiles
 	chart       *chartWidget
 
 	shownPrice float64
 	priceShown bool
 	flashTimer *qt.QTimer
 
-	// Edit-mode reorder/remove controls (home grid only).
+	// Edit-mode reorder/remove controls (grid tile only).
 	controls        *qt.QWidget
 	moveLeftButton  *qt.QPushButton
 	moveRightButton *qt.QPushButton
@@ -36,152 +37,81 @@ type tile struct {
 	onRemove        func()
 }
 
-const priceBaseStyle = "background: transparent; font-weight: 600;"
-
-// tileStyle renders the tile stylesheet; a selected tile keeps its highlight
-// even under the pointer (selected > hovered > card, as in the Fyne tile).
-func tileStyle(selected bool) string {
-	base := constants.ColorCardBg
-	hover := constants.ColorHover
-	if selected {
-		base = constants.ColorSelected
-		hover = constants.ColorSelected
-	}
-	return fmt.Sprintf(constants.StyleTile,
-		cssRGB(base), int(constants.TileCornerRadius), cssRGB(hover))
-}
-
-// newTile builds an empty tile; onOpen fires when the tile is clicked, and
-// compact shrinks it for the detail view's sidebar.
+// newTile loads a tile form; onOpen fires when the tile is clicked, and
+// compact picks the sidebar variant.
 func newTile(parent *qt.QWidget, symbol string, compact bool, onOpen func()) *tile {
-	frame := qt.NewQFrame(parent)
-	frame.SetObjectName(*qt.NewQAnyStringView3("tile"))
-	frame.SetStyleSheet(tileStyle(false))
+	formName := tileForm
 	if compact {
-		// Width follows the sidebar viewport; only the height is fixed.
-		frame.SetMinimumHeight(int(constants.SidebarTileHeight))
-	} else {
-		frame.SetMinimumSize2(int(constants.GridCellWidth), int(constants.GridCellHeight))
+		formName = sidebarTileForm
 	}
+	loaded := loadForm(formName)
+	loaded.root.SetParent(parent)
 
-	layout := qt.NewQVBoxLayout(frame.QWidget)
-
-	head := qt.NewQHBoxLayout2()
-	ident := qt.NewQVBoxLayout2()
-	symbolLabel := qt.NewQLabel5(symbol, frame.QWidget)
-	symbolLabel.SetStyleSheet("background: transparent; font-weight: 600;")
-	nameLabel := qt.NewQLabel(frame.QWidget)
-	nameLabel.SetStyleSheet(fmt.Sprintf(constants.StyleSmallText,
-		cssRGB(constants.ColorAxis), int(constants.NameTextSize)))
-	// A long friendly name must never widen the tile beyond its cell: let the
-	// label be clipped instead of driving the layout's minimum width.
-	nameLabel.SetSizePolicy2(qt.QSizePolicy__Ignored, qt.QSizePolicy__Preferred)
-	ident.AddWidget(symbolLabel.QWidget)
-	ident.AddWidget(nameLabel.QWidget)
-	// The ident column takes the header's spare width (instead of a stretch
-	// spacer): with its size hint ignored, the name label would otherwise be
-	// clipped at the symbol label's width.
-	head.AddLayout2(ident.QLayout, 1)
-
-	quote := qt.NewQVBoxLayout2()
-	priceLabel := qt.NewQLabel5(constants.PricePlaceholder, frame.QWidget)
-	priceLabel.SetStyleSheet(priceBaseStyle)
-	priceLabel.SetAlignment(qt.AlignRight)
-	changeLabel := qt.NewQLabel(frame.QWidget)
-	changeStyleSheet := "background: transparent;"
-	if compact {
-		// The sidebar is narrow: a smaller change text keeps price + change
-		// inside the tile.
-		changeStyleSheet = fmt.Sprintf("background: transparent; font-size: %dpx;", int(constants.NameTextSize))
+	cell := &tile{
+		frame:       loaded.frame("tile"),
+		symbol:      symbol,
+		nameLabel:   loaded.label("nameLabel"),
+		priceLabel:  loaded.label("priceLabel"),
+		changeLabel: loaded.label("changeLabel"),
+		chart:       loaded.chart("chart"),
 	}
-	changeLabel.SetStyleSheet(changeStyleSheet)
-	changeLabel.SetAlignment(qt.AlignRight)
-	quote.AddWidget(priceLabel.QWidget)
-	quote.AddWidget(changeLabel.QWidget)
-	head.AddLayout(quote.QLayout)
-	layout.AddLayout(head.QLayout)
+	loaded.label("symbolLabel").SetText(symbol)
+	setState(cell.frame.QWidget, "compact", fmt.Sprint(compact))
 
-	chart := newChartWidget(frame.QWidget)
-	layout.AddWidget2(chart.QWidget, 1)
-
-	// Edit-mode controls: reorder left/right and remove; hidden until the
-	// home grid enters edit mode.
-	controls := qt.NewQWidget(frame.QWidget)
-	controls.SetStyleSheet("background: transparent;")
-	controlsLayout := qt.NewQHBoxLayout(controls)
-	controlsLayout.SetContentsMargins(0, 0, 0, 0)
-	cell := &tile{}
-	moveLeftButton := qt.NewQPushButton5("◀", controls)
-	moveLeftButton.SetStyleSheet(dialogButtonStyle(false))
-	moveLeftButton.SetCursor(qt.NewQCursor2(qt.PointingHandCursor))
-	moveLeftButton.OnClicked(func() {
-		if cell.onMoveLeft != nil {
-			cell.onMoveLeft()
-		}
-	})
-	controlsLayout.AddWidget(moveLeftButton.QWidget)
-	moveRightButton := qt.NewQPushButton5("▶", controls)
-	moveRightButton.SetStyleSheet(dialogButtonStyle(false))
-	moveRightButton.SetCursor(qt.NewQCursor2(qt.PointingHandCursor))
-	moveRightButton.OnClicked(func() {
-		if cell.onMoveRight != nil {
-			cell.onMoveRight()
-		}
-	})
-	controlsLayout.AddWidget(moveRightButton.QWidget)
-	controlsLayout.AddStretch()
-	removeButton := qt.NewQPushButton5("✕", controls)
-	removeButton.SetStyleSheet(windowButtonStyle(cssRGB(constants.ColorDown)))
-	removeButton.SetCursor(qt.NewQCursor2(qt.PointingHandCursor))
-	removeButton.OnClicked(func() {
-		if cell.onRemove != nil {
-			cell.onRemove()
-		}
-	})
-	controlsLayout.AddWidget(removeButton.QWidget)
-	controls.Hide()
-	layout.AddWidget(controls)
-
-	flashTimer := qt.NewQTimer2(frame.QObject)
-	flashTimer.SetSingleShot(true)
-	flashTimer.OnTimeout(func() {
-		priceLabel.SetStyleSheet(priceBaseStyle)
-	})
-
-	if onOpen != nil {
-		frame.OnMousePressEvent(func(super func(event *qt.QMouseEvent), event *qt.QMouseEvent) {
-			onOpen()
+	if !compact {
+		cell.controls = loaded.widget("controls")
+		cell.controls.Hide() // until the home grid enters edit mode
+		cell.moveLeftButton = loaded.button("moveLeftButton")
+		cell.moveLeftButton.OnClicked(func() {
+			if cell.onMoveLeft != nil {
+				cell.onMoveLeft()
+			}
+		})
+		cell.moveRightButton = loaded.button("moveRightButton")
+		cell.moveRightButton.OnClicked(func() {
+			if cell.onMoveRight != nil {
+				cell.onMoveRight()
+			}
+		})
+		loaded.button("removeButton").OnClicked(func() {
+			if cell.onRemove != nil {
+				cell.onRemove()
+			}
 		})
 	}
 
-	cell.frame = frame
-	cell.symbol = symbol
-	cell.nameLabel = nameLabel
-	cell.priceLabel = priceLabel
-	cell.changeLabel = changeLabel
-	cell.changeBase = changeStyleSheet
-	cell.chart = chart
-	cell.flashTimer = flashTimer
-	cell.controls = controls
-	cell.moveLeftButton = moveLeftButton
-	cell.moveRightButton = moveRightButton
+	cell.flashTimer = qt.NewQTimer2(cell.frame.QObject)
+	cell.flashTimer.SetSingleShot(true)
+	cell.flashTimer.OnTimeout(func() {
+		setState(cell.priceLabel.QWidget, "flash", "")
+	})
+
+	if onOpen != nil {
+		cell.frame.OnMousePressEvent(func(super func(event *qt.QMouseEvent), event *qt.QMouseEvent) {
+			onOpen()
+		})
+	}
 	return cell
 }
 
 // setEditing shows or hides the reorder/remove controls.
 func (cell *tile) setEditing(editing bool) {
-	cell.controls.SetVisible(editing)
+	if cell.controls != nil {
+		cell.controls.SetVisible(editing)
+	}
 }
 
 // setMoveBounds enables the reorder buttons that have somewhere to go.
 func (cell *tile) setMoveBounds(canLeft, canRight bool) {
-	cell.moveLeftButton.SetEnabled(canLeft)
-	cell.moveRightButton.SetEnabled(canRight)
+	if cell.moveLeftButton != nil {
+		cell.moveLeftButton.SetEnabled(canLeft)
+		cell.moveRightButton.SetEnabled(canRight)
+	}
 }
 
 // setSeries updates the tile from a fetched series. With flash enabled, a
-// changed price (after the first display) flashes the price background in the
-// movement's direction.
+// changed price (after the first display) flashes the price background in
+// the movement's direction.
 func (cell *tile) setSeries(series model.Series, flash bool) {
 	cell.nameLabel.SetText(series.Name)
 
@@ -189,25 +119,22 @@ func (cell *tile) setSeries(series model.Series, flash bool) {
 	cell.priceLabel.SetText(chartPrice(last))
 
 	lineColor := constants.ColorNeutral
+	direction := directionFlat
 	if series.PreviousClose > 0 {
 		change := last - series.PreviousClose
 		percent := change / series.PreviousClose * constants.PercentMax
 		col, sign := changeStyle(change)
 		lineColor = col
+		direction = directionOf(change)
 		cell.changeLabel.SetText(fmt.Sprintf(constants.FmtPriceChange, sign, change, sign, percent))
-		cell.changeLabel.SetStyleSheet(cell.changeBase + " color: " + cssRGB(col) + ";")
 	} else {
 		cell.changeLabel.SetText("")
 	}
+	setState(cell.changeLabel.QWidget, "direction", direction)
 	cell.chart.setSeries(series, lineColor)
 
 	if flash && cell.priceShown && last != cell.shownPrice {
-		flashColor := constants.ColorUp
-		if last < cell.shownPrice {
-			flashColor = constants.ColorDown
-		}
-		cell.priceLabel.SetStyleSheet(fmt.Sprintf(constants.StylePriceFlash,
-			priceBaseStyle, cssRGBA(flashColor, constants.FlashAlpha), int(constants.FlashCornerRadius)))
+		setState(cell.priceLabel.QWidget, "flash", directionOf(last-cell.shownPrice))
 		cell.flashTimer.Start(int(constants.FlashDuration / time.Millisecond))
 	}
 	cell.shownPrice = last
@@ -216,16 +143,35 @@ func (cell *tile) setSeries(series model.Series, flash bool) {
 
 // setSelected toggles the sidebar highlight.
 func (cell *tile) setSelected(selected bool) {
-	cell.frame.SetStyleSheet(tileStyle(selected))
+	setState(cell.frame.QWidget, "selected", fmt.Sprint(selected))
 }
 
 // setFailed marks the tile as having no data.
 func (cell *tile) setFailed() {
 	cell.priceLabel.SetText(constants.PricePlaceholder)
 	cell.changeLabel.SetText(constants.MsgUnavailable)
-	cell.changeLabel.SetStyleSheet(cell.changeBase + " color: " + cssRGB(constants.ColorNeutral) + ";")
+	setState(cell.changeLabel.QWidget, "direction", directionFlat)
 	cell.chart.setSeries(model.Series{}, constants.ColorNeutral)
 	cell.priceShown = false
+}
+
+// Movement directions, as the theme's selectors expect them.
+const (
+	directionUp   = "up"
+	directionDown = "down"
+	directionFlat = "flat"
+)
+
+// directionOf classifies a price change for the theme.
+func directionOf(change float64) string {
+	switch {
+	case change > 0:
+		return directionUp
+	case change < 0:
+		return directionDown
+	default:
+		return directionFlat
+	}
 }
 
 // chartPrice formats a price for the tile header.

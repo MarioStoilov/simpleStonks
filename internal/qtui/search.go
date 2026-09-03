@@ -14,28 +14,21 @@ import (
 	"github.com/MarioStoilov/simplestonks/internal/provider"
 )
 
-// showSearchDialog runs the add-symbol live search: typing queries the
-// provider (debounced, with a generation counter dropping stale responses)
-// and lists suggestions; picking one opens the preview, and adding from there
-// closes the whole dialog.
+// showSearchDialog runs the add-symbol live search (search.ui): typing
+// queries the provider (debounced, with a generation counter dropping stale
+// responses) and lists suggestions; picking one opens the preview, and
+// adding from there closes the whole dialog.
 func showSearchDialog(parent *qt.QWidget, quotes provider.QuoteProvider, store *config.Store) {
 	dialog, body := newCardDialog(parent, constants.TitleAddIndex)
 	dialog.Resize(int(constants.SearchDialogWidth), int(constants.SearchDialogHeight))
+	loaded := loadForm(searchForm)
+	body.AddWidget(loaded.root)
+	body.SetStretchFactor(loaded.root, 1)
 
-	query := qt.NewQLineEdit(dialog.QWidget)
-	query.SetPlaceholderText(constants.PlaceholderSearch)
-	query.SetStyleSheet(inputStyle())
-	body.AddWidget(query.QWidget)
-
-	results := qt.NewQListWidget(dialog.QWidget)
-	results.SetMinimumSize2(int(constants.SearchScrollMinWidth), int(constants.SearchScrollMinHeight))
-	results.SetStyleSheet(fmt.Sprintf(constants.StyleSearchResults,
-		int(constants.PanelCornerRadius), cssRGB(constants.ColorHover)))
-	body.AddWidget2(results.QWidget, 1)
-
-	status := qt.NewQLabel5(constants.MsgSearchPrompt, dialog.QWidget)
-	status.SetStyleSheet("background: transparent; color: " + cssRGB(constants.ColorNeutral) + ";")
-	body.AddWidget(status.QWidget)
+	query := loaded.lineEdit("query")
+	results := loaded.listWidget("results")
+	status := loaded.label("statusLabel")
+	status.SetText(constants.MsgSearchPrompt)
 
 	closed := false
 	dialog.OnFinished(func(result int) { closed = true })
@@ -109,22 +102,27 @@ func showSearchDialog(parent *qt.QWidget, quotes provider.QuoteProvider, store *
 	dialog.Exec()
 }
 
-// newResultRow builds a two-line suggestion row: bold "SYMBOL · Name" over a
-// gray "exchange · type" line.
+// newResultRow builds a two-line suggestion row (resultrow.ui): bold
+// "SYMBOL · Name" over a gray "exchange · type" line (hidden when empty).
 func newResultRow(parent *qt.QWidget, match model.SearchResult) *qt.QWidget {
-	row := qt.NewQWidget(parent)
-	row.SetStyleSheet("background: transparent;")
-	layout := qt.NewQVBoxLayout(row)
+	loaded := loadForm(resultRowForm)
+	loaded.root.SetParent(parent)
 
 	title := match.Symbol
 	if match.Name != "" {
 		title += constants.SepTitle + match.Name
 	}
-	titleLabel := qt.NewQLabel5(title, row)
-	titleLabel.SetStyleSheet("background: transparent; font-weight: 600;")
-	titleLabel.SetSizePolicy2(qt.QSizePolicy__Ignored, qt.QSizePolicy__Preferred)
-	layout.AddWidget(titleLabel.QWidget)
+	loaded.label("titleLabel").SetText(title)
 
+	meta := searchResultMeta(match)
+	metaLabel := loaded.label("metaLabel")
+	metaLabel.SetText(meta)
+	metaLabel.SetVisible(meta != "")
+	return loaded.root
+}
+
+// searchResultMeta joins a search result\'s exchange and type for display.
+func searchResultMeta(match model.SearchResult) string {
 	var meta []string
 	if match.Exchange != "" {
 		meta = append(meta, match.Exchange)
@@ -132,12 +130,5 @@ func newResultRow(parent *qt.QWidget, match model.SearchResult) *qt.QWidget {
 	if match.Type != "" {
 		meta = append(meta, match.Type)
 	}
-	if len(meta) > 0 {
-		metaLabel := qt.NewQLabel5(strings.Join(meta, constants.SepMeta), row)
-		metaLabel.SetStyleSheet(fmt.Sprintf(constants.StyleSmallText,
-			cssRGB(constants.ColorNeutral), int(constants.NameTextSize)))
-		metaLabel.SetSizePolicy2(qt.QSizePolicy__Ignored, qt.QSizePolicy__Preferred)
-		layout.AddWidget(metaLabel.QWidget)
-	}
-	return row
+	return strings.Join(meta, constants.SepMeta)
 }

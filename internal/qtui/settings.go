@@ -28,78 +28,42 @@ func showSettingsDialog(parent *qt.QWidget, store *config.Store, previewBackgrou
 	cfg := store.Get()
 	dialog, body := newCardDialog(parent, constants.TitleSettings)
 	dialog.Resize(int(constants.SettingsWindowWidth), int(constants.SettingsWindowHeight))
+	loaded := loadForm(settingsForm)
+	body.AddWidget(loaded.root)
+	body.SetStretchFactor(loaded.root, 1)
 
-	split := qt.NewQHBoxLayout2()
-
-	// Section navigation on the left, one form page per section on the right.
-	sections := qt.NewQVBoxLayout2()
-	pages := qt.NewQStackedWidget(dialog.QWidget)
-	sectionNames := []string{constants.SectionGeneral, constants.SectionAppearance,
-		constants.SectionNotifications, constants.SectionLogging}
-	sectionButtons := make([]*qt.QPushButton, 0, len(sectionNames))
+	// Section navigation on the left, one page per section on the right.
+	pages := loaded.stack("pages")
+	sectionButtons := []*qt.QPushButton{
+		loaded.button("generalButton"), loaded.button("appearanceButton"),
+		loaded.button("notificationsButton"), loaded.button("loggingButton"),
+	}
 	styleSections := func(active int) {
 		for idx, button := range sectionButtons {
-			button.SetStyleSheet(dialogButtonStyle(idx == active))
+			setState(button.QWidget, "selected", fmt.Sprint(idx == active))
 		}
 	}
-	for idx, name := range sectionNames {
+	for idx, button := range sectionButtons {
 		pageIdx := idx // capture per iteration
-		button := qt.NewQPushButton5(name, dialog.QWidget)
-		button.SetCursor(qt.NewQCursor2(qt.PointingHandCursor))
 		button.OnClicked(func() {
 			pages.SetCurrentIndex(pageIdx)
 			styleSections(pageIdx)
 		})
-		sectionButtons = append(sectionButtons, button)
-		sections.AddWidget(button.QWidget)
 	}
-	sections.AddStretch()
-	split.AddLayout(sections.QLayout)
-	split.AddWidget2(pages.QWidget, 1)
-	body.AddLayout2(split.QLayout, 1)
-
-	newPage := func() (*qt.QWidget, *qt.QVBoxLayout) {
-		page := qt.NewQWidget(dialog.QWidget)
-		page.SetStyleSheet("background: transparent;")
-		pageLayout := qt.NewQVBoxLayout(page)
-		return page, pageLayout
-	}
-	fieldLabel := func(page *qt.QWidget, text string) *qt.QLabel {
-		label := qt.NewQLabel5(text, page)
-		label.SetStyleSheet(fmt.Sprintf(constants.StyleFieldLabel,
-			cssRGB(constants.ColorNeutral), cssRGBA(constants.ColorNeutral, constants.SwatchDisabledAlpha)))
-		return label
-	}
+	styleSections(0)
 
 	// --- General ---
-	generalPage, generalLayout := newPage()
-	generalLayout.AddWidget(fieldLabel(generalPage, constants.LabelDefaultRange).QWidget)
-	rangeBox := qt.NewQComboBox(generalPage)
-	rangeBox.SetStyleSheet(inputStyle())
+	rangeBox := loaded.comboBox("rangeBox")
 	for _, rangeOption := range model.Ranges {
 		rangeBox.AddItem(string(rangeOption))
 	}
 	rangeBox.SetCurrentText(string(cfg.DefaultRange))
-	generalLayout.AddWidget(rangeBox.QWidget)
-	generalLayout.AddWidget(fieldLabel(generalPage, constants.LabelRefreshInterval).QWidget)
-	refreshEdit := qt.NewQLineEdit4(strconv.Itoa(int(cfg.RefreshInterval/time.Second)), generalPage)
-	refreshEdit.SetStyleSheet(inputStyle())
-	generalLayout.AddWidget(refreshEdit.QWidget)
-	separator := qt.NewQFrame(generalPage)
-	separator.SetFixedHeight(int(constants.HairlineWidth))
-	separator.SetStyleSheet("background-color: " + cssRGB(constants.ColorAxis) + ";")
-	generalLayout.AddWidget(separator.QWidget)
-	extendedBox := qt.NewQCheckBox4(constants.LabelExtendedHours, generalPage)
-	extendedBox.SetStyleSheet(checkBoxStyle())
-	extendedBox.SetCursor(qt.NewQCursor2(qt.PointingHandCursor))
-	extendedBox.SetToolTip(constants.TipExtendedHours)
+	refreshEdit := loaded.lineEdit("refreshEdit")
+	refreshEdit.SetText(strconv.Itoa(int(cfg.RefreshInterval / time.Second)))
+	extendedBox := loaded.checkBox("extendedBox")
 	extendedBox.SetChecked(cfg.ExtendedHours)
-	generalLayout.AddWidget(extendedBox.QWidget)
-	generalLayout.AddStretch()
-	pages.AddWidget(generalPage)
 
 	// --- Appearance (edits preview live) ---
-	appearancePage, appearanceLayout := newPage()
 	background, ok := parseHexColor(cfg.Background.Color)
 	if !ok {
 		background, _ = parseHexColor(constants.DefaultBackgroundColor)
@@ -117,66 +81,36 @@ func showSettingsDialog(parent *qt.QWidget, store *config.Store, previewBackgrou
 	var preview func()
 	var chartPreview func()
 
-	// Window background.
-	opacityPercent := int(cfg.Background.Opacity*constants.PercentMax + 0.5)
-	appearanceLayout.AddWidget(fieldLabel(appearancePage, constants.LabelBackgroundColor).QWidget)
-	swatch := colorSwatch(appearancePage, dialog.QWidget, background, constants.TitleColorPicker, func(picked color.NRGBA) {
-		background = picked
-		preview()
-	})
-	appearanceLayout.AddWidget(swatch.QWidget)
-	appearanceLayout.AddWidget(fieldLabel(appearancePage, constants.LabelBackgroundOpacity).QWidget)
-	opacitySlider := qt.NewQSlider4(qt.Horizontal, appearancePage)
-	opacitySlider.SetMinimum(0)
-	opacitySlider.SetMaximum(int(constants.PercentMax))
-	opacitySlider.SetValue(opacityPercent)
-	appearanceLayout.AddWidget(opacitySlider.QWidget)
+	bindColorSwatch(loaded.button("backgroundSwatch"), dialog.QWidget, background,
+		constants.TitleColorPicker, func(picked color.NRGBA) {
+			background = picked
+			preview()
+		})
+	opacitySlider := loaded.slider("opacitySlider")
+	opacitySlider.SetValue(int(cfg.Background.Opacity*constants.PercentMax + 0.5))
 
-	chartSeparator := qt.NewQFrame(appearancePage)
-	chartSeparator.SetFixedHeight(int(constants.HairlineWidth))
-	chartSeparator.SetStyleSheet("background-color: " + cssRGB(constants.ColorAxis) + ";")
-	appearanceLayout.AddWidget(chartSeparator.QWidget)
-
-	// Chart plot styling: background, checkered grid, up/down area fill.
-	appearanceLayout.AddWidget(fieldLabel(appearancePage, constants.LabelChartBackground).QWidget)
-	chartSwatch := colorSwatch(appearancePage, dialog.QWidget, chartBackground, constants.TitleChartColorPicker, func(picked color.NRGBA) {
-		chartBackground = picked
-		chartPreview()
-	})
-	appearanceLayout.AddWidget(chartSwatch.QWidget)
-	gridBox := qt.NewQCheckBox4(constants.LabelChartGrid, appearancePage)
-	gridBox.SetStyleSheet(checkBoxStyle())
-	gridBox.SetCursor(qt.NewQCursor2(qt.PointingHandCursor))
-	gridBox.SetToolTip(constants.TipChartGrid)
+	bindColorSwatch(loaded.button("chartSwatch"), dialog.QWidget, chartBackground,
+		constants.TitleChartColorPicker, func(picked color.NRGBA) {
+			chartBackground = picked
+			chartPreview()
+		})
+	gridBox := loaded.checkBox("gridBox")
 	gridBox.SetChecked(cfg.Chart.Grid)
-	appearanceLayout.AddWidget(gridBox.QWidget)
-	gridSizeLabel := fieldLabel(appearancePage, constants.LabelChartGridSize)
-	appearanceLayout.AddWidget(gridSizeLabel.QWidget)
-	gridSizeEdit := qt.NewQLineEdit4(strconv.Itoa(cfg.Chart.GridSize), appearancePage)
-	gridSizeEdit.SetStyleSheet(inputStyle())
-	appearanceLayout.AddWidget(gridSizeEdit.QWidget)
-	gridColorLabel := fieldLabel(appearancePage, constants.LabelChartGridColor)
-	appearanceLayout.AddWidget(gridColorLabel.QWidget)
-	gridSwatch := colorSwatch(appearancePage, dialog.QWidget, gridColor, constants.TitleGridColorPicker, func(picked color.NRGBA) {
-		gridColor = picked
-		chartPreview()
-	})
-	appearanceLayout.AddWidget(gridSwatch.QWidget)
-	fillBox := qt.NewQCheckBox4(constants.LabelChartFill, appearancePage)
-	fillBox.SetStyleSheet(checkBoxStyle())
-	fillBox.SetCursor(qt.NewQCursor2(qt.PointingHandCursor))
-	fillBox.SetToolTip(constants.TipChartFill)
+	gridSizeLabel := loaded.label("gridSizeLabel")
+	gridSizeEdit := loaded.lineEdit("gridSizeEdit")
+	gridSizeEdit.SetText(strconv.Itoa(cfg.Chart.GridSize))
+	gridColorLabel := loaded.label("gridColorLabel")
+	gridSwatch := loaded.button("gridSwatch")
+	bindColorSwatch(gridSwatch, dialog.QWidget, gridColor,
+		constants.TitleGridColorPicker, func(picked color.NRGBA) {
+			gridColor = picked
+			chartPreview()
+		})
+	fillBox := loaded.checkBox("fillBox")
 	fillBox.SetChecked(cfg.Chart.Fill)
-	appearanceLayout.AddWidget(fillBox.QWidget)
-	fillOpacityLabel := fieldLabel(appearancePage, constants.LabelChartFillOpacity)
-	appearanceLayout.AddWidget(fillOpacityLabel.QWidget)
-	fillSlider := qt.NewQSlider4(qt.Horizontal, appearancePage)
-	fillSlider.SetMinimum(0)
-	fillSlider.SetMaximum(int(constants.PercentMax))
+	fillOpacityLabel := loaded.label("fillOpacityLabel")
+	fillSlider := loaded.slider("fillSlider")
 	fillSlider.SetValue(int(cfg.Chart.FillOpacity*constants.PercentMax + 0.5))
-	appearanceLayout.AddWidget(fillSlider.QWidget)
-	appearanceLayout.AddStretch()
-	pages.AddWidget(appearancePage)
 
 	// A disabled effect grays out the settings that only apply to it.
 	applyEffectStates := func() {
@@ -231,22 +165,14 @@ func showSettingsDialog(parent *qt.QWidget, store *config.Store, previewBackgrou
 	fillSlider.OnValueChanged(func(value int) { chartPreview() })
 
 	// --- Notifications (price alerts) ---
-	notifyPage, notifyLayout := newPage()
-	notifyBox := qt.NewQCheckBox4(constants.LabelNotifications, notifyPage)
-	notifyBox.SetStyleSheet(checkBoxStyle())
-	notifyBox.SetCursor(qt.NewQCursor2(qt.PointingHandCursor))
-	notifyBox.SetToolTip(constants.TipNotifications)
+	notifyBox := loaded.checkBox("notifyBox")
 	notifyBox.SetChecked(cfg.Notifications.Enabled)
-	notifyLayout.AddWidget(notifyBox.QWidget)
-	durationLabel := fieldLabel(notifyPage, constants.LabelNotifyDuration)
-	notifyLayout.AddWidget(durationLabel.QWidget)
-	durationBox := qt.NewQComboBox(notifyPage)
-	durationBox.SetStyleSheet(inputStyle())
+	durationLabel := loaded.label("durationLabel")
+	durationBox := loaded.comboBox("durationBox")
 	for _, durationOption := range notify.Durations {
 		durationBox.AddItem(string(durationOption))
 	}
 	durationBox.SetCurrentText(string(cfg.Notifications.Duration))
-	notifyLayout.AddWidget(durationBox.QWidget)
 	// Disabled notifications gray out the setting that only applies to them.
 	applyNotifyState := func() {
 		durationLabel.SetEnabled(notifyBox.IsChecked())
@@ -254,68 +180,32 @@ func showSettingsDialog(parent *qt.QWidget, store *config.Store, previewBackgrou
 	}
 	applyNotifyState()
 	notifyBox.OnClicked(func() { applyNotifyState() })
-	notifySeparator := qt.NewQFrame(notifyPage)
-	notifySeparator.SetFixedHeight(int(constants.HairlineWidth))
-	notifySeparator.SetStyleSheet("background-color: " + cssRGB(constants.ColorAxis) + ";")
-	notifyLayout.AddWidget(notifySeparator.QWidget)
 	// Clearing alerts applies immediately (it is not part of Save) after an
 	// explicit, irreversible-action confirmation.
-	clearButton := qt.NewQPushButton5(constants.LabelClearAlerts, notifyPage)
-	clearButton.SetStyleSheet(dialogButtonStyle(false))
-	clearButton.SetCursor(qt.NewQCursor2(qt.PointingHandCursor))
-	clearButton.OnClicked(func() {
+	loaded.button("clearButton").OnClicked(func() {
 		if showConfirmDialog(dialog.QWidget, constants.TitleClearAlerts,
 			constants.MsgConfirmClearAlerts, constants.LabelClear) {
 			clearAlerts(store)
 		}
 	})
-	notifyLayout.AddWidget(clearButton.QWidget)
-	notifyLayout.AddStretch()
-	pages.AddWidget(notifyPage)
 
 	// --- Logging ---
-	loggingPage, loggingLayout := newPage()
-	loggingLayout.AddWidget(fieldLabel(loggingPage, constants.LabelLogLevel).QWidget)
-	levelBox := qt.NewQComboBox(loggingPage)
-	levelBox.SetStyleSheet(inputStyle())
+	levelBox := loaded.comboBox("levelBox")
 	for _, level := range logLevels {
 		levelBox.AddItem(string(level))
 	}
 	levelBox.SetCurrentText(string(cfg.Logging.Level))
-	loggingLayout.AddWidget(levelBox.QWidget)
-	loggingLayout.AddWidget(fieldLabel(loggingPage, constants.LabelLogFile).QWidget)
-	fileEdit := qt.NewQLineEdit4(cfg.Logging.File, loggingPage)
+	fileEdit := loaded.lineEdit("fileEdit")
+	fileEdit.SetText(cfg.Logging.File)
 	fileEdit.SetPlaceholderText(config.DefaultLogPath())
-	fileEdit.SetStyleSheet(inputStyle())
-	loggingLayout.AddWidget(fileEdit.QWidget)
-	loggingLayout.AddWidget(fieldLabel(loggingPage, constants.LabelLogMaxSize).QWidget)
-	maxSizeEdit := qt.NewQLineEdit4(strconv.Itoa(cfg.Logging.MaxSizeMB), loggingPage)
-	maxSizeEdit.SetStyleSheet(inputStyle())
-	loggingLayout.AddWidget(maxSizeEdit.QWidget)
-	loggingLayout.AddWidget(fieldLabel(loggingPage, constants.LabelLogArchives).QWidget)
-	archivesEdit := qt.NewQLineEdit4(strconv.Itoa(cfg.Logging.MaxArchives), loggingPage)
-	archivesEdit.SetStyleSheet(inputStyle())
-	loggingLayout.AddWidget(archivesEdit.QWidget)
-	loggingLayout.AddStretch()
-	pages.AddWidget(loggingPage)
+	maxSizeEdit := loaded.lineEdit("maxSizeEdit")
+	maxSizeEdit.SetText(strconv.Itoa(cfg.Logging.MaxSizeMB))
+	archivesEdit := loaded.lineEdit("archivesEdit")
+	archivesEdit.SetText(strconv.Itoa(cfg.Logging.MaxArchives))
 
-	styleSections(0)
-
-	errorLabel := qt.NewQLabel(dialog.QWidget)
-	errorLabel.SetStyleSheet("background: transparent; color: " + cssRGB(constants.ColorDown) + ";")
-	body.AddWidget(errorLabel.QWidget)
-
-	actions := qt.NewQHBoxLayout2()
-	actions.AddStretch()
-	cancelButton := qt.NewQPushButton5(constants.LabelCancel, dialog.QWidget)
-	cancelButton.SetStyleSheet(dialogButtonStyle(false))
-	cancelButton.SetCursor(qt.NewQCursor2(qt.PointingHandCursor))
-	cancelButton.OnClicked(func() { dialog.Reject() })
-	actions.AddWidget(cancelButton.QWidget)
-	saveButton := qt.NewQPushButton5(constants.LabelSave, dialog.QWidget)
-	saveButton.SetStyleSheet(dialogButtonStyle(true))
-	saveButton.SetCursor(qt.NewQCursor2(qt.PointingHandCursor))
-	saveButton.OnClicked(func() {
+	errorLabel := loaded.label("errorLabel")
+	loaded.button("cancelButton").OnClicked(func() { dialog.Reject() })
+	loaded.button("saveButton").OnClicked(func() {
 		seconds, err := parseWhole(refreshEdit.Text())
 		if err != nil || seconds < 1 {
 			errorLabel.SetText(constants.MsgErrRefreshInterval)
@@ -356,24 +246,17 @@ func showSettingsDialog(parent *qt.QWidget, store *config.Store, previewBackgrou
 		}
 		dialog.Accept()
 	})
-	actions.AddWidget(saveButton.QWidget)
-	body.AddLayout(actions.QLayout)
 
 	dialog.Exec()
 }
 
-// colorSwatch builds a color-picker button: a swatch showing the current
-// color that opens the picker (titled title, parented to dialogParent) and
-// restyles itself and reports through onPicked when a color is chosen.
-func colorSwatch(parent *qt.QWidget, dialogParent *qt.QWidget, initial color.NRGBA, title string, onPicked func(color.NRGBA)) *qt.QPushButton {
-	swatch := qt.NewQPushButton(parent)
-	swatch.SetFixedSize2(int(constants.SwatchWidth), int(constants.SwatchHeight))
-	swatch.SetCursor(qt.NewQCursor2(qt.PointingHandCursor))
+// bindColorSwatch turns a form button into a color-picker swatch: it shows
+// the current color (the one property the theme cannot know), opens the
+// picker titled title, and reports through onPicked.
+func bindColorSwatch(swatch *qt.QPushButton, dialogParent *qt.QWidget, initial color.NRGBA, title string, onPicked func(color.NRGBA)) {
 	current := initial
 	styleSwatch := func() {
-		swatch.SetStyleSheet(fmt.Sprintf(constants.StyleSwatch,
-			cssRGB(current), cssRGB(constants.ColorAxis), int(constants.PanelCornerRadius),
-			cssRGBA(current, constants.SwatchDisabledAlpha), cssRGB(constants.ColorDisabledBg)))
+		swatch.SetStyleSheet("background-color: " + cssRGB(current) + ";")
 	}
 	styleSwatch()
 	swatch.OnClicked(func() {
@@ -385,7 +268,6 @@ func colorSwatch(parent *qt.QWidget, dialogParent *qt.QWidget, initial color.NRG
 		styleSwatch()
 		onPicked(current)
 	})
-	return swatch
 }
 
 // parseWhole parses a non-negative whole number.

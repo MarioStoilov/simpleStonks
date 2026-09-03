@@ -38,70 +38,43 @@ type homeView struct {
 	editing bool
 }
 
-// newHomeView builds an empty grid; symbols arrive via setSymbols.
+// newHomeView loads the home form (home.ui); symbols arrive via setSymbols.
 func newHomeView(parent *qt.QWidget, quotes provider.QuoteProvider, store *config.Store) *homeView {
-	root := qt.NewQWidget(parent)
-	root.SetStyleSheet("background: transparent;")
-	rootLayout := qt.NewQVBoxLayout(root)
-	rootLayout.SetContentsMargins(0, 0, 0, 0)
+	loaded := loadForm(homeForm)
+	loaded.root.SetParent(parent)
 
 	home := &homeView{
-		quotes:  quotes,
-		store:   store,
-		root:    root,
-		tiles:   map[string]*tile{},
-		columns: 1,
+		quotes:     quotes,
+		store:      store,
+		root:       loaded.root,
+		editButton: loaded.button("editButton"),
+		scroll:     loaded.scrollArea("scroll"),
+		content:    loaded.widget("gridContent"),
+		grid:       loaded.grid("grid"),
+		tiles:      map[string]*tile{},
+		columns:    1,
 	}
 
-	bar := qt.NewQHBoxLayout2()
-	bar.AddStretch()
-	editButton := qt.NewQPushButton5(constants.LabelEdit, root)
-	editButton.SetStyleSheet(dialogButtonStyle(false))
-	editButton.SetCursor(qt.NewQCursor2(qt.PointingHandCursor))
-	editButton.OnClicked(func() { home.toggleEditing() })
-	home.editButton = editButton
-	bar.AddWidget(editButton.QWidget)
-	addButton := qt.NewQPushButton5("+ "+constants.LabelAdd, root)
-	addButton.SetStyleSheet(dialogButtonStyle(false))
-	addButton.SetCursor(qt.NewQCursor2(qt.PointingHandCursor))
-	addButton.OnClicked(func() {
-		showSearchDialog(root, home.quotes, home.store)
+	home.editButton.OnClicked(func() { home.toggleEditing() })
+	loaded.button("addButton").OnClicked(func() {
+		showSearchDialog(home.root, home.quotes, home.store)
 	})
-	bar.AddWidget(addButton.QWidget)
-	settingsButton := qt.NewQPushButton5("⚙", root)
-	settingsButton.SetStyleSheet(dialogButtonStyle(false))
-	settingsButton.SetCursor(qt.NewQCursor2(qt.PointingHandCursor))
-	settingsButton.OnClicked(func() {
+	loaded.button("settingsButton").OnClicked(func() {
 		if home.onOpenSettings != nil {
 			home.onOpenSettings()
 		}
 	})
-	bar.AddWidget(settingsButton.QWidget)
-	aboutButton := qt.NewQPushButton5("ⓘ", root)
-	aboutButton.SetStyleSheet(dialogButtonStyle(false))
-	aboutButton.SetCursor(qt.NewQCursor2(qt.PointingHandCursor))
-	aboutButton.OnClicked(func() {
-		showAboutDialog(root)
+	loaded.button("aboutButton").OnClicked(func() {
+		showAboutDialog(home.root)
 	})
-	bar.AddWidget(aboutButton.QWidget)
-	rootLayout.AddLayout(bar.QLayout)
 
-	scroll := qt.NewQScrollArea(root)
-	scroll.SetWidgetResizable(true)
-	scroll.SetStyleSheet(scrollAreaStyle())
-	scroll.SetCursor(qt.NewQCursor2(qt.ArrowCursor))
-
-	content := qt.NewQWidget2()
-	content.SetStyleSheet("background: transparent;")
-	grid := qt.NewQGridLayout(content)
-	scroll.SetWidget(content)
-	rootLayout.AddWidget2(scroll.QWidget, 1)
-
-	home.scroll = scroll
-	home.content = content
-	home.grid = grid
-
-	scroll.OnResizeEvent(func(super func(event *qt.QResizeEvent), event *qt.QResizeEvent) {
+	// The scroll area owns the grid content: the loader parents it but
+	// leaves the viewport assignment to us.
+	home.scroll.SetWidget(home.content)
+	// SetWidget turns on the content's autoFillBackground, which paints the
+	// palette color over the translucent window; the theme styles it.
+	home.content.SetAutoFillBackground(false)
+	home.scroll.OnResizeEvent(func(super func(event *qt.QResizeEvent), event *qt.QResizeEvent) {
 		super(event)
 		home.reflow()
 	})
@@ -113,9 +86,9 @@ func newHomeView(parent *qt.QWidget, quotes provider.QuoteProvider, store *confi
 func (home *homeView) toggleEditing() {
 	home.editing = !home.editing
 	if home.editing {
-		home.editButton.SetText(constants.LabelDone)
+		home.editButton.SetText(labelDone)
 	} else {
-		home.editButton.SetText(constants.LabelEdit)
+		home.editButton.SetText(labelEdit)
 	}
 	home.applyEditState()
 }
@@ -253,3 +226,9 @@ func (home *homeView) relayout() {
 	}
 	home.applyEditState()
 }
+
+// The Edit button's two labels; the form supplies the resting one.
+const (
+	labelEdit = "Edit"
+	labelDone = "Done"
+)

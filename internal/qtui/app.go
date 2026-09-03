@@ -62,35 +62,20 @@ func (app *App) Run() {
 	window.Resize(int(constants.MainWindowWidth), int(constants.MainWindowHeight))
 	app.window = window
 
-	card := qt.NewQWidget(window)
-	card.SetObjectName(*qt.NewQAnyStringView3("card"))
+	// The card carries the window chrome: the offline indicator, the
+	// minimise/close buttons, and the stack the two views live in.
+	loaded := loadForm(cardForm)
+	card := loaded.widget("card")
+	card.SetParent(window)
 	card.SetGeometry(0, 0, int(constants.MainWindowWidth), int(constants.MainWindowHeight))
 	app.card = card
 
-	rootLayout := qt.NewQVBoxLayout(card)
-
-	topBar := qt.NewQHBoxLayout2()
 	// Connection-lost indicator: shown while every tracked symbol's latest
 	// fetch failed; the views keep showing their last data meanwhile.
-	offlineLabel := qt.NewQLabel(card)
-	offlineLabel.SetPixmap(svgPixmap(assets.OfflineSVG, int(constants.HeaderIconSize)))
-	offlineLabel.SetToolTip(constants.TipOffline)
-	offlineLabel.SetStyleSheet("background: transparent;")
-	offlineLabel.SetVisible(false)
-	app.offlineLabel = offlineLabel
-	topBar.AddWidget(offlineLabel.QWidget)
-	topBar.AddStretch()
-	minimiseButton := qt.NewQPushButton5("—", card)
-	minimiseButton.SetStyleSheet(windowButtonStyle(cssRGB(constants.ColorHover)))
-	minimiseButton.SetCursor(qt.NewQCursor2(qt.PointingHandCursor))
-	minimiseButton.OnClicked(func() { window.ShowMinimized() })
-	topBar.AddWidget(minimiseButton.QWidget)
-	closeButton := qt.NewQPushButton5("✕", card)
-	closeButton.SetStyleSheet(windowButtonStyle(cssRGB(constants.ColorDown)))
-	closeButton.SetCursor(qt.NewQCursor2(qt.PointingHandCursor))
-	closeButton.OnClicked(func() { window.Close() })
-	topBar.AddWidget(closeButton.QWidget)
-	rootLayout.AddLayout(topBar.QLayout)
+	app.offlineLabel = loaded.label("offlineLabel")
+	app.offlineLabel.SetPixmap(svgPixmap(assets.OfflineSVG, int(constants.HeaderIconSize)))
+	loaded.button("minimiseButton").OnClicked(func() { window.ShowMinimized() })
+	loaded.button("closeButton").OnClicked(func() { window.Close() })
 
 	app.home = newHomeView(card, app.quotes, app.store)
 	app.home.onOpenSettings = func() {
@@ -118,10 +103,9 @@ func (app *App) Run() {
 		mainthread.Wait(func() { app.openAlertSymbol(alert.Symbol) })
 	})
 
-	app.stack = qt.NewQStackedWidget(card)
+	app.stack = loaded.stack("stack")
 	app.stack.AddWidget(app.home.root)
 	app.stack.AddWidget(app.detail.root)
-	rootLayout.AddWidget2(app.stack.QWidget, 1)
 
 	// Periodic refresh with price flashes, dispatched to the visible view.
 	// Compare stack indexes, not widgets: miqt's CurrentWidget() returns a
@@ -184,10 +168,13 @@ func (app *App) Run() {
 // applyBackgroundStyle paints the card with a background color at an opacity
 // (also used by the settings dialog's live preview).
 func (app *App) applyBackgroundStyle(background color.NRGBA, opacity float64) {
-	app.card.SetStyleSheet(fmt.Sprintf(constants.StyleWindowCard,
+	// The card carries the theme for the whole window. It cannot be an
+	// application-wide stylesheet: that would style the frameless window
+	// itself, which then paints an opaque background under the translucent
+	// card (Qt only leaves an unstyled translucent window clear).
+	app.card.SetStyleSheet(themeStyleSheet + fmt.Sprintf(constants.StyleWindowCard,
 		cssRGBA(background, alphaByte(opacity)),
-		int(constants.TileCornerRadius),
-		cssRGB(constants.ColorForeground)))
+		int(constants.TileCornerRadius)))
 }
 
 // handleQuote digests one fetch outcome on the UI thread: the result feeds
@@ -363,10 +350,4 @@ func resizeCursor(edges qt.Edge) qt.CursorShape {
 	default:
 		return qt.ArrowCursor
 	}
-}
-
-// windowButtonStyle styles a window-control button with the given hover color.
-func windowButtonStyle(hoverColor string) string {
-	return fmt.Sprintf(constants.StyleWindowButton,
-		cssRGB(constants.ColorNeutral), int(constants.PanelCornerRadius), hoverColor, cssRGB(constants.ColorForeground))
 }

@@ -9,67 +9,37 @@ import (
 	"github.com/MarioStoilov/simplestonks/internal/constants"
 )
 
-// showAboutDialog shows the About card, mirroring the Fyne layout: centered
-// logo, app name and version, the short description, source/license links,
-// and the data disclaimer.
+// showAboutDialog shows the About card (about.ui): centered logo, app name
+// and version, the short description, source/license links, and the data
+// disclaimer.
 func showAboutDialog(parent *qt.QWidget) {
 	dialog, body := newCardDialog(parent, constants.TitleAbout)
 	dialog.SetFixedWidth(int(constants.AboutDialogWidth))
+	loaded := loadForm(aboutForm)
+	body.AddWidget(loaded.root)
 
-	centered := func(label *qt.QLabel) *qt.QLabel {
-		label.SetAlignment(qt.AlignHCenter)
-		label.SetWordWrap(true)
-		return label
-	}
-
-	// Logo, rendered from the embedded SVG (Qt's SVG image plugin).
+	// Logo, rendered from the embedded SVG through Qt\'s SVG image plugin;
+	// the label stays laid out but empty when the plugin is missing.
 	logo := qt.NewQPixmap()
 	if logo.LoadFromDataWithData(assets.IconSVG) {
-		logoLabel := qt.NewQLabel(dialog.QWidget)
-		logoLabel.SetPixmap(logo.Scaled3(
+		loaded.label("logoLabel").SetPixmap(logo.Scaled3(
 			int(constants.AboutLogoSize), int(constants.AboutLogoSize),
 			qt.KeepAspectRatio, qt.SmoothTransformation))
-		logoLabel.SetAlignment(qt.AlignHCenter)
-		logoLabel.SetStyleSheet("background: transparent;")
-		body.AddWidget(logoLabel.QWidget)
 	}
 
-	nameLabel := qt.NewQLabel5(constants.AppName, dialog.QWidget)
-	nameLabel.SetStyleSheet("background: transparent; font-weight: 600; font-size: 18px;")
-	body.AddWidget(centered(nameLabel).QWidget)
+	loaded.label("nameLabel").SetText(constants.AppName)
+	loaded.label("versionLabel").SetText(constants.LabelVersionPrefix + constants.AppVersion)
+	loaded.label("descriptionLabel").SetText(constants.AboutDescription)
+	loaded.label("disclaimerLabel").SetText(constants.AboutDisclaimer)
 
-	versionLabel := qt.NewQLabel5(constants.LabelVersionPrefix+constants.AppVersion, dialog.QWidget)
-	versionLabel.SetStyleSheet("background: transparent; color: " + cssRGB(constants.ColorNeutral) + ";")
-	body.AddWidget(centered(versionLabel).QWidget)
-
-	descriptionLabel := qt.NewQLabel5(constants.AboutDescription, dialog.QWidget)
-	descriptionLabel.SetStyleSheet("background: transparent;")
-	body.AddWidget(centered(descriptionLabel).QWidget)
-
-	linkStyle := cssRGB(constants.ColorSelected)
-	linksLabel := qt.NewQLabel5(fmt.Sprintf(
+	// The links carry their own color: a QLabel\'s rich text ignores the
+	// theme\'s color for anchors.
+	linkColor := cssRGB(constants.ColorSelected)
+	loaded.label("linksLabel").SetText(fmt.Sprintf(
 		`<a style="color: %s;" href="%s">%s</a> &nbsp;·&nbsp; <a style="color: %s;" href="%s">%s</a>`,
-		linkStyle, constants.RepoURL, constants.LabelSourceLink,
-		linkStyle, constants.LicenseURL, constants.LabelLicenseLink), dialog.QWidget)
-	linksLabel.SetTextFormat(qt.RichText)
-	linksLabel.SetOpenExternalLinks(true)
-	linksLabel.SetStyleSheet("background: transparent;")
-	body.AddWidget(centered(linksLabel).QWidget)
+		linkColor, constants.RepoURL, constants.LabelSourceLink,
+		linkColor, constants.LicenseURL, constants.LabelLicenseLink))
 
-	disclaimerLabel := qt.NewQLabel5(constants.AboutDisclaimer, dialog.QWidget)
-	disclaimerLabel.SetStyleSheet(fmt.Sprintf(constants.StyleSmallText,
-		cssRGB(constants.ColorNeutral), int(constants.NameTextSize)))
-	body.AddWidget(centered(disclaimerLabel).QWidget)
-
-	actions := qt.NewQHBoxLayout2()
-	actions.AddStretch()
-	closeButton := qt.NewQPushButton5(constants.LabelClose, dialog.QWidget)
-	closeButton.SetStyleSheet(dialogButtonStyle(true))
-	closeButton.SetCursor(qt.NewQCursor2(qt.PointingHandCursor))
-	closeButton.OnClicked(func() { dialog.Accept() })
-	actions.AddWidget(closeButton.QWidget)
-	actions.AddStretch()
-	body.AddLayout(actions.QLayout)
-
+	loaded.button("closeButton").OnClicked(func() { dialog.Accept() })
 	dialog.Exec()
 }

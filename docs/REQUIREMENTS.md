@@ -22,7 +22,7 @@ and the list plus other settings are persisted to a config file.
 | Area | Decision |
 |------|----------|
 | Language / runtime | Go |
-| GUI toolkit | Qt 6 via miqt bindings (frameless translucent widget look; supersedes Fyne, which could not do transparent windows on Linux — see the ui_rewrite branches) |
+| GUI toolkit | Qt 6 via miqt bindings (frameless translucent widget look; supersedes Fyne, which could not do transparent windows on Linux — see the ui_rewrite branches). The interface is declarative: Qt Designer `.ui` forms loaded at run time with `QUiLoader`, styled by a single `theme.qss` carried by the window and dialog cards; Go holds only behaviour. Chosen over QtWebEngine + the parked Svelte frontend (~220 MB snap growth, unproven translucency) and QML (no Qt Quick item bindings in miqt). |
 | Distribution | Snap Store (snapcraft) |
 | Data provider | Free/keyless. First implementation uses the Yahoo Finance chart endpoint (`v8/finance/chart`), behind a swappable provider interface. The swap capability is internal only — not advertised and not a committed feature. |
 | Chart ranges | **1D with live ticking** is the default. The full range toggles (**1D, 5D, 1W, 1M, YTD, 1Y, 5Y, ALL**) appear in the **detail view**; home-grid cells are 1D-only. |
@@ -344,6 +344,11 @@ The core MVP + polish scope is in place:
   "unavailable" (which remains the initial-launch failure state); while
   every tracked symbol is unfetchable an unplugged-connector icon shows in
   the window header, clearing on the first successful fetch.
+- Declarative UI: every view, tile, and dialog is a Qt Designer form under
+  `internal/qtui/ui/` (embedded, loaded at run time), with all styling in
+  `theme.qss` and state-dependent looks driven by Qt dynamic properties.
+  Forms are editable in Qt Designer; a guard test keeps the object names
+  the Go code uses in step with them.
 - Tests gated by `pre-commit` (unit) and `pre-push` (integration) hooks.
 
 ## Open items

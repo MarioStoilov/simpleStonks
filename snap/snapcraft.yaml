@@ -55,10 +55,12 @@ parts:
       - pkg-config
       - gcc
       - qt6-base-dev
+      - qt6-tools-dev # QUiLoader: the UI is loaded from Qt Designer forms
     stage-packages:
       - libqt6widgets6 # pulls the Qt 6 core/gui runtime (includes the xcb platform plugin)
       - qt6-wayland # Wayland platform plugin
       - libqt6svg6 # SVG image plugin (About-dialog logo); ships the plugin on 24.04
+      - libqt6uitools6 # loads the embedded .ui forms at runtime
       - qt6-gtk-platformtheme # match the desktop theme where available
     # Build explicitly instead of the plugin default so the release binary is
     # stripped (-s -w) — the unstripped cgo/Qt binary alone is ~100 MB.

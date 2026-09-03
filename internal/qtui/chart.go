@@ -92,6 +92,9 @@ type chartWidget struct {
 }
 
 // newChartWidget constructs an empty chart.
+// newChartWidget builds the painted chart the forms promote as
+// "ChartWidget"; its size and placement come from the form, and paint fills
+// the configured plot background itself.
 func newChartWidget(parent *qt.QWidget) *chartWidget {
 	font := qt.NewQFont()
 	font.SetPixelSize(int(constants.AxisTextSize))
@@ -102,8 +105,6 @@ func newChartWidget(parent *qt.QWidget) *chartWidget {
 		metrics:    qt.NewQFontMetrics(font),
 		dimFromIdx: -1,
 	}
-	chart.SetMinimumSize2(int(constants.ChartMinWidth), int(constants.ChartMinHeight))
-	chart.SetStyleSheet("background: " + cssRGB(constants.ColorChartBg) + ";")
 	chart.OnPaintEvent(func(super func(event *qt.QPaintEvent), event *qt.QPaintEvent) {
 		chart.paint()
 	})
