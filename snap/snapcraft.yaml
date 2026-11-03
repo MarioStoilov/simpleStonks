@@ -1,7 +1,7 @@
 name: simplestonks
 title: simpleStonks
 base: core24
-version: "1.4.2"
+version: "1.4.3-rc1"
 icon: internal/assets/icon.svg # bundled into the binary too; see internal/assets
 license: MIT
 summary: Bare-bones stock tracker widget
@@ -18,13 +18,12 @@ description: |
   window. The tracked list is editable from the UI and persisted along with
   other settings.
 
-  What's new in 1.4.2:
+  What's new in 1.4.3:
 
-  - Reordering symbols on the home grid now reorders the detail view's
-    sidebar immediately instead of after a restart.
-  - The detail view's headline price and its sidebar tile now always show
-    the same price: the headline keeps ticking on every chart range, and
-    both are fed by one shared request.
+  - The whole interface is now built from Qt Designer forms and a single
+    stylesheet; no visible changes intended.
+  - Releases are built and published automatically from a tagged release
+    branch by GitHub Actions.
 
 grade: stable
 confinement: strict
