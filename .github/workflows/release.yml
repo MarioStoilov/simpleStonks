@@ -1,0 +1,90 @@
+# Release pipeline: a tag "vX.Y.Z" pushed on the release branch runs the test
+# suite, builds the snap in LXD, and uploads it to the Snap Store.
+#
+# Channels: a plain tag (v1.5.0) releases to stable and edge; a pre-release
+# tag with a suffix (v1.5.0-rc1) releases to edge only.
+#
+# The store credential is the "snapstore" GitHub Environment secret
+# SNAPCRAFT_STORE_CREDENTIALS (contents of a `snapcraft export-login` file,
+# scoped to this snap and to the stable/edge channels). See
+# docs/DEVELOPMENT.md, "Releasing".
+name: Release snap
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Install the Qt build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            pkg-config gcc qt6-base-dev qt6-tools-dev libqt6svg6
+
+      - name: Pre-commit gate (gofmt, vet, unit tests)
+        run: make check
+
+      - name: Pre-push gate (unit + integration tests, race detector)
+        run: make test-integration
+
+  release:
+    name: Build and publish
+    needs: test
+    runs-on: ubuntu-24.04 # matches `base: core24`; do not rely on ubuntu-latest
+    environment: snapstore # holds the store secret; a required reviewer there gates publishing
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # the ancestry check below needs the branch history
+
+      - name: Verify the tag is on the release branch
+        run: |
+          git fetch origin release
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/release \
+            || { echo "::error::$GITHUB_REF_NAME is not on the release branch"; exit 1; }
+
+      - name: Verify the tag matches the versions in the tree
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          yaml=$(sed -n 's/^version: *"\(.*\)"/\1/p' snap/snapcraft.yaml)
+          code=$(sed -n 's/.*AppVersion = "\(.*\)"/\1/p' internal/constants/constants.go)
+          [ "$tag" = "$yaml" ] && [ "$tag" = "$code" ] \
+            || { echo "::error::tag=$tag snapcraft.yaml=$yaml constants.AppVersion=$code"; exit 1; }
+
+      - name: Install LXD and snapcraft
+        run: |
+          sudo snap list lxd >/dev/null 2>&1 || sudo snap install lxd
+          sudo lxd init --auto
+          sudo usermod --append --groups lxd "$USER"
+          # Docker on the runner sets the FORWARD policy to DROP, which cuts
+          # the LXD container off the network (same fix as on a dev machine).
+          sudo iptables -P FORWARD ACCEPT
+          sudo snap list snapcraft >/dev/null 2>&1 || sudo snap install snapcraft --classic
+
+      - name: Build the snap
+        run: sg lxd -c 'snapcraft pack --use-lxd --verbose'
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: simplestonks-${{ github.ref_name }}
+          path: "*.snap"
+          if-no-files-found: error
+
+      - name: Upload and release to the Snap Store
+        env:
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
+          CHANNELS: ${{ contains(github.ref_name, '-') && 'edge' || 'stable,edge' }}
+        run: snapcraft upload --release="$CHANNELS" ./*.snap

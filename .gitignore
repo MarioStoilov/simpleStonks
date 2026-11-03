@@ -46,3 +46,6 @@ Thumbs.db
 
 # Local config / runtime data (user settings live in XDG dirs, not the repo)
 *.local
+
+# Exported Snap Store credentials (snapcraft export-login) - never commit
+*-login.txt

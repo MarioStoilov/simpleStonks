@@ -107,22 +107,29 @@ from the UI, and the list plus other settings are persisted to a config file.
 
 ## Snap release runbook
 
-When building and publishing a new snap version, follow these steps in order
-(machine specifics — LXD, Docker firewall, upload commands — are in
-[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)):
+Releases are built and published by the GitHub Actions workflow
+`.github/workflows/release.yml`, triggered by a `vX.Y.Z` tag on the `release`
+branch. The Snap Store credential lives in the `snapstore` GitHub Environment
+(secret `SNAPCRAFT_STORE_CREDENTIALS`); never put it in the repo. Details and
+the credential renewal procedure are in
+[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md), "Releasing".
 
-0. **Preflight:** verify the Docker/LXD firewall fix is applied (container
-   networking works) and that snapcraft is logged in.
-1. **Clean tree:** all code must be committed and pushed before building.
+1. **Clean tree:** all code must be committed and pushed to `main`.
 2. **Version bump:** ask the user whether this is a major, minor, or fix
    release, then bump both the `version` in `snap/snapcraft.yaml` and
-   `constants.AppVersion` in `internal/constants` (keep them in sync).
-3. **Tag:** create a git tag for the new version (`v<version>`, e.g. `v1.2.1`).
-4. **Changelog:** update the `description` in `snap/snapcraft.yaml` to include
+   `constants.AppVersion` in `internal/constants` (keep them in sync; the
+   workflow fails if either differs from the tag).
+3. **Changelog:** update the `description` in `snap/snapcraft.yaml` to include
    a simple changelog of what has changed / been fixed in this release.
-5. **Build:** build the snap (`snapcraft pack`).
-6. **Publish:** ask the user which channels to release to (e.g. `edge`,
-   `stable`), then upload/release the snap to those channels.
+4. **Commit and push** the bump to `main` (e.g. "Release 1.5.0: ...").
+5. **Tag and release:** `make release VERSION=X.Y.Z` fast-forwards `release`
+   to `main`, creates the annotated tag `vX.Y.Z`, and pushes both atomically.
+   A plain tag releases to `stable` and `edge`; a suffixed tag such as
+   `v1.5.0-rc1` goes to `edge` only.
+6. **Watch the run** on GitHub Actions (tests, LXD build, store upload) and
+   approve it there if the environment has a required reviewer.
+
+Only commit, push, or run `make release` when explicitly asked.
 
 ## Notes
 

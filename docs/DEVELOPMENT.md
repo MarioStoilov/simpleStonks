@@ -23,7 +23,7 @@ Anything not pushed does not exist on the other side.
 | Go | 1.23+ (module targets `go 1.23.5`) |
 | Git | any recent version |
 | C toolchain + Qt 6 dev headers | required to build the Qt UI (cgo via miqt) |
-| snapcraft | only needed to build the snap package |
+| snapcraft | only for building the snap locally; releases are built by CI |
 
 ### System build dependencies (Linux)
 
@@ -31,7 +31,7 @@ The Qt UI (miqt bindings) compiles against Qt 6 via cgo, so these OS packages
 are required to `go build ./...`. On Debian/Ubuntu:
 
 ```sh
-sudo apt install pkg-config gcc qt6-base-dev
+sudo apt install pkg-config gcc qt6-base-dev qt6-tools-dev
 ```
 
 The runtime also wants `libqt6svg6` (the Qt SVG image plugin) so the About
@@ -162,6 +162,64 @@ Integration tests carry the `//go:build integration` tag and only run with
 `-tags=integration`. Those needing network skip themselves when it is
 unavailable, so offline pushes are not blocked. In an emergency a hook can be
 bypassed with `git commit --no-verify` / `git push --no-verify`.
+
+## Releasing
+
+Releases are automated: a `vX.Y.Z` tag on the `release` branch triggers
+`.github/workflows/release.yml`, which runs the test suite, builds the snap in
+LXD on an `ubuntu-24.04` runner (matching `base: core24`), keeps the `.snap` as
+a workflow artifact, and uploads it to the Snap Store.
+
+### Branches and tags
+
+- `main` is where development happens.
+- `release` only ever fast-forwards to `main`; it exists so a tag can be
+  checked against it. The workflow refuses tags whose commit is not on
+  `release`, since GitHub cannot filter tag events by branch.
+- Tags are annotated, `vX.Y.Z`, and must equal both `version` in
+  `snap/snapcraft.yaml` and `constants.AppVersion` (the workflow checks).
+- A plain tag releases to `stable,edge`; a suffixed tag such as `v1.5.0-rc1`
+  releases to `edge` only.
+
+### Cutting a release
+
+1. On `main`: bump the two versions, write the changelog into the snapcraft
+   `description`, commit, push.
+2. `make release VERSION=X.Y.Z` - verifies the tree is clean, on `main`, pushed,
+   and that both versions match; then fast-forwards `release`, creates the
+   annotated tag, and pushes branch and tag with `git push --atomic`.
+3. Follow the run under the repo's Actions tab. If the `snapstore` environment
+   has a required reviewer configured, approve the "Build and publish" job
+   there.
+
+### Store credential
+
+The workflow authenticates with `SNAPCRAFT_STORE_CREDENTIALS`, a secret of the
+`snapstore` GitHub Environment (Settings, Environments). It is the content of a
+file produced by `snapcraft export-login`, scoped to this snap, to the
+`stable`/`edge` channels, and to an expiry date. When it expires the upload
+step fails with an authentication error; renew it on a machine where
+`snapcraft` is logged in:
+
+```sh
+snapcraft export-login \
+  --snaps=simplestonks \
+  --acls=package_access,package_push,package_update,package_release \
+  --channels=stable,edge \
+  --expires=<ISO 8601 date about a year out> \
+  simplestonks-ci-login.txt
+SNAPCRAFT_STORE_CREDENTIALS="$(cat simplestonks-ci-login.txt)" snapcraft whoami   # check scope and expiry
+```
+
+Paste the file's content into the environment secret, then `rm` the file
+(`*-login.txt` is gitignored as a safety net). `package_update` is required
+because `snapcraft upload` syncs the store listing links from snapcraft.yaml.
+
+### Building locally
+
+`snapcraft pack` still works for a local smoke test (needs LXD; on hosts
+running Docker, allow `lxdbr0` in the `DOCKER-USER` iptables chain or
+container networking is blocked). Local builds are not uploaded.
 
 ## Runtime file locations
 
@@ -321,10 +379,8 @@ Progress is recorded in `git log`; the short version:
   desktop entry + taskbar icon.
 - **Published on the Snap Store** as `simplestonks`: 0.2.x releases proved out
   the `edge` channel (rev 2 surfaced the stale-log-path refresh bug, fixed in
-  0.2.1/rev 3); v1.0.0 (`grade: stable`) is the first `stable` release. On a
-  release: bump `version` in snapcraft.yaml **and** `constants.AppVersion` in
-  `internal/constants`, `snapcraft pack`, `snapcraft upload
-  --release=stable,edge <snap>`.
+  0.2.1/rev 3); v1.0.0 (`grade: stable`) is the first `stable` release. Releases
+  are now built and published by GitHub Actions; see [Releasing](#releasing).
 
 - Extended-hours (pre-market/after-hours) on the detail view's 1D chart —
   detail view only, controlled by one shared setting (header "Pre/post
@@ -354,4 +410,5 @@ Immediate next candidates:
 - Chart polish: currency formatting. (Hover readout and gridlines are done —
   the checkered grid and the up/down area fill live in Settings → Appearance.)
 - Drag-to-reorder in edit mode (currently up/down buttons).
-- CI mirroring the pre-push checks.
+- CI mirroring the pre-push checks on every push/PR (the release workflow
+  already runs them, but only on tags).
