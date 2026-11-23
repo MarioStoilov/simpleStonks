@@ -56,3 +56,87 @@ func TestAlertPillText(t *testing.T) {
 		}
 	}
 }
+
+func TestParseAlertPercent(t *testing.T) {
+	valid := map[string]float64{
+		"10":      10,
+		"+10":     10,
+		"-10":     -10,
+		"-10%":    -10,
+		" 2.5 % ": 2.5,
+		"-99.99":  -99.99,
+		"0":       0,
+		"250":     250,
+	}
+	for input, want := range valid {
+		value, ok := parseAlertPercent(input)
+		if !ok || value != want {
+			t.Errorf("parseAlertPercent(%q) = %v/%v, want %v/true", input, value, ok, want)
+		}
+	}
+
+	invalid := []string{"", "-", "+", "%", "-100", "-150", "1.234", "--5", "+-5", "5%%", "abc", "1e2", "5,5"}
+	for _, input := range invalid {
+		if value, ok := parseAlertPercent(input); ok {
+			t.Errorf("parseAlertPercent(%q) = %v/true, want invalid", input, value)
+		}
+	}
+}
+
+// TestAlertEntryPriceAnchor: an entered price keeps its value while its
+// percentage follows the current price.
+func TestAlertEntryPriceAnchor(t *testing.T) {
+	entry := &alertEntry{current: 200}
+	entry.editPrice("220")
+	if entry.percentText != "+10.00" || entry.direction() != directionUp {
+		t.Errorf("after entering 220 at 200: percent %q, direction %q", entry.percentText, entry.direction())
+	}
+	entry.setCurrent(250)
+	if entry.priceText != "220" || entry.percentText != "-12.00" || entry.direction() != directionDown {
+		t.Errorf("after the price moved to 250: price %q, percent %q, direction %q",
+			entry.priceText, entry.percentText, entry.direction())
+	}
+	entry.editPrice("22x")
+	if entry.percentText != "" || entry.direction() != directionFlat {
+		t.Errorf("an invalid price left percent %q, direction %q", entry.percentText, entry.direction())
+	}
+	if _, ok := entry.price(); ok {
+		t.Error("an invalid price was accepted")
+	}
+}
+
+// TestAlertEntryPercentAnchor: an entered percentage keeps its value while
+// its price follows the current price.
+func TestAlertEntryPercentAnchor(t *testing.T) {
+	entry := &alertEntry{current: 200}
+	entry.editPercent("-10")
+	if entry.priceText != "180.00" || entry.direction() != directionDown {
+		t.Errorf("after entering -10%% at 200: price %q, direction %q", entry.priceText, entry.direction())
+	}
+	entry.setCurrent(150)
+	value, ok := entry.price()
+	if entry.percentText != "-10" || entry.priceText != "135.00" || !ok || value != 135 {
+		t.Errorf("after the price moved to 150: percent %q, price %q (%v/%v)",
+			entry.percentText, entry.priceText, value, ok)
+	}
+	entry.editPercent("-100")
+	if entry.priceText != "" {
+		t.Errorf("an impossible percentage left price %q", entry.priceText)
+	}
+	// Switching back to the price field re-anchors on it.
+	entry.editPrice("165")
+	entry.setCurrent(100)
+	if entry.priceText != "165" || entry.percentText != "+65.00" {
+		t.Errorf("after re-anchoring on the price: price %q, percent %q", entry.priceText, entry.percentText)
+	}
+}
+
+// TestAlertEntryWithoutEdits: price ticks before any input leave both
+// fields empty.
+func TestAlertEntryWithoutEdits(t *testing.T) {
+	entry := &alertEntry{current: 200}
+	entry.setCurrent(210)
+	if entry.priceText != "" || entry.percentText != "" {
+		t.Errorf("fields filled without input: price %q, percent %q", entry.priceText, entry.percentText)
+	}
+}

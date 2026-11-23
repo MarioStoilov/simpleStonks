@@ -70,7 +70,11 @@ type detailView struct {
 
 	shownPrice float64
 	priceShown bool
-	flashTimer *qt.QTimer
+
+	// priceListener receives every shown price while the alert dialog is
+	// open, so its fields follow the live price.
+	priceListener func(price float64)
+	flashTimer    *qt.QTimer
 }
 
 // newDetailView loads the detail form (detail.ui); showSymbol populates it.
@@ -115,7 +119,8 @@ func newDetailView(parent *qt.QWidget, quotes provider.QuoteProvider, store *con
 	view.alertButton.SetIconSize(qt.NewQSize2(int(constants.HeaderIconSize), int(constants.HeaderIconSize)))
 	view.alertButton.OnClicked(func() {
 		if view.priceShown {
-			showAlertDialog(view.root, view.store, view.symbol, view.shownPrice)
+			showAlertDialog(view.root, view.store, view.symbol, view.shownPrice,
+				func(listener func(price float64)) { view.priceListener = listener })
 		}
 	})
 
@@ -160,6 +165,9 @@ func (view *detailView) showSymbol(symbol string) {
 	view.changeLabel.SetText("")
 	view.extendedLabel.SetText("")
 	view.priceShown = false
+	// An alert dialog still open (a clicked notification can switch symbols
+	// under it) must not follow another symbol's price.
+	view.priceListener = nil
 	view.alertButton.SetEnabled(false)
 	view.setAlerts(view.store.Get().Alerts)
 	view.rng = view.store.Get().DefaultRange
@@ -498,6 +506,9 @@ func (view *detailView) flashPrice(last float64, flash bool) {
 	view.priceShown = true
 	view.alertButton.SetEnabled(true)
 	view.updateAlertPills()
+	if view.priceListener != nil {
+		view.priceListener(last)
+	}
 }
 
 // loadSidebar refreshes every sidebar tile at 1D.

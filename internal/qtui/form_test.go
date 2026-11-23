@@ -46,6 +46,10 @@ var formNames = map[string][]string{
 	},
 	cardForm:      {"card", "topBar", "offlineLabel", "minimiseButton", "closeButton", "stack"},
 	alertPillForm: {"pill", "priceLabel", "removeButton"},
+	alertForm: {
+		"alertContent", "currentLabel", "priceEdit", "percentEdit", "errorLabel",
+		"cancelButton", "addButton",
+	},
 	detailForm: {
 		"detailRoot", "sidebarScroll", "sidebarContent", "sidebarBox", "backButton",
 		"symbolLabel", "nameLabel", "alertButton", "extendedToggle", "priceLabel",
@@ -104,6 +108,12 @@ func TestFormAccessorsMatchWidgetTypes(t *testing.T) {
 	settings.checkBox("extendedBox")
 	settings.slider("opacitySlider")
 	settings.button("saveButton")
+
+	alert := loadForm(alertForm)
+	alert.label("currentLabel")
+	alert.lineEdit("priceEdit")
+	alert.lineEdit("percentEdit")
+	alert.button("addButton")
 
 	loadForm(searchForm).listWidget("results")
 	loadForm(cardDialogForm).vbox("body")

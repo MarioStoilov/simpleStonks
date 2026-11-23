@@ -276,4 +276,8 @@ const (
 	// AlertPriceDecimals is how many digits an alert price may carry after
 	// the decimal dot.
 	AlertPriceDecimals = 2
+
+	// AlertPercentDecimals is how many digits an alert's percentage change
+	// may carry after the decimal dot.
+	AlertPercentDecimals = 2
 )

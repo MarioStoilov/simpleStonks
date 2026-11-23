@@ -321,10 +321,15 @@ The core MVP + polish scope is in place:
   the last extended prices stay viewable overnight; regular hours render
   exactly as without the feature.
 - Price alerts with desktop notifications: a bell button in the detail-view
-  header opens a dialog showing the current price and live-previewing the
-  entered threshold's % distance from it (colored up/down; the input must be
-  positive with at most 2 decimals, differ from the current price, and not
-  duplicate an existing alert). Pending alerts show as removable pills under
+  header opens a dialog showing the live current price and two linked
+  fields, the alert price and its % change from the current price (colored
+  up/down). Whichever was typed last is kept and the other is derived and
+  follows the live price: an entered price keeps its value while its
+  percentage moves; an entered percentage (e.g. `-10`) keeps its value while
+  the price it stands for moves, and the alert is created at that price as of
+  Add. (The price must be positive with at most 2 decimals, differ from the
+  current price, and not duplicate an existing alert; the percentage must be
+  above -100 with at most 2 decimals.) Pending alerts show as removable pills under
   the detail chart. Each pill carries the threshold's distance from the
   current price in brackets (e.g. `▲ 250.00 (+4.17%)`), updated with every
   price refresh. Alerts are one-shot: they fire when the live price

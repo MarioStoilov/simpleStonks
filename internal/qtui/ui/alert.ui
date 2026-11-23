@@ -2,7 +2,7 @@
 <ui version="4.0">
   <class>AlertDialog</class>
   <widget class="QWidget" name="alertContent">
-    <layout class="QVBoxLayout" name="content" stretch="0,0,0,0,0,1,0">
+    <layout class="QVBoxLayout" name="content" stretch="0,0,0,1,0">
       <property name="leftMargin">
         <number>0</number>
       </property>
@@ -19,17 +19,42 @@
         <widget class="QLabel" name="currentLabel"/>
       </item>
       <item>
-        <widget class="QLabel" name="fieldLabel">
-          <property name="text">
-            <string>Alert price</string>
-          </property>
-        </widget>
-      </item>
-      <item>
-        <widget class="QLineEdit" name="priceEdit"/>
-      </item>
-      <item>
-        <widget class="QLabel" name="deltaLabel"/>
+        <layout class="QGridLayout" name="fields">
+          <item row="0" column="0">
+            <widget class="QLabel" name="fieldLabel">
+              <property name="text">
+                <string>Alert price</string>
+              </property>
+            </widget>
+          </item>
+          <item row="0" column="1">
+            <widget class="QLabel" name="percentFieldLabel">
+              <property name="text">
+                <string>Change vs current (%)</string>
+              </property>
+            </widget>
+          </item>
+          <item row="1" column="0">
+            <widget class="QLineEdit" name="priceEdit">
+              <property name="toolTip">
+                <string>The price to be alerted at; the change follows the current price</string>
+              </property>
+              <property name="placeholderText">
+                <string>e.g. 250.00</string>
+              </property>
+            </widget>
+          </item>
+          <item row="1" column="1">
+            <widget class="QLineEdit" name="percentEdit">
+              <property name="toolTip">
+                <string>A change from the current price, e.g. -10; the alert price follows the current price</string>
+              </property>
+              <property name="placeholderText">
+                <string>e.g. -10</string>
+              </property>
+            </widget>
+          </item>
+        </layout>
       </item>
       <item>
         <widget class="QLabel" name="errorLabel"/>

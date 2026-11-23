@@ -162,11 +162,10 @@ QFrame#tile[compact="true"] QLabel#changeLabel { font-size: 11px; }
 }
 #dialogCard QLabel:disabled { color: rgba(138, 138, 138, 64); }
 
-/* Alert dialog: the live distance from the current price. */
-#alertContent QLabel#deltaLabel[direction="up"] { color: #26a65b; }
-#alertContent QLabel#deltaLabel[direction="down"] { color: #d03a3a; }
-#alertContent QLabel#deltaLabel[direction="flat"] { color: #8a8a8a; }
-#alertContent QLabel#fieldLabel { color: #8a8a8a; }
+/* Alert dialog: the change field is colored like a price change. */
+#alertContent QLineEdit#percentEdit[direction="up"] { color: #26a65b; }
+#alertContent QLineEdit#percentEdit[direction="down"] { color: #d03a3a; }
+#alertContent QLabel#fieldLabel, #alertContent QLabel#percentFieldLabel { color: #8a8a8a; }
 #alertContent QLabel#errorLabel, #settingsContent QLabel#errorLabel { color: #d03a3a; }
 
 /* About dialog. */

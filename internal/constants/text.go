@@ -77,14 +77,17 @@ const (
 	// Price alerts: the detail-view bell dialog, the pending-alert pills
 	// under the chart, and the fired-alert desktop notification. (The bell
 	// button itself renders the embedded assets.BellPlusSVG.)
-	TipSetAlert      = "Set a price alert"
-	FmtTitleAlert    = "Price alert — %s"
-	FmtAlertCurrent  = "Current price: %.2f"
-	LabelAlertPrice  = "Alert price"
-	LabelAddAlert    = "Add alert"
-	FmtAlertDelta    = "%s%.2f%% vs current"
+	TipSetAlert     = "Set a price alert"
+	FmtTitleAlert   = "Price alert — %s"
+	FmtAlertCurrent = "Current price: %.2f"
+	LabelAlertPrice = "Alert price"
+	LabelAddAlert   = "Add alert"
+	// FmtAlertPercent renders the change field: a signed percentage.
+	FmtAlertPercent  = "%+.2f"
+	SuffixPercent    = "%"
 	MsgErrAlertPrice = "alert price must be a positive number with up to 2 decimals"
 	MsgErrAlertSame  = "alert price must differ from the current price"
+	MsgErrAlertPct   = "change must be a percentage above -100 with up to 2 decimals"
 	MsgErrAlertDup   = "an identical alert already exists"
 	SymbolAlertUp    = "▲"
 	SymbolAlertDown  = "▼"
