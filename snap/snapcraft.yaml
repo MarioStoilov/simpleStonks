@@ -1,7 +1,7 @@
 name: simplestonks
 title: simpleStonks
 base: core24
-version: "1.4.3-rc1"
+version: "1.5.0"
 icon: internal/assets/icon.svg # bundled into the binary too; see internal/assets
 license: MIT
 summary: Bare-bones stock tracker widget
@@ -18,12 +18,17 @@ description: |
   window. The tracked list is editable from the UI and persisted along with
   other settings.
 
-  What's new in 1.4.3:
+  What's new in 1.5.0:
 
-  - The whole interface is now built from Qt Designer forms and a single
-    stylesheet; no visible changes intended.
-  - Releases are built and published automatically from a tagged release
-    branch by GitHub Actions.
+  - Price alerts can be entered as a price or as a percentage change from
+    the current price; the two fields are linked and follow the live price.
+  - Price alerts can carry an optional expiry date, picked from a calendar.
+  - Pending alerts show their distance from the current price, and can be
+    drawn as horizontal lines on the detail chart (Settings → Appearance:
+    on/off, color, opacity).
+  - Alerts the price rose up to and alerts it fell down to can play
+    different notification sounds (Settings → Notifications).
+  - Tooltips are readable again and follow the desktop's light/dark mode.
 
 grade: stable
 confinement: strict
