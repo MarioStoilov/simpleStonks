@@ -81,6 +81,12 @@ const (
 	// matching the app logo's fill.
 	DefaultChartFillOpacity = 0.25
 
+	// DefaultAlertLineColor/Opacity style the detail chart's price-alert
+	// lines: amber, clear of the green/red price colors and the gray
+	// reference line.
+	DefaultAlertLineColor   = "#f0b429"
+	DefaultAlertLineOpacity = 0.8
+
 	// BytesPerMiB converts the config's MB numbers into bytes.
 	BytesPerMiB = 1024 * 1024
 )

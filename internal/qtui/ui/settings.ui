@@ -323,6 +323,62 @@
                     </widget>
                   </item>
                   <item>
+                    <widget class="QCheckBox" name="alertLinesBox">
+                      <property name="cursor">
+                        <cursorShape>PointingHandCursor</cursorShape>
+                      </property>
+                      <property name="toolTip">
+                        <string>Draw a horizontal line on the detail chart at each pending price alert that falls inside the charted price range</string>
+                      </property>
+                      <property name="text">
+                        <string>Price alert lines on the detail chart</string>
+                      </property>
+                    </widget>
+                  </item>
+                  <item>
+                    <widget class="QLabel" name="alertLineColorLabel">
+                      <property name="text">
+                        <string>Alert line color</string>
+                      </property>
+                    </widget>
+                  </item>
+                  <item>
+                    <widget class="QPushButton" name="alertLineSwatch">
+                      <property name="cursor">
+                        <cursorShape>PointingHandCursor</cursorShape>
+                      </property>
+                      <property name="minimumSize">
+                        <size>
+                          <width>44</width>
+                          <height>22</height>
+                        </size>
+                      </property>
+                      <property name="maximumSize">
+                        <size>
+                          <width>44</width>
+                          <height>22</height>
+                        </size>
+                      </property>
+                    </widget>
+                  </item>
+                  <item>
+                    <widget class="QLabel" name="alertLineOpacityLabel">
+                      <property name="text">
+                        <string>Alert line opacity (%)</string>
+                      </property>
+                    </widget>
+                  </item>
+                  <item>
+                    <widget class="QSlider" name="alertLineSlider">
+                      <property name="orientation">
+                        <enum>Qt::Horizontal</enum>
+                      </property>
+                      <property name="maximum">
+                        <number>100</number>
+                      </property>
+                    </widget>
+                  </item>
+                  <item>
                     <spacer name="appearanceSpacer">
                       <property name="orientation">
                         <enum>Qt::Vertical</enum>

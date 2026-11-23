@@ -230,6 +230,6 @@ QFrame#tile[compact="true"] QLabel#changeLabel { font-size: 11px; }
 }
 #generalSeparator, #chartSeparator, #notifySeparator { background-color: #6e727e; border: none; }
 #appearancePage QPushButton#backgroundSwatch, #appearancePage QPushButton#chartSwatch,
-#appearancePage QPushButton#gridSwatch {
+#appearancePage QPushButton#gridSwatch, #appearancePage QPushButton#alertLineSwatch {
   border: 1px solid #6e727e; border-radius: 4px; padding: 0;
 }

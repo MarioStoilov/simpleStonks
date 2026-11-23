@@ -120,10 +120,21 @@ type Chart struct {
 
 	// FillOpacity is the fill opacity from 0 (invisible) to 1 (solid).
 	FillOpacity float64 `json:"fillOpacity"`
+
+	// AlertLines draws a horizontal line on the detail chart at each pending
+	// price alert of the shown symbol.
+	AlertLines bool `json:"alertLines"`
+
+	// AlertLineColor is the alert line color as a "#RRGGBB" hex string.
+	AlertLineColor string `json:"alertLineColor"`
+
+	// AlertLineOpacity is the alert line opacity from 0 (invisible) to 1
+	// (solid).
+	AlertLineOpacity float64 `json:"alertLineOpacity"`
 }
 
 // DefaultChart is the out-of-the-box chart styling: the logo-style area fill
-// on, the grid off but ready with subtle defaults.
+// and the price-alert lines on, the grid off but ready with subtle defaults.
 func DefaultChart() Chart {
 	return Chart{
 		Background:  constants.DefaultChartBackground,
@@ -132,6 +143,10 @@ func DefaultChart() Chart {
 		GridColor:   constants.DefaultChartGridColor,
 		Fill:        true,
 		FillOpacity: constants.DefaultChartFillOpacity,
+
+		AlertLines:       true,
+		AlertLineColor:   constants.DefaultAlertLineColor,
+		AlertLineOpacity: constants.DefaultAlertLineOpacity,
 	}
 }
 

@@ -112,6 +112,9 @@ func TestFormAccessorsMatchWidgetTypes(t *testing.T) {
 	settings.lineEdit("refreshEdit")
 	settings.checkBox("extendedBox")
 	settings.slider("opacitySlider")
+	settings.checkBox("alertLinesBox")
+	settings.button("alertLineSwatch")
+	settings.slider("alertLineSlider")
 	settings.button("saveButton")
 
 	alert := loadForm(alertForm)

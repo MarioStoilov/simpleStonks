@@ -364,6 +364,14 @@ The core MVP + polish scope is in place:
   `theme.qss` and state-dependent looks driven by Qt dynamic properties.
   Forms are editable in Qt Designer; a guard test keeps the object names
   the Go code uses in step with them.
+- Price-alert lines on the detail chart: each pending alert of the shown
+  symbol that falls inside the charted price range draws a solid horizontal
+  line with its price at the right end (the scale is not stretched to reach
+  far-off alerts). Settings → Appearance (config `chart.alertLines`,
+  `alertLineColor`, `alertLineOpacity`; live-previewed like the rest of the
+  chart styling) holds the on/off toggle, the color, and the opacity; on by
+  default in amber. The lines hide together with the pills when
+  notifications are off.
 - Tooltips follow the desktop color scheme: black on white by default, white
   on gray while the desktop is dark. The preference comes from the
   freedesktop settings portal (`internal/colorscheme`: read at startup,

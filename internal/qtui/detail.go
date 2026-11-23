@@ -265,12 +265,15 @@ func (view *detailView) setAlerts(alerts []notify.Alert) {
 	}
 	if !view.notificationsOn {
 		view.alertsBox.AddStretch()
+		view.chart.setAlertLines(nil)
 		return
 	}
+	var prices []float64
 	for _, alert := range alerts {
 		if alert.Symbol != view.symbol {
 			continue
 		}
+		prices = append(prices, alert.Price)
 		removed := alert // capture per iteration for the remove callback
 		loaded := loadForm(alertPillForm)
 		pill := loaded.frame("pill")
@@ -288,6 +291,8 @@ func (view *detailView) setAlerts(alerts []notify.Alert) {
 	}
 	view.alertsBox.AddStretch()
 	view.updateAlertPills()
+	// The chart marks the same alerts as horizontal lines (when enabled).
+	view.chart.setAlertLines(prices)
 }
 
 // updateAlertPills writes every pill's text against the shown price, so the

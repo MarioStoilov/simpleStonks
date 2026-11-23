@@ -45,6 +45,7 @@ const (
 	LabelLogArchives       = "Log archives kept"
 	TitleChartColorPicker  = "Chart background color"
 	TitleGridColorPicker   = "Grid line color"
+	TitleAlertColorPicker  = "Price alert line color"
 
 	// Settings validation messages (shown in error dialogs).
 	MsgErrRefreshInterval = "refresh interval must be a whole number of seconds ≥ 1"

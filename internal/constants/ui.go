@@ -11,7 +11,7 @@ const (
 
 	// SettingsWindowWidth/Height is the size of the settings window.
 	SettingsWindowWidth  = 600
-	SettingsWindowHeight = 560
+	SettingsWindowHeight = 620
 
 	// SearchDialogWidth/Height is the size of the add-symbol search dialog.
 	SearchDialogWidth  = 500

@@ -77,6 +77,11 @@ func showSettingsDialog(parent *qt.QWidget, store *config.Store, previewBackgrou
 		gridColor, _ = parseHexColor(constants.DefaultChartGridColor)
 	}
 
+	alertLineColor, ok := parseHexColor(cfg.Chart.AlertLineColor)
+	if !ok {
+		alertLineColor, _ = parseHexColor(constants.DefaultAlertLineColor)
+	}
+
 	// The preview closures are wired after all the controls exist.
 	var preview func()
 	var chartPreview func()
@@ -112,6 +117,19 @@ func showSettingsDialog(parent *qt.QWidget, store *config.Store, previewBackgrou
 	fillSlider := loaded.slider("fillSlider")
 	fillSlider.SetValue(int(cfg.Chart.FillOpacity*constants.PercentMax + 0.5))
 
+	alertLinesBox := loaded.checkBox("alertLinesBox")
+	alertLinesBox.SetChecked(cfg.Chart.AlertLines)
+	alertLineColorLabel := loaded.label("alertLineColorLabel")
+	alertLineSwatch := loaded.button("alertLineSwatch")
+	bindColorSwatch(alertLineSwatch, dialog.QWidget, alertLineColor,
+		constants.TitleAlertColorPicker, func(picked color.NRGBA) {
+			alertLineColor = picked
+			chartPreview()
+		})
+	alertLineOpacityLabel := loaded.label("alertLineOpacityLabel")
+	alertLineSlider := loaded.slider("alertLineSlider")
+	alertLineSlider.SetValue(int(cfg.Chart.AlertLineOpacity*constants.PercentMax + 0.5))
+
 	// A disabled effect grays out the settings that only apply to it.
 	applyEffectStates := func() {
 		for _, widget := range []*qt.QWidget{
@@ -121,6 +139,12 @@ func showSettingsDialog(parent *qt.QWidget, store *config.Store, previewBackgrou
 		}
 		fillOpacityLabel.SetEnabled(fillBox.IsChecked())
 		fillSlider.SetEnabled(fillBox.IsChecked())
+		for _, widget := range []*qt.QWidget{
+			alertLineColorLabel.QWidget, alertLineSwatch.QWidget,
+			alertLineOpacityLabel.QWidget, alertLineSlider.QWidget,
+		} {
+			widget.SetEnabled(alertLinesBox.IsChecked())
+		}
 	}
 	applyEffectStates()
 
@@ -143,6 +167,10 @@ func showSettingsDialog(parent *qt.QWidget, store *config.Store, previewBackgrou
 			GridColor:   hexOf(gridColor),
 			Fill:        fillBox.IsChecked(),
 			FillOpacity: float64(fillSlider.Value()) / constants.PercentMax,
+
+			AlertLines:       alertLinesBox.IsChecked(),
+			AlertLineColor:   hexOf(alertLineColor),
+			AlertLineOpacity: float64(alertLineSlider.Value()) / constants.PercentMax,
 		}
 	}
 	chartPreview = func() {
@@ -163,6 +191,11 @@ func showSettingsDialog(parent *qt.QWidget, store *config.Store, previewBackgrou
 		chartPreview()
 	})
 	fillSlider.OnValueChanged(func(value int) { chartPreview() })
+	alertLinesBox.OnClicked(func() {
+		applyEffectStates()
+		chartPreview()
+	})
+	alertLineSlider.OnValueChanged(func(value int) { chartPreview() })
 
 	// --- Notifications (price alerts) ---
 	notifyBox := loaded.checkBox("notifyBox")
