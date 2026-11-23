@@ -349,6 +349,13 @@ The core MVP + polish scope is in place:
   `theme.qss` and state-dependent looks driven by Qt dynamic properties.
   Forms are editable in Qt Designer; a guard test keeps the object names
   the Go code uses in step with them.
+- Tooltips follow the desktop color scheme: black on white by default, white
+  on gray while the desktop is dark. The preference comes from the
+  freedesktop settings portal (`internal/colorscheme`: read at startup,
+  followed live via its `SettingChanged` signal), falling back to the
+  brightness of the Qt palette when the desktop states none. The window and
+  dialog cards carry it as the `colorScheme` dynamic property, which the
+  theme's `QToolTip` rules key off.
 - Tests gated by `pre-commit` (unit) and `pre-push` (integration) hooks.
 
 ## Open items

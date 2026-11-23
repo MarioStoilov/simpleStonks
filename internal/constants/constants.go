@@ -170,6 +170,37 @@ const (
 	FmtSnapDesktopEntry = "%s_%s"
 )
 
+// --- Desktop color scheme (freedesktop settings portal) ---
+
+const (
+	// PortalDBusService/Path address the desktop portal on the session bus;
+	// PortalSettingsInterface is its settings interface and PortalMethodRead
+	// the call that reads one setting.
+	PortalDBusService       = "org.freedesktop.portal.Desktop"
+	PortalDBusPath          = "/org/freedesktop/portal/desktop"
+	PortalSettingsInterface = "org.freedesktop.portal.Settings"
+	PortalMethodRead        = PortalSettingsInterface + ".Read"
+
+	// PortalAppearanceNamespace/ColorSchemeKey name the light/dark
+	// preference setting.
+	PortalAppearanceNamespace = "org.freedesktop.appearance"
+	PortalColorSchemeKey      = "color-scheme"
+
+	// PortalMemberSettingChanged is the settings-change signal,
+	// PortalSignalSettingChanged its fully qualified name, and
+	// PortalSettingChangedArgs its argument count (namespace, key, value).
+	PortalMemberSettingChanged = "SettingChanged"
+	PortalSignalSettingChanged = PortalSettingsInterface + "." + PortalMemberSettingChanged
+	PortalSettingChangedArgs   = 3
+
+	// PortalSignalBuffer bounds the queued settings signals.
+	PortalSignalBuffer = 16
+
+	// PortalReadTimeout caps the startup read of the color scheme, so a
+	// hung portal cannot delay the window.
+	PortalReadTimeout = 2 * time.Second
+)
+
 // --- Timing ---
 
 const (

@@ -5,6 +5,19 @@
 
 QLabel { color: #e6e6e6; }
 
+/* --- Tooltips. A tooltip is a QLabel in its own window, styled through the
+   widget it describes, so without these rules it takes the light label color
+   above on the desktop's tooltip background. Light by default; the Go side
+   marks the window and dialog cards colorScheme="dark" while the desktop
+   runs a dark color scheme. --- */
+
+QToolTip {
+  background-color: #ffffff; color: #000000; border: 1px solid #8a8a8a; padding: 2px 4px;
+}
+*[colorScheme="dark"] QToolTip {
+  background-color: #3a3a40; color: #ffffff; border: 1px solid #6e727e;
+}
+
 /* --- View containers: transparent over the window card. Always select
    by name: a bare "background: transparent;" on a widget is a universal
    rule that outranks every application-level rule below it. --- */

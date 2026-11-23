@@ -2,20 +2,31 @@ package qtui
 
 import (
 	"os"
+	"runtime"
 	"strings"
 	"testing"
 
 	qt "github.com/mappu/miqt/qt6"
+	"github.com/mappu/miqt/qt6/mainthread"
 
 	"github.com/MarioStoilov/simplestonks/internal/model"
 )
 
-// TestMain gives the form tests a Qt application on the offscreen platform,
-// so they run without a display.
+// TestMain gives the tests a Qt application on the offscreen platform, so
+// they run without a display. The Qt event loop runs on the main thread
+// while the tests run beside it, so a test that needs the UI thread (timers,
+// tooltips, grabbing pixels) can hop onto it with mainthread.Wait.
 func TestMain(main *testing.M) {
+	runtime.LockOSThread()
 	os.Setenv("QT_QPA_PLATFORM", "offscreen")
 	qt.NewQApplication(os.Args)
-	os.Exit(main.Run())
+	// Tests open and close windows; only the end of the run may stop the loop.
+	qt.QGuiApplication_SetQuitOnLastWindowClosed(false)
+	go func() {
+		code := main.Run()
+		mainthread.Wait(func() { qt.QCoreApplication_ExitWithRetcode(code) })
+	}()
+	os.Exit(qt.QApplication_Exec())
 }
 
 // formNames lists, per form, the object names the Go code looks up. A
@@ -114,6 +125,7 @@ func TestThemeCarriesTheStateSelectors(t *testing.T) {
 	for _, selector := range []string{
 		`[selected="true"]`, `[direction="up"]`, `[direction="down"]`,
 		`[flash="up"]`, `[flash="down"]`, `[compact="true"]`,
+		`[colorScheme="dark"]`,
 	} {
 		if !strings.Contains(themeStyleSheet, selector) {
 			t.Errorf("theme.qss has no rule matching %s", selector)
