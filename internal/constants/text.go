@@ -89,11 +89,14 @@ const (
 	SymbolAlertUp    = "▲"
 	SymbolAlertDown  = "▼"
 	FmtAlertPill     = "%s %.2f"
-	FmtAlertSummary  = "%s price alert"
-	MsgAlertRose     = "Rose above"
-	MsgAlertFell     = "Fell below"
-	FmtAlertBody     = "%s %.2f — now %.2f"
-	LabelNotifyOpen  = "Open"
+	// FmtAlertPillDelta adds the threshold's signed distance from the
+	// current price in percent.
+	FmtAlertPillDelta = "%s %.2f (%+.2f%%)"
+	FmtAlertSummary   = "%s price alert"
+	MsgAlertRose      = "Rose above"
+	MsgAlertFell      = "Fell below"
+	FmtAlertBody      = "%s %.2f — now %.2f"
+	LabelNotifyOpen   = "Open"
 
 	// Notification settings (Settings → Notifications).
 	LabelNotifications    = "Price alert notifications"

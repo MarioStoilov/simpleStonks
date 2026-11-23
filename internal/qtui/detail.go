@@ -42,7 +42,7 @@ type detailView struct {
 	extendedToggle *qt.QCheckBox
 	alertButton    *qt.QPushButton
 	alertsBox      *qt.QHBoxLayout // pending-alert pills under the chart
-	alertPills     []*qt.QFrame
+	alertPills     []alertPill
 	chart          *chartWidget
 	rangeButtons   map[model.Range]*qt.QPushButton
 
@@ -231,15 +231,23 @@ func (view *detailView) setNotificationsEnabled(enabled bool) {
 	view.alertButton.SetVisible(enabled)
 }
 
+// alertPill is one pending-alert pill under the chart: its alert and the
+// label that shows it.
+type alertPill struct {
+	alert notify.Alert
+	frame *qt.QFrame
+	label *qt.QLabel
+}
+
 // setAlerts rebuilds the pending-alert pills under the chart for the shown
-// symbol: each pill shows the alert's direction and threshold with a remove
-// button. Alert changes (adds, removals, fired alerts, external file edits)
+// symbol: each pill shows the alert's direction, threshold, and distance
+// from the current price, with a remove button. Alert changes (adds, removals, fired alerts, external file edits)
 // all land here through the config subscription. With notifications
 // disabled the row stays empty.
 func (view *detailView) setAlerts(alerts []notify.Alert) {
 	for _, pill := range view.alertPills {
-		pill.SetParent(nil)
-		pill.DeleteLater()
+		pill.frame.SetParent(nil)
+		pill.frame.DeleteLater()
 	}
 	view.alertPills = nil
 	for view.alertsBox.Count() > 0 { // drop the stretch and stale items
@@ -256,18 +264,23 @@ func (view *detailView) setAlerts(alerts []notify.Alert) {
 		removed := alert // capture per iteration for the remove callback
 		loaded := loadForm(alertPillForm)
 		pill := loaded.frame("pill")
-		direction := constants.SymbolAlertUp
-		if !alert.Above {
-			direction = constants.SymbolAlertDown
-		}
 		priceLabel := loaded.label("priceLabel")
-		priceLabel.SetText(fmt.Sprintf(constants.FmtAlertPill, direction, alert.Price))
 		setState(priceLabel.QWidget, "direction", directionOfAlert(alert.Above))
 		loaded.button("removeButton").OnClicked(func() { removeAlert(view.store, removed) })
 		view.alertsBox.AddWidget(pill.QWidget)
-		view.alertPills = append(view.alertPills, pill)
+		view.alertPills = append(view.alertPills, alertPill{alert: alert, frame: pill, label: priceLabel})
 	}
 	view.alertsBox.AddStretch()
+	view.updateAlertPills()
+}
+
+// updateAlertPills writes every pill's text against the shown price, so the
+// distances tick along with the headline; until a price is shown the pills
+// carry the threshold alone.
+func (view *detailView) updateAlertPills() {
+	for _, pill := range view.alertPills {
+		pill.label.SetText(alertPillText(pill.alert, view.shownPrice, view.priceShown))
+	}
 }
 
 // directionOfAlert maps an alert's direction to the theme's states.
@@ -484,6 +497,7 @@ func (view *detailView) flashPrice(last float64, flash bool) {
 	view.shownPrice = last
 	view.priceShown = true
 	view.alertButton.SetEnabled(true)
+	view.updateAlertPills()
 }
 
 // loadSidebar refreshes every sidebar tile at 1D.

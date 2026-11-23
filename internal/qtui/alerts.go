@@ -43,6 +43,21 @@ func isDigits(text string) bool {
 	return true
 }
 
+// alertPillText renders a pending alert for its pill: the direction marker
+// and threshold, followed — once a current price is known — by the
+// threshold's distance from it in percent, e.g. "▲ 250.00 (+4.17%)".
+func alertPillText(alert notify.Alert, current float64, known bool) string {
+	marker := constants.SymbolAlertUp
+	if !alert.Above {
+		marker = constants.SymbolAlertDown
+	}
+	if !known || current <= 0 {
+		return fmt.Sprintf(constants.FmtAlertPill, marker, alert.Price)
+	}
+	percent := (alert.Price - current) / current * constants.PercentMax
+	return fmt.Sprintf(constants.FmtAlertPillDelta, marker, alert.Price, percent)
+}
+
 // showAlertDialog collects a new price alert for symbol against its current
 // headline price: the entry live-previews its % distance from the current
 // price (colored up/down), and Add validates positivity, precision, and

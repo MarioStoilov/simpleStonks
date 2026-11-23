@@ -325,7 +325,9 @@ The core MVP + polish scope is in place:
   entered threshold's % distance from it (colored up/down; the input must be
   positive with at most 2 decimals, differ from the current price, and not
   duplicate an existing alert). Pending alerts show as removable pills under
-  the detail chart. Alerts are one-shot: they fire when the live price
+  the detail chart. Each pill carries the threshold's distance from the
+  current price in brackets (e.g. `▲ 250.00 (+4.17%)`), updated with every
+  price refresh. Alerts are one-shot: they fire when the live price
   reaches or passes the threshold in the direction it was set (ticks that
   jump past it included), raise a freedesktop desktop notification, and are
   removed. They persist in the config (`alerts`) and are dropped together

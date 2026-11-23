@@ -1,6 +1,10 @@
 package qtui
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/MarioStoilov/simplestonks/internal/notify"
+)
 
 func TestParseAlertPrice(t *testing.T) {
 	valid := map[string]float64{
@@ -25,6 +29,30 @@ func TestParseAlertPrice(t *testing.T) {
 	for _, input := range invalid {
 		if value, ok := parseAlertPrice(input); ok {
 			t.Errorf("parseAlertPrice(%q) = %v/true, want invalid", input, value)
+		}
+	}
+}
+
+func TestAlertPillText(t *testing.T) {
+	above := notify.Alert{Symbol: "AAPL", Price: 250, Above: true}
+	below := notify.Alert{Symbol: "AAPL", Price: 180, Above: false}
+	cases := []struct {
+		name    string
+		alert   notify.Alert
+		current float64
+		known   bool
+		want    string
+	}{
+		{"above the price", above, 240, true, "▲ 250.00 (+4.17%)"},
+		{"below the price", below, 200, true, "▼ 180.00 (-10.00%)"},
+		{"price moved past an above-alert", above, 260, true, "▲ 250.00 (-3.85%)"},
+		{"at the price", above, 250, true, "▲ 250.00 (+0.00%)"},
+		{"no price yet", above, 0, false, "▲ 250.00"},
+		{"unusable price", below, 0, true, "▼ 180.00"},
+	}
+	for _, testCase := range cases {
+		if got := alertPillText(testCase.alert, testCase.current, testCase.known); got != testCase.want {
+			t.Errorf("%s: alertPillText = %q, want %q", testCase.name, got, testCase.want)
 		}
 	}
 }
