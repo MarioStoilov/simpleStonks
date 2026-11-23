@@ -162,11 +162,39 @@ QFrame#tile[compact="true"] QLabel#changeLabel { font-size: 11px; }
 }
 #dialogCard QLabel:disabled { color: rgba(138, 138, 138, 64); }
 
-/* Alert dialog: the change field is colored like a price change. */
+/* Alert dialog: the active one of the linked price/change fields carries an
+   accent border; the change field is colored like a price change. */
+#alertContent QLineEdit[anchor="true"] { border: 1px solid #5b8def; }
 #alertContent QLineEdit#percentEdit[direction="up"] { color: #26a65b; }
 #alertContent QLineEdit#percentEdit[direction="down"] { color: #d03a3a; }
-#alertContent QLabel#fieldLabel, #alertContent QLabel#percentFieldLabel { color: #8a8a8a; }
+#alertContent QLabel#fieldLabel, #alertContent QLabel#percentFieldLabel,
+#alertContent QLabel#expiryFieldLabel { color: #8a8a8a; }
 #alertContent QLabel#errorLabel, #settingsContent QLabel#errorLabel { color: #d03a3a; }
+
+#alertContent QPushButton#expiryClearButton { padding: 5px 10px; }
+
+/* Date picker popup (calendar.ui, calendar_day.ui), opened from the alert
+   dialog. Days before today are disabled: dimmed and struck out. */
+#calendarPopup { background-color: #24262e; border: 1px solid #6e727e; }
+#calendarPopup QLabel { background: transparent; }
+#calendarPopup QLabel#monthLabel { font-weight: 600; }
+#calendarPopup QLabel[weekday="true"] { color: #8a8a8a; font-size: 11px; }
+#calendarPopup QPushButton {
+  background: transparent; color: #e6e6e6; border: 1px solid transparent; border-radius: 4px; padding: 3px;
+}
+#calendarPopup QPushButton[outside="true"] { color: #8a8a8a; }
+#calendarPopup QPushButton[today="true"] { border-color: #6e727e; }
+#calendarPopup QPushButton:hover { background-color: #2c303c; }
+#calendarPopup QPushButton[selected="true"], #calendarPopup QPushButton[selected="true"]:hover {
+  background-color: #303a52; font-weight: 600;
+}
+#calendarPopup QPushButton:disabled, #calendarPopup QPushButton:disabled:hover {
+  background: transparent; color: #50525c; text-decoration: line-through;
+}
+#calendarPopup QPushButton#previousMonthButton, #calendarPopup QPushButton#nextMonthButton {
+  padding: 3px 10px;
+}
+#calendarPopup QPushButton#previousMonthButton:disabled { text-decoration: none; }
 
 /* About dialog. */
 #aboutContent QLabel#logoLabel { background: transparent; }

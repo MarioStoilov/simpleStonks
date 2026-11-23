@@ -244,6 +244,13 @@ const (
 	// TimeFmtMonth renders a month, e.g. "Jan".
 	TimeFmtMonth = "Jan"
 
+	// DateFmtISO is the ISO calendar date used for alert expiry dates, in
+	// the config file and the alert dialog.
+	DateFmtISO = "2006-01-02"
+
+	// TimeFmtMonthYear titles a date-picker page, e.g. "January 2006".
+	TimeFmtMonthYear = "January 2006"
+
 	// TimeFmtYear renders a year, e.g. "2006".
 	TimeFmtYear = "2006"
 

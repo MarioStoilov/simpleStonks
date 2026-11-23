@@ -45,9 +45,14 @@ var formNames = map[string][]string{
 		"aboutButton", "scroll", "gridContent", "grid",
 	},
 	cardForm:      {"card", "topBar", "offlineLabel", "minimiseButton", "closeButton", "stack"},
-	alertPillForm: {"pill", "priceLabel", "removeButton"},
+	alertPillForm: {"pill", "priceLabel", "expiryIcon", "removeButton"},
+	calendarForm: {
+		"calendarPopup", "previousMonthButton", "monthLabel", "nextMonthButton", "daysGrid",
+	},
+	calendarDayForm: {"dayButton"},
 	alertForm: {
-		"alertContent", "currentLabel", "priceEdit", "percentEdit", "errorLabel",
+		"alertContent", "currentLabel", "priceEdit", "percentEdit", "expiryEdit",
+		"expiryClearButton", "errorLabel",
 		"cancelButton", "addButton",
 	},
 	detailForm: {
@@ -113,6 +118,13 @@ func TestFormAccessorsMatchWidgetTypes(t *testing.T) {
 	alert.label("currentLabel")
 	alert.lineEdit("priceEdit")
 	alert.lineEdit("percentEdit")
+	alert.lineEdit("expiryEdit")
+	alert.button("expiryClearButton")
+	calendar := loadForm(calendarForm)
+	calendar.button("previousMonthButton")
+	calendar.label("monthLabel")
+	calendar.grid("daysGrid")
+	loadForm(calendarDayForm).button("dayButton")
 	alert.button("addButton")
 
 	loadForm(searchForm).listWidget("results")
@@ -135,7 +147,8 @@ func TestThemeCarriesTheStateSelectors(t *testing.T) {
 	for _, selector := range []string{
 		`[selected="true"]`, `[direction="up"]`, `[direction="down"]`,
 		`[flash="up"]`, `[flash="down"]`, `[compact="true"]`,
-		`[colorScheme="dark"]`,
+		`[colorScheme="dark"]`, `[outside="true"]`, `[today="true"]`,
+		`[anchor="true"]`,
 	} {
 		if !strings.Contains(themeStyleSheet, selector) {
 			t.Errorf("theme.qss has no rule matching %s", selector)

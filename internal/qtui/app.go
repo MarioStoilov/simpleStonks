@@ -218,6 +218,7 @@ func (app *App) applyColorScheme() {
 func (app *App) handleQuote(symbol string, price float64, ok bool) {
 	app.fetchOK[symbol] = ok
 	app.updateOfflineIndicator()
+	app.dropExpiredAlerts(time.Now())
 	if ok {
 		app.handlePrice(symbol, price)
 	}
@@ -244,6 +245,26 @@ func offlineNow(results map[string]bool) bool {
 		}
 	}
 	return true
+}
+
+// dropExpiredAlerts removes the pending alerts whose expiry day is over at
+// now. It runs with every fetch outcome — failed ones too, so alerts also
+// expire while offline or while notifications are paused — and so always
+// ahead of the trigger check: an expired alert never fires.
+func (app *App) dropExpiredAlerts(now time.Time) {
+	expired, _ := notify.Expired(app.store.Get().Alerts, now)
+	if len(expired) == 0 {
+		return
+	}
+	if err := app.store.Update(func(conf *config.Config) {
+		_, conf.Alerts = notify.Expired(conf.Alerts, now)
+	}); err != nil {
+		slog.Error("removing expired alerts failed", "err", err)
+		return
+	}
+	for _, alert := range expired {
+		slog.Info("price alert expired", "symbol", alert.Symbol, "price", alert.Price, "expires", alert.Expires)
+	}
 }
 
 // handlePrice checks the pending price alerts against a fresh quote: fired

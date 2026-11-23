@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	qt "github.com/mappu/miqt/qt6"
 
@@ -87,8 +88,9 @@ func alertPillText(alert notify.Alert, current float64, known bool) string {
 	return fmt.Sprintf(constants.FmtAlertPillDelta, marker, alert.Price, percent)
 }
 
-// alertAnchor is which of the alert dialog's two linked fields the user
-// typed last; the other one is derived from it and the current price.
+// alertAnchor is which of the alert dialog's two linked fields is active —
+// the one the user last clicked into or typed in; the other one is derived
+// from it and the current price.
 type alertAnchor int
 
 const (
@@ -98,15 +100,23 @@ const (
 )
 
 // alertEntry is the state behind the alert dialog's linked price and
-// percentage fields. The field the user edited last is the anchor and keeps
-// its text; the other is derived from it and follows the current price as it
-// ticks: an entered price keeps its value while its percentage moves, an
-// entered percentage keeps its value while its price moves.
+// percentage fields. The active field (the anchor) keeps its text and is
+// never written to, so the cursor in it is left alone; the other is derived
+// from it and follows the current price as it ticks: an entered price keeps
+// its value while its percentage moves, an entered percentage keeps its
+// value while its price moves.
 type alertEntry struct {
 	current     float64
 	anchor      alertAnchor
 	priceText   string
 	percentText string
+}
+
+// focus makes a field the anchor as the user enters it, keeping both texts
+// as they are: the value under the cursor freezes, and the other field
+// starts following from the next edit or price tick.
+func (entry *alertEntry) focus(anchor alertAnchor) {
+	entry.anchor = anchor
 }
 
 // editPrice takes a user edit of the price field and derives the percentage.
@@ -130,17 +140,24 @@ func (entry *alertEntry) setCurrent(current float64) {
 	entry.derive()
 }
 
-// derive recomputes the non-anchor field; it is empty while the anchor is
-// not a valid entry.
+// derive recomputes the non-anchor field: it is emptied while the anchor
+// holds an invalid entry, and left alone while the anchor is empty (a field
+// just entered must not wipe the value in the other one).
 func (entry *alertEntry) derive() {
 	switch entry.anchor {
 	case anchorPrice:
+		if strings.TrimSpace(entry.priceText) == "" {
+			return
+		}
 		entry.percentText = ""
 		if value, ok := parseAlertPrice(entry.priceText); ok && entry.current > 0 {
 			percent := (value - entry.current) / entry.current * constants.PercentMax
 			entry.percentText = fmt.Sprintf(constants.FmtAlertPercent, percent)
 		}
 	case anchorPercent:
+		if strings.TrimSpace(entry.percentText) == "" {
+			return
+		}
 		entry.priceText = ""
 		if percent, ok := parseAlertPercent(entry.percentText); ok && entry.current > 0 {
 			value := entry.current * (1 + percent/constants.PercentMax)
@@ -167,10 +184,13 @@ func (entry *alertEntry) direction() string {
 
 // showAlertDialog collects a new price alert for symbol. The alert can be
 // entered as a price or as a percentage change from the current price; the
-// two fields are linked (see alertEntry) and the percentage is colored like
-// a price change. follow registers the dialog for the live price while it is
-// open, so the current-price line and the derived field keep ticking. Add
-// validates positivity, precision, and uniqueness before persisting through
+// two fields are linked (see alertEntry): the one clicked into or typed in
+// is the active one, marked by the theme, and the percentage is colored
+// like a price change. follow registers the dialog for the live price while it is
+// open, so the current-price line and the derived field keep ticking. An
+// optional expiry date, picked from a calendar popup, drops the alert once
+// that day is over. Add validates
+// positivity, precision, uniqueness, and the expiry before persisting through
 // the store — the detail view's alert list re-renders via the config
 // subscription.
 func showAlertDialog(parent *qt.QWidget, store *config.Store, symbol string, current float64, follow func(listener func(price float64))) {
@@ -183,6 +203,8 @@ func showAlertDialog(parent *qt.QWidget, store *config.Store, symbol string, cur
 	currentLabel := loaded.label("currentLabel")
 	priceEdit := loaded.lineEdit("priceEdit")
 	percentEdit := loaded.lineEdit("percentEdit")
+	expiryEdit := loaded.lineEdit("expiryEdit")
+	expiryClearButton := loaded.button("expiryClearButton")
 	errorLabel := loaded.label("errorLabel")
 
 	entry := &alertEntry{current: current}
@@ -197,8 +219,23 @@ func showAlertDialog(parent *qt.QWidget, store *config.Store, symbol string, cur
 			priceEdit.SetText(entry.priceText)
 		}
 		setState(percentEdit.QWidget, "direction", entry.direction())
+		setState(priceEdit.QWidget, "anchor", fmt.Sprint(entry.anchor == anchorPrice))
+		setState(percentEdit.QWidget, "anchor", fmt.Sprint(entry.anchor == anchorPercent))
 	}
 	show()
+
+	// Entering a field makes it the active one, so it is no longer written
+	// to and its cursor stays where the user put it.
+	priceEdit.OnFocusInEvent(func(super func(event *qt.QFocusEvent), event *qt.QFocusEvent) {
+		super(event)
+		entry.focus(anchorPrice)
+		show()
+	})
+	percentEdit.OnFocusInEvent(func(super func(event *qt.QFocusEvent), event *qt.QFocusEvent) {
+		super(event)
+		entry.focus(anchorPercent)
+		show()
+	})
 
 	// textEdited fires for user edits only, so writing the derived field
 	// does not bounce back as an edit of it.
@@ -212,6 +249,29 @@ func showAlertDialog(parent *qt.QWidget, store *config.Store, symbol string, cur
 		entry.editPercent(text)
 		show()
 	})
+	// The expiry is empty until its field is clicked: the click sets today
+	// and opens the calendar to pick another day; the clear button empties
+	// it again.
+	setExpiry := func(expires string) {
+		errorLabel.SetText("")
+		expiryEdit.SetText(expires)
+		expiryClearButton.SetEnabled(expires != "")
+	}
+	setExpiry("")
+	expiryEdit.OnMousePressEvent(func(super func(event *qt.QMouseEvent), event *qt.QMouseEvent) {
+		today := dayOf(time.Now())
+		if expiryEdit.Text() == "" {
+			setExpiry(today.Format(constants.DateFmtISO))
+		}
+		selected, err := time.Parse(constants.DateFmtISO, expiryEdit.Text())
+		if err != nil {
+			selected = today
+		}
+		showCalendarPopup(expiryEdit.QWidget, selected, today, func(picked time.Time) {
+			setExpiry(picked.Format(constants.DateFmtISO))
+		})
+	})
+	expiryClearButton.OnClicked(func() { setExpiry("") })
 	follow(func(price float64) {
 		entry.setCurrent(price)
 		show()
@@ -239,7 +299,16 @@ func showAlertDialog(parent *qt.QWidget, store *config.Store, symbol string, cur
 				return
 			}
 		}
-		alert := notify.Alert{Symbol: symbol, Price: value, Above: value > entry.current}
+		expires, ok := notify.ParseExpiry(expiryEdit.Text())
+		if !ok {
+			errorLabel.SetText(constants.MsgErrAlertExpiry)
+			return
+		}
+		alert := notify.Alert{Symbol: symbol, Price: value, Above: value > entry.current, Expires: expires}
+		if alert.ExpiredAt(time.Now()) {
+			errorLabel.SetText(constants.MsgErrAlertExpiryPast)
+			return
+		}
 		if err := store.Update(func(conf *config.Config) {
 			conf.Alerts = append(conf.Alerts, alert)
 		}); err != nil {

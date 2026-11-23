@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>CalendarDay</class>
+ <widget class="QPushButton" name="dayButton">
+  <property name="minimumSize">
+   <size><width>30</width><height>26</height></size>
+  </property>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

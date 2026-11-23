@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -19,7 +20,8 @@ import (
 )
 
 // Alert is a one-shot price alert on a tracked symbol: it fires when the
-// live price reaches or passes Price and is then removed.
+// live price reaches or passes Price and is then removed. An alert with an
+// expiry date that never fired is dropped once that day is over.
 type Alert struct {
 	// Symbol is the tracked ticker/index the alert watches.
 	Symbol string `json:"symbol"`
@@ -30,6 +32,52 @@ type Alert struct {
 	// Above is true when the alert was set above the market price and fires
 	// at or above Price; false when set below, firing at or below it.
 	Above bool `json:"above"`
+
+	// Expires is the optional last day the alert stays pending, as a local
+	// calendar date (constants.DateFmtISO, e.g. "2026-12-31"); empty means
+	// it never expires.
+	Expires string `json:"expires,omitempty"`
+}
+
+// ParseExpiry validates an expiry-date entry and returns it in the stored
+// form. Empty input is valid and means no expiry.
+func ParseExpiry(text string) (expires string, ok bool) {
+	trimmed := strings.TrimSpace(text)
+	if trimmed == "" {
+		return "", true
+	}
+	day, err := time.Parse(constants.DateFmtISO, trimmed)
+	if err != nil {
+		return "", false
+	}
+	return day.Format(constants.DateFmtISO), true
+}
+
+// ExpiredAt reports whether the alert's expiry day is over at now (in now's
+// time zone): the alert stays live through the whole of its expiry date. An
+// alert without an expiry — or with an unreadable one, e.g. from a hand
+// edit of the config — never expires.
+func (alert Alert) ExpiredAt(now time.Time) bool {
+	if alert.Expires == "" {
+		return false
+	}
+	if _, err := time.Parse(constants.DateFmtISO, alert.Expires); err != nil {
+		return false
+	}
+	// ISO dates order like the days they name.
+	return now.Format(constants.DateFmtISO) > alert.Expires
+}
+
+// Expired splits the alerts whose expiry day is over at now from the rest.
+func Expired(alerts []Alert, now time.Time) (expired, remaining []Alert) {
+	for _, alert := range alerts {
+		if alert.ExpiredAt(now) {
+			expired = append(expired, alert)
+		} else {
+			remaining = append(remaining, alert)
+		}
+	}
+	return expired, remaining
 }
 
 // Duration selects how long an alert notification stays on screen.

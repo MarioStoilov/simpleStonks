@@ -249,7 +249,9 @@ type alertPill struct {
 
 // setAlerts rebuilds the pending-alert pills under the chart for the shown
 // symbol: each pill shows the alert's direction, threshold, and distance
-// from the current price, with a remove button. Alert changes (adds, removals, fired alerts, external file edits)
+// from the current price, with a remove button; an alert with an expiry
+// date also carries a calendar icon whose tooltip names the date. Alert
+// changes (adds, removals, fired alerts, external file edits)
 // all land here through the config subscription. With notifications
 // disabled the row stays empty.
 func (view *detailView) setAlerts(alerts []notify.Alert) {
@@ -274,6 +276,12 @@ func (view *detailView) setAlerts(alerts []notify.Alert) {
 		pill := loaded.frame("pill")
 		priceLabel := loaded.label("priceLabel")
 		setState(priceLabel.QWidget, "direction", directionOfAlert(alert.Above))
+		expiryIcon := loaded.label("expiryIcon")
+		expiryIcon.SetVisible(alert.Expires != "")
+		if alert.Expires != "" {
+			expiryIcon.SetPixmap(svgPixmap(assets.CalendarSVG, int(constants.PillIconSize)))
+			expiryIcon.SetToolTip(fmt.Sprintf(constants.FmtTipAlertExpiry, alert.Expires))
+		}
 		loaded.button("removeButton").OnClicked(func() { removeAlert(view.store, removed) })
 		view.alertsBox.AddWidget(pill.QWidget)
 		view.alertPills = append(view.alertPills, alertPill{alert: alert, frame: pill, label: priceLabel})

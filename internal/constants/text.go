@@ -89,12 +89,19 @@ const (
 	MsgErrAlertSame  = "alert price must differ from the current price"
 	MsgErrAlertPct   = "change must be a percentage above -100 with up to 2 decimals"
 	MsgErrAlertDup   = "an identical alert already exists"
-	SymbolAlertUp    = "▲"
-	SymbolAlertDown  = "▼"
-	FmtAlertPill     = "%s %.2f"
+	// MsgErrAlertExpiry/ExpiryPast reject a malformed or already-over
+	// expiry date.
+	MsgErrAlertExpiry     = "expiry is not a valid date"
+	MsgErrAlertExpiryPast = "expiry date is already over"
+	SymbolAlertUp         = "▲"
+	SymbolAlertDown       = "▼"
+	FmtAlertPill          = "%s %.2f"
 	// FmtAlertPillDelta adds the threshold's signed distance from the
 	// current price in percent.
 	FmtAlertPillDelta = "%s %.2f (%+.2f%%)"
+	// FmtTipAlertExpiry is the tooltip of a pill's calendar icon, naming
+	// the alert's expiry date.
+	FmtTipAlertExpiry = "Expires %s"
 	FmtAlertSummary   = "%s price alert"
 	MsgAlertRose      = "Rose above"
 	MsgAlertFell      = "Fell below"

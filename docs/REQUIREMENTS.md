@@ -323,14 +323,22 @@ The core MVP + polish scope is in place:
 - Price alerts with desktop notifications: a bell button in the detail-view
   header opens a dialog showing the live current price and two linked
   fields, the alert price and its % change from the current price (colored
-  up/down). Whichever was typed last is kept and the other is derived and
-  follows the live price: an entered price keeps its value while its
+  up/down). The field last clicked into or typed in is the active one
+  (accent border): it is kept and never rewritten, and the other is derived
+  and follows the live price: an entered price keeps its value while its
   percentage moves; an entered percentage (e.g. `-10`) keeps its value while
   the price it stands for moves, and the alert is created at that price as of
   Add. (The price must be positive with at most 2 decimals, differ from the
   current price, and not duplicate an existing alert; the percentage must be
   above -100 with at most 2 decimals.) Pending alerts show as removable pills under
-  the detail chart. Each pill carries the threshold's distance from the
+  the detail chart. An alert can carry an optional expiry date (stored as
+  `expires`, `YYYY-MM-DD`, on the alert; in the dialog the field is empty by
+  default, a click sets today and opens a calendar popup — the app's own month page,
+  `calendar.ui`, with hover highlights and past days struck out and
+  unpickable — and a clear button empties it again): it stays pending through
+  that whole local day and is dropped, without firing or notifying, once the
+  day is over — also while offline or with notifications off. Its pill carries a
+  calendar icon whose tooltip names the date. Each pill carries the threshold's distance from the
   current price in brackets (e.g. `▲ 250.00 (+4.17%)`), updated with every
   price refresh. Alerts are one-shot: they fire when the live price
   reaches or passes the threshold in the direction it was set (ticks that

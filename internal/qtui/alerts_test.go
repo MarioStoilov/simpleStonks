@@ -131,6 +131,45 @@ func TestAlertEntryPercentAnchor(t *testing.T) {
 	}
 }
 
+// TestAlertEntryFocusSwitchesTheAnchor: entering the derived field freezes
+// its value without touching either text; from then on the other field
+// follows.
+func TestAlertEntryFocusSwitchesTheAnchor(t *testing.T) {
+	entry := &alertEntry{current: 200}
+	entry.editPrice("123.45")
+	if entry.percentText != "-38.27" {
+		t.Fatalf("percent = %q, want -38.27", entry.percentText)
+	}
+	entry.focus(anchorPercent)
+	if entry.priceText != "123.45" || entry.percentText != "-38.27" {
+		t.Errorf("entering the percentage changed the fields: price %q, percent %q",
+			entry.priceText, entry.percentText)
+	}
+	entry.setCurrent(300)
+	if entry.percentText != "-38.27" || entry.priceText != "185.19" {
+		t.Errorf("after a tick with the percentage active: price %q, percent %q",
+			entry.priceText, entry.percentText)
+	}
+	entry.focus(anchorPrice)
+	entry.setCurrent(370.38)
+	if entry.priceText != "185.19" || entry.percentText != "-50.00" {
+		t.Errorf("after a tick with the price active again: price %q, percent %q",
+			entry.priceText, entry.percentText)
+	}
+}
+
+// TestAlertEntryEmptyAnchorKeepsTheOtherField: entering an empty field must
+// not wipe the value in the other one on the next tick.
+func TestAlertEntryEmptyAnchorKeepsTheOtherField(t *testing.T) {
+	entry := &alertEntry{current: 200}
+	entry.priceText = "220" // a price in place, the percentage still empty
+	entry.focus(anchorPercent)
+	entry.setCurrent(210)
+	if value, ok := entry.price(); !ok || value != 220 {
+		t.Errorf("price after entering the empty percentage = %v/%v, want 220/true", value, ok)
+	}
+}
+
 // TestAlertEntryWithoutEdits: price ticks before any input leave both
 // fields empty.
 func TestAlertEntryWithoutEdits(t *testing.T) {
