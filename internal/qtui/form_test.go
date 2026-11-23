@@ -2,20 +2,31 @@ package qtui
 
 import (
 	"os"
+	"runtime"
 	"strings"
 	"testing"
 
 	qt "github.com/mappu/miqt/qt6"
+	"github.com/mappu/miqt/qt6/mainthread"
 
 	"github.com/MarioStoilov/simplestonks/internal/model"
 )
 
-// TestMain gives the form tests a Qt application on the offscreen platform,
-// so they run without a display.
+// TestMain gives the tests a Qt application on the offscreen platform, so
+// they run without a display. The Qt event loop runs on the main thread
+// while the tests run beside it, so a test that needs the UI thread (timers,
+// tooltips, grabbing pixels) can hop onto it with mainthread.Wait.
 func TestMain(main *testing.M) {
+	runtime.LockOSThread()
 	os.Setenv("QT_QPA_PLATFORM", "offscreen")
 	qt.NewQApplication(os.Args)
-	os.Exit(main.Run())
+	// Tests open and close windows; only the end of the run may stop the loop.
+	qt.QGuiApplication_SetQuitOnLastWindowClosed(false)
+	go func() {
+		code := main.Run()
+		mainthread.Wait(func() { qt.QCoreApplication_ExitWithRetcode(code) })
+	}()
+	os.Exit(qt.QApplication_Exec())
 }
 
 // formNames lists, per form, the object names the Go code looks up. A
@@ -34,7 +45,16 @@ var formNames = map[string][]string{
 		"aboutButton", "scroll", "gridContent", "grid",
 	},
 	cardForm:      {"card", "topBar", "offlineLabel", "minimiseButton", "closeButton", "stack"},
-	alertPillForm: {"pill", "priceLabel", "removeButton"},
+	alertPillForm: {"pill", "priceLabel", "expiryIcon", "removeButton"},
+	calendarForm: {
+		"calendarPopup", "previousMonthButton", "monthLabel", "nextMonthButton", "daysGrid",
+	},
+	calendarDayForm: {"dayButton"},
+	alertForm: {
+		"alertContent", "currentLabel", "priceEdit", "percentEdit", "expiryEdit",
+		"expiryClearButton", "errorLabel",
+		"cancelButton", "addButton",
+	},
 	detailForm: {
 		"detailRoot", "sidebarScroll", "sidebarContent", "sidebarBox", "backButton",
 		"symbolLabel", "nameLabel", "alertButton", "extendedToggle", "priceLabel",
@@ -92,7 +112,29 @@ func TestFormAccessorsMatchWidgetTypes(t *testing.T) {
 	settings.lineEdit("refreshEdit")
 	settings.checkBox("extendedBox")
 	settings.slider("opacitySlider")
+	settings.checkBox("alertLinesBox")
+	settings.comboBox("soundRoseBox")
+	settings.button("soundRoseTestButton")
+	settings.label("soundRoseLabel")
+	settings.comboBox("soundFellBox")
+	settings.button("soundFellTestButton")
+	settings.label("soundFellLabel")
+	settings.button("alertLineSwatch")
+	settings.slider("alertLineSlider")
 	settings.button("saveButton")
+
+	alert := loadForm(alertForm)
+	alert.label("currentLabel")
+	alert.lineEdit("priceEdit")
+	alert.lineEdit("percentEdit")
+	alert.lineEdit("expiryEdit")
+	alert.button("expiryClearButton")
+	calendar := loadForm(calendarForm)
+	calendar.button("previousMonthButton")
+	calendar.label("monthLabel")
+	calendar.grid("daysGrid")
+	loadForm(calendarDayForm).button("dayButton")
+	alert.button("addButton")
 
 	loadForm(searchForm).listWidget("results")
 	loadForm(cardDialogForm).vbox("body")
@@ -114,6 +156,8 @@ func TestThemeCarriesTheStateSelectors(t *testing.T) {
 	for _, selector := range []string{
 		`[selected="true"]`, `[direction="up"]`, `[direction="down"]`,
 		`[flash="up"]`, `[flash="down"]`, `[compact="true"]`,
+		`[colorScheme="dark"]`, `[outside="true"]`, `[today="true"]`,
+		`[anchor="true"]`,
 	} {
 		if !strings.Contains(themeStyleSheet, selector) {
 			t.Errorf("theme.qss has no rule matching %s", selector)

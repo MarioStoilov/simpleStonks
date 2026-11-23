@@ -5,6 +5,19 @@
 
 QLabel { color: #e6e6e6; }
 
+/* --- Tooltips. A tooltip is a QLabel in its own window, styled through the
+   widget it describes, so without these rules it takes the light label color
+   above on the desktop's tooltip background. Light by default; the Go side
+   marks the window and dialog cards colorScheme="dark" while the desktop
+   runs a dark color scheme. --- */
+
+QToolTip {
+  background-color: #ffffff; color: #000000; border: 1px solid #8a8a8a; padding: 2px 4px;
+}
+*[colorScheme="dark"] QToolTip {
+  background-color: #3a3a40; color: #ffffff; border: 1px solid #6e727e;
+}
+
 /* --- View containers: transparent over the window card. Always select
    by name: a bare "background: transparent;" on a widget is a universal
    rule that outranks every application-level rule below it. --- */
@@ -149,12 +162,39 @@ QFrame#tile[compact="true"] QLabel#changeLabel { font-size: 11px; }
 }
 #dialogCard QLabel:disabled { color: rgba(138, 138, 138, 64); }
 
-/* Alert dialog: the live distance from the current price. */
-#alertContent QLabel#deltaLabel[direction="up"] { color: #26a65b; }
-#alertContent QLabel#deltaLabel[direction="down"] { color: #d03a3a; }
-#alertContent QLabel#deltaLabel[direction="flat"] { color: #8a8a8a; }
-#alertContent QLabel#fieldLabel { color: #8a8a8a; }
+/* Alert dialog: the active one of the linked price/change fields carries an
+   accent border; the change field is colored like a price change. */
+#alertContent QLineEdit[anchor="true"] { border: 1px solid #5b8def; }
+#alertContent QLineEdit#percentEdit[direction="up"] { color: #26a65b; }
+#alertContent QLineEdit#percentEdit[direction="down"] { color: #d03a3a; }
+#alertContent QLabel#fieldLabel, #alertContent QLabel#percentFieldLabel,
+#alertContent QLabel#expiryFieldLabel { color: #8a8a8a; }
 #alertContent QLabel#errorLabel, #settingsContent QLabel#errorLabel { color: #d03a3a; }
+
+#alertContent QPushButton#expiryClearButton { padding: 5px 10px; }
+
+/* Date picker popup (calendar.ui, calendar_day.ui), opened from the alert
+   dialog. Days before today are disabled: dimmed and struck out. */
+#calendarPopup { background-color: #24262e; border: 1px solid #6e727e; }
+#calendarPopup QLabel { background: transparent; }
+#calendarPopup QLabel#monthLabel { font-weight: 600; }
+#calendarPopup QLabel[weekday="true"] { color: #8a8a8a; font-size: 11px; }
+#calendarPopup QPushButton {
+  background: transparent; color: #e6e6e6; border: 1px solid transparent; border-radius: 4px; padding: 3px;
+}
+#calendarPopup QPushButton[outside="true"] { color: #8a8a8a; }
+#calendarPopup QPushButton[today="true"] { border-color: #6e727e; }
+#calendarPopup QPushButton:hover { background-color: #2c303c; }
+#calendarPopup QPushButton[selected="true"], #calendarPopup QPushButton[selected="true"]:hover {
+  background-color: #303a52; font-weight: 600;
+}
+#calendarPopup QPushButton:disabled, #calendarPopup QPushButton:disabled:hover {
+  background: transparent; color: #50525c; text-decoration: line-through;
+}
+#calendarPopup QPushButton#previousMonthButton, #calendarPopup QPushButton#nextMonthButton {
+  padding: 3px 10px;
+}
+#calendarPopup QPushButton#previousMonthButton:disabled { text-decoration: none; }
 
 /* About dialog. */
 #aboutContent QLabel#logoLabel { background: transparent; }
@@ -190,6 +230,6 @@ QFrame#tile[compact="true"] QLabel#changeLabel { font-size: 11px; }
 }
 #generalSeparator, #chartSeparator, #notifySeparator { background-color: #6e727e; border: none; }
 #appearancePage QPushButton#backgroundSwatch, #appearancePage QPushButton#chartSwatch,
-#appearancePage QPushButton#gridSwatch {
+#appearancePage QPushButton#gridSwatch, #appearancePage QPushButton#alertLineSwatch {
   border: 1px solid #6e727e; border-radius: 4px; padding: 0;
 }

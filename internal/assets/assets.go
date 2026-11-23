@@ -21,3 +21,9 @@ var BellPlusSVG []byte
 //
 //go:embed offline.svg
 var OfflineSVG []byte
+
+// CalendarSVG marks a pending price alert that has an expiry date: a white
+// outline calendar page.
+//
+//go:embed calendar.svg
+var CalendarSVG []byte

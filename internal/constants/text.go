@@ -45,6 +45,7 @@ const (
 	LabelLogArchives       = "Log archives kept"
 	TitleChartColorPicker  = "Chart background color"
 	TitleGridColorPicker   = "Grid line color"
+	TitleAlertColorPicker  = "Price alert line color"
 
 	// Settings validation messages (shown in error dialogs).
 	MsgErrRefreshInterval = "refresh interval must be a whole number of seconds ≥ 1"
@@ -77,29 +78,46 @@ const (
 	// Price alerts: the detail-view bell dialog, the pending-alert pills
 	// under the chart, and the fired-alert desktop notification. (The bell
 	// button itself renders the embedded assets.BellPlusSVG.)
-	TipSetAlert      = "Set a price alert"
-	FmtTitleAlert    = "Price alert — %s"
-	FmtAlertCurrent  = "Current price: %.2f"
-	LabelAlertPrice  = "Alert price"
-	LabelAddAlert    = "Add alert"
-	FmtAlertDelta    = "%s%.2f%% vs current"
+	TipSetAlert     = "Set a price alert"
+	FmtTitleAlert   = "Price alert — %s"
+	FmtAlertCurrent = "Current price: %.2f"
+	LabelAlertPrice = "Alert price"
+	LabelAddAlert   = "Add alert"
+	// FmtAlertPercent renders the change field: a signed percentage.
+	FmtAlertPercent  = "%+.2f"
+	SuffixPercent    = "%"
 	MsgErrAlertPrice = "alert price must be a positive number with up to 2 decimals"
 	MsgErrAlertSame  = "alert price must differ from the current price"
+	MsgErrAlertPct   = "change must be a percentage above -100 with up to 2 decimals"
 	MsgErrAlertDup   = "an identical alert already exists"
-	SymbolAlertUp    = "▲"
-	SymbolAlertDown  = "▼"
-	FmtAlertPill     = "%s %.2f"
-	FmtAlertSummary  = "%s price alert"
-	MsgAlertRose     = "Rose above"
-	MsgAlertFell     = "Fell below"
-	FmtAlertBody     = "%s %.2f — now %.2f"
-	LabelNotifyOpen  = "Open"
+	// MsgErrAlertExpiry/ExpiryPast reject a malformed or already-over
+	// expiry date.
+	MsgErrAlertExpiry     = "expiry is not a valid date"
+	MsgErrAlertExpiryPast = "expiry date is already over"
+	SymbolAlertUp         = "▲"
+	SymbolAlertDown       = "▼"
+	FmtAlertPill          = "%s %.2f"
+	// FmtAlertPillDelta adds the threshold's signed distance from the
+	// current price in percent.
+	FmtAlertPillDelta = "%s %.2f (%+.2f%%)"
+	// FmtTipAlertExpiry is the tooltip of a pill's calendar icon, naming
+	// the alert's expiry date.
+	FmtTipAlertExpiry = "Expires %s"
+	FmtAlertSummary   = "%s price alert"
+	MsgAlertRose      = "Rose above"
+	MsgAlertFell      = "Fell below"
+	FmtAlertBody      = "%s %.2f — now %.2f"
+	LabelNotifyOpen   = "Open"
 
 	// Notification settings (Settings → Notifications).
-	LabelNotifications    = "Price alert notifications"
-	TipNotifications      = "Fire desktop notifications when a price alert is hit; hides the alert bell and the pending alerts when off"
-	LabelNotifyDuration   = "Notification duration"
-	LabelClearAlerts      = "Clear all price alerts"
+	LabelNotifications  = "Price alert notifications"
+	TipNotifications    = "Fire desktop notifications when a price alert is hit; hides the alert bell and the pending alerts when off"
+	LabelNotifyDuration = "Notification duration"
+	LabelClearAlerts    = "Clear all price alerts"
+	// TitleSoundTest/FmtSoundTestBody are the sample notification behind
+	// the settings' sound Test buttons; the body names the sound.
+	TitleSoundTest        = "Price alert sound test"
+	FmtSoundTestBody      = "This is the “%s” sound"
 	TitleClearAlerts      = "Clear all price alerts"
 	LabelClear            = "Clear"
 	MsgConfirmClearAlerts = "Are you sure you want to clear all price alerts?\n\n" +

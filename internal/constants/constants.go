@@ -81,6 +81,12 @@ const (
 	// matching the app logo's fill.
 	DefaultChartFillOpacity = 0.25
 
+	// DefaultAlertLineColor/Opacity style the detail chart's price-alert
+	// lines: amber, clear of the green/red price colors and the gray
+	// reference line.
+	DefaultAlertLineColor   = "#f0b429"
+	DefaultAlertLineOpacity = 0.8
+
 	// BytesPerMiB converts the config's MB numbers into bytes.
 	BytesPerMiB = 1024 * 1024
 )
@@ -160,14 +166,49 @@ const (
 	NotifyHintSoundName    = "sound-name"
 	NotifyHintDesktopEntry = "desktop-entry"
 
-	// NotifySoundName is the XDG sound-naming-spec event played with alert
-	// notifications — the desktop's standard incoming-message sound.
+	// NotifyHintSuppressSound is the freedesktop hint that silences a
+	// notification (the "none" sound choice).
+	NotifyHintSuppressSound = "suppress-sound"
+
+	// NotifySoundName is the XDG sound-naming-spec event of the default
+	// alert sound — the desktop's standard incoming-message sound.
 	NotifySoundName = "message-new-instant"
 
 	// EnvSnapName holds the snap name under snap confinement; snap desktop
 	// entries are named <snap>_<app> (FmtSnapDesktopEntry).
 	EnvSnapName         = "SNAP_NAME"
 	FmtSnapDesktopEntry = "%s_%s"
+)
+
+// --- Desktop color scheme (freedesktop settings portal) ---
+
+const (
+	// PortalDBusService/Path address the desktop portal on the session bus;
+	// PortalSettingsInterface is its settings interface and PortalMethodRead
+	// the call that reads one setting.
+	PortalDBusService       = "org.freedesktop.portal.Desktop"
+	PortalDBusPath          = "/org/freedesktop/portal/desktop"
+	PortalSettingsInterface = "org.freedesktop.portal.Settings"
+	PortalMethodRead        = PortalSettingsInterface + ".Read"
+
+	// PortalAppearanceNamespace/ColorSchemeKey name the light/dark
+	// preference setting.
+	PortalAppearanceNamespace = "org.freedesktop.appearance"
+	PortalColorSchemeKey      = "color-scheme"
+
+	// PortalMemberSettingChanged is the settings-change signal,
+	// PortalSignalSettingChanged its fully qualified name, and
+	// PortalSettingChangedArgs its argument count (namespace, key, value).
+	PortalMemberSettingChanged = "SettingChanged"
+	PortalSignalSettingChanged = PortalSettingsInterface + "." + PortalMemberSettingChanged
+	PortalSettingChangedArgs   = 3
+
+	// PortalSignalBuffer bounds the queued settings signals.
+	PortalSignalBuffer = 16
+
+	// PortalReadTimeout caps the startup read of the color scheme, so a
+	// hung portal cannot delay the window.
+	PortalReadTimeout = 2 * time.Second
 )
 
 // --- Timing ---
@@ -213,6 +254,13 @@ const (
 	// TimeFmtMonth renders a month, e.g. "Jan".
 	TimeFmtMonth = "Jan"
 
+	// DateFmtISO is the ISO calendar date used for alert expiry dates, in
+	// the config file and the alert dialog.
+	DateFmtISO = "2006-01-02"
+
+	// TimeFmtMonthYear titles a date-picker page, e.g. "January 2006".
+	TimeFmtMonthYear = "January 2006"
+
 	// TimeFmtYear renders a year, e.g. "2006".
 	TimeFmtYear = "2006"
 
@@ -245,4 +293,8 @@ const (
 	// AlertPriceDecimals is how many digits an alert price may carry after
 	// the decimal dot.
 	AlertPriceDecimals = 2
+
+	// AlertPercentDecimals is how many digits an alert's percentage change
+	// may carry after the decimal dot.
+	AlertPercentDecimals = 2
 )

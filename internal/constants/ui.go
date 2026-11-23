@@ -11,7 +11,7 @@ const (
 
 	// SettingsWindowWidth/Height is the size of the settings window.
 	SettingsWindowWidth  = 600
-	SettingsWindowHeight = 560
+	SettingsWindowHeight = 620
 
 	// SearchDialogWidth/Height is the size of the add-symbol search dialog.
 	SearchDialogWidth  = 500
@@ -27,7 +27,7 @@ const (
 
 	// AlertDialogWidth/Height is the size of the price-alert dialog.
 	AlertDialogWidth  = 400
-	AlertDialogHeight = 260
+	AlertDialogHeight = 320
 
 	// ConfirmDialogWidth is the width of confirmation modals (the height
 	// follows the wrapped message).
@@ -58,6 +58,15 @@ const (
 	// HeaderIconSize is the rendered size of the SVG header icons (the
 	// alert bell, the offline indicator).
 	HeaderIconSize = 18
+
+	// DaysPerWeek/CalendarWeeks shape a date-picker month page: seven day
+	// columns by six week rows, enough for any month.
+	DaysPerWeek   = 7
+	CalendarWeeks = 6
+
+	// PillIconSize is the rendered size of the calendar icon on an alert
+	// pill with an expiry date.
+	PillIconSize = 14
 
 	// DisabledAddWidth/Height is the size of the disabled Add stand-in.
 	DisabledAddWidth  = 72

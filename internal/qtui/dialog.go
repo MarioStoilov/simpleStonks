@@ -25,6 +25,8 @@ func newCardDialog(parent *qt.QWidget, title string) (*qt.QDialog, *qt.QVBoxLayo
 	// Each frameless dialog carries the theme on its card, for the same
 	// reason the main window does (see App.applyBackgroundStyle).
 	card.SetStyleSheet(themeStyleSheet)
+	// The tooltip looks follow the desktop color scheme as of opening.
+	setState(card.QWidget, colorSchemeProperty, activeColorScheme)
 	outer.AddWidget(card.QWidget)
 
 	titleLabel := loaded.label("titleLabel")

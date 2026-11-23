@@ -120,10 +120,21 @@ type Chart struct {
 
 	// FillOpacity is the fill opacity from 0 (invisible) to 1 (solid).
 	FillOpacity float64 `json:"fillOpacity"`
+
+	// AlertLines draws a horizontal line on the detail chart at each pending
+	// price alert of the shown symbol.
+	AlertLines bool `json:"alertLines"`
+
+	// AlertLineColor is the alert line color as a "#RRGGBB" hex string.
+	AlertLineColor string `json:"alertLineColor"`
+
+	// AlertLineOpacity is the alert line opacity from 0 (invisible) to 1
+	// (solid).
+	AlertLineOpacity float64 `json:"alertLineOpacity"`
 }
 
 // DefaultChart is the out-of-the-box chart styling: the logo-style area fill
-// on, the grid off but ready with subtle defaults.
+// and the price-alert lines on, the grid off but ready with subtle defaults.
 func DefaultChart() Chart {
 	return Chart{
 		Background:  constants.DefaultChartBackground,
@@ -132,6 +143,10 @@ func DefaultChart() Chart {
 		GridColor:   constants.DefaultChartGridColor,
 		Fill:        true,
 		FillOpacity: constants.DefaultChartFillOpacity,
+
+		AlertLines:       true,
+		AlertLineColor:   constants.DefaultAlertLineColor,
+		AlertLineOpacity: constants.DefaultAlertLineOpacity,
 	}
 }
 
@@ -143,11 +158,22 @@ type Notifications struct {
 
 	// Duration is how long a notification stays on screen.
 	Duration notify.Duration `json:"duration"`
+
+	// SoundRose and SoundFell are what a notification plays for an alert
+	// the price rose up to and for one it fell down to; they may differ so
+	// the direction is audible.
+	SoundRose notify.Sound `json:"soundRose"`
+	SoundFell notify.Sound `json:"soundFell"`
 }
 
 // DefaultNotifications is the out-of-the-box notification behavior.
 func DefaultNotifications() Notifications {
-	return Notifications{Enabled: true, Duration: notify.DurationModerate}
+	return Notifications{
+		Enabled:   true,
+		Duration:  notify.DurationModerate,
+		SoundRose: notify.SoundMessage,
+		SoundFell: notify.SoundMessage,
+	}
 }
 
 // Config is the full persisted configuration.

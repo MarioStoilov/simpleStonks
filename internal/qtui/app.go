@@ -15,6 +15,7 @@ import (
 	"github.com/mappu/miqt/qt6/mainthread"
 
 	"github.com/MarioStoilov/simplestonks/internal/assets"
+	"github.com/MarioStoilov/simplestonks/internal/colorscheme"
 	"github.com/MarioStoilov/simplestonks/internal/config"
 	"github.com/MarioStoilov/simplestonks/internal/constants"
 	"github.com/MarioStoilov/simplestonks/internal/notify"
@@ -34,6 +35,10 @@ type App struct {
 	refresh      *qt.QTimer
 	offlineLabel *qt.QLabel
 
+	// colorPreference is the desktop's stated light/dark preference, kept
+	// current by the settings-portal subscription.
+	colorPreference colorscheme.Scheme
+
 	// fetchOK records each tracked symbol's latest fetch outcome; the
 	// offline indicator shows once they have all failed.
 	fetchOK map[string]bool
@@ -48,7 +53,7 @@ func New(quotes provider.QuoteProvider, store *config.Store) *App {
 
 // Run builds the window and blocks until the app exits.
 func (app *App) Run() {
-	qt.NewQApplication(os.Args)
+	application := qt.NewQApplication(os.Args)
 
 	// Frameless translucent window: the inner card paints the configured
 	// background color at the configured opacity — the widget look that
@@ -121,6 +126,7 @@ func (app *App) Run() {
 
 	app.applyConfig(app.store.Get())
 	app.home.loadAll(false)
+	app.followColorScheme(application)
 
 	// Config changes (UI edits or external file edits) apply live; the
 	// subscription fires on a watcher goroutine, so hop to the UI thread.
@@ -177,11 +183,42 @@ func (app *App) applyBackgroundStyle(background color.NRGBA, opacity float64) {
 		int(constants.TileCornerRadius)))
 }
 
+// followColorScheme marks the window card with the desktop's color scheme
+// and keeps it current: preference changes arrive from the settings portal
+// (on a D-Bus goroutine), and a palette change re-evaluates the fallback
+// used when the desktop states no preference.
+func (app *App) followColorScheme(application *qt.QApplication) {
+	preference, err := colorscheme.Read()
+	if err != nil {
+		slog.Debug("no desktop color-scheme preference; following the palette", "err", err)
+	}
+	app.colorPreference = preference
+	app.applyColorScheme()
+
+	if err := colorscheme.Watch(func(changed colorscheme.Scheme) {
+		mainthread.Wait(func() {
+			app.colorPreference = changed
+			app.applyColorScheme()
+		})
+	}); err != nil {
+		slog.Debug("watching the desktop color scheme failed", "err", err)
+	}
+	application.OnPaletteChanged(func(*qt.QPalette) { app.applyColorScheme() })
+}
+
+// applyColorScheme resolves the scheme and sets it on the window card, where
+// the theme's tooltip rules pick it up; dialogs take it as they open.
+func (app *App) applyColorScheme() {
+	activeColorScheme = resolveColorScheme(app.colorPreference, desktopPaletteIsDark())
+	setState(app.card, colorSchemeProperty, activeColorScheme)
+}
+
 // handleQuote digests one fetch outcome on the UI thread: the result feeds
 // the offline indicator, and successful quotes run the price-alert check.
 func (app *App) handleQuote(symbol string, price float64, ok bool) {
 	app.fetchOK[symbol] = ok
 	app.updateOfflineIndicator()
+	app.dropExpiredAlerts(time.Now())
 	if ok {
 		app.handlePrice(symbol, price)
 	}
@@ -210,6 +247,26 @@ func offlineNow(results map[string]bool) bool {
 	return true
 }
 
+// dropExpiredAlerts removes the pending alerts whose expiry day is over at
+// now. It runs with every fetch outcome — failed ones too, so alerts also
+// expire while offline or while notifications are paused — and so always
+// ahead of the trigger check: an expired alert never fires.
+func (app *App) dropExpiredAlerts(now time.Time) {
+	expired, _ := notify.Expired(app.store.Get().Alerts, now)
+	if len(expired) == 0 {
+		return
+	}
+	if err := app.store.Update(func(conf *config.Config) {
+		_, conf.Alerts = notify.Expired(conf.Alerts, now)
+	}); err != nil {
+		slog.Error("removing expired alerts failed", "err", err)
+		return
+	}
+	for _, alert := range expired {
+		slog.Info("price alert expired", "symbol", alert.Symbol, "price", alert.Price, "expires", alert.Expires)
+	}
+}
+
 // handlePrice checks the pending price alerts against a fresh quote: fired
 // alerts raise a desktop notification and are removed (one-shot). With
 // notifications disabled the alerts stay pending instead of firing
@@ -233,7 +290,8 @@ func (app *App) handlePrice(symbol string, price float64) {
 		triggered := alert // capture per iteration for the goroutine
 		// Off the UI thread: the session-bus call may block briefly.
 		go func() {
-			if err := notify.SendAlert(triggered, price, cfg.Notifications.Duration); err != nil {
+			sound := notify.SoundFor(triggered, cfg.Notifications.SoundRose, cfg.Notifications.SoundFell)
+			if err := notify.SendAlert(triggered, price, cfg.Notifications.Duration, sound); err != nil {
 				slog.Error("desktop notification failed",
 					"symbol", triggered.Symbol, "price", triggered.Price, "err", err)
 			}

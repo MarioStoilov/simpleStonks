@@ -321,11 +321,26 @@ The core MVP + polish scope is in place:
   the last extended prices stay viewable overnight; regular hours render
   exactly as without the feature.
 - Price alerts with desktop notifications: a bell button in the detail-view
-  header opens a dialog showing the current price and live-previewing the
-  entered threshold's % distance from it (colored up/down; the input must be
-  positive with at most 2 decimals, differ from the current price, and not
-  duplicate an existing alert). Pending alerts show as removable pills under
-  the detail chart. Alerts are one-shot: they fire when the live price
+  header opens a dialog showing the live current price and two linked
+  fields, the alert price and its % change from the current price (colored
+  up/down). The field last clicked into or typed in is the active one
+  (accent border): it is kept and never rewritten, and the other is derived
+  and follows the live price: an entered price keeps its value while its
+  percentage moves; an entered percentage (e.g. `-10`) keeps its value while
+  the price it stands for moves, and the alert is created at that price as of
+  Add. (The price must be positive with at most 2 decimals, differ from the
+  current price, and not duplicate an existing alert; the percentage must be
+  above -100 with at most 2 decimals.) Pending alerts show as removable pills under
+  the detail chart. An alert can carry an optional expiry date (stored as
+  `expires`, `YYYY-MM-DD`, on the alert; in the dialog the field is empty by
+  default, a click sets today and opens a calendar popup — the app's own month page,
+  `calendar.ui`, with hover highlights and past days struck out and
+  unpickable — and a clear button empties it again): it stays pending through
+  that whole local day and is dropped, without firing or notifying, once the
+  day is over — also while offline or with notifications off. Its pill carries a
+  calendar icon whose tooltip names the date. Each pill carries the threshold's distance from the
+  current price in brackets (e.g. `▲ 250.00 (+4.17%)`), updated with every
+  price refresh. Alerts are one-shot: they fire when the live price
   reaches or passes the threshold in the direction it was set (ticks that
   jump past it included), raise a freedesktop desktop notification, and are
   removed. They persist in the config (`alerts`) and are dropped together
@@ -333,7 +348,12 @@ The core MVP + polish scope is in place:
   settings section (Settings → Notifications + config `notifications`): an
   on/off toggle (off hides the bell and the pending-alert pills and pauses
   triggering — alerts are kept, not consumed silently), a
-  quick/moderate/long on-screen duration, and a "Clear all price alerts"
+  quick/moderate/long on-screen duration, a sound for alerts the price rose
+  up to and another for alerts it fell down to (`soundRose` / `soundFell`:
+  message — the default for both — bell, complete, information, warning,
+  alarm, or none; each maps to an XDG sound-naming event the desktop's
+  sound theme plays, and has a Test button that plays it through a sample
+  notification), and a "Clear all price alerts"
   button behind an irreversible-action confirmation modal. Clicking a
   notification raises the window and opens the detail view of the alert's
   symbol; notifications play the desktop's standard message sound and land
@@ -349,6 +369,21 @@ The core MVP + polish scope is in place:
   `theme.qss` and state-dependent looks driven by Qt dynamic properties.
   Forms are editable in Qt Designer; a guard test keeps the object names
   the Go code uses in step with them.
+- Price-alert lines on the detail chart: each pending alert of the shown
+  symbol that falls inside the charted price range draws a solid horizontal
+  line with its price at the right end (the scale is not stretched to reach
+  far-off alerts). Settings → Appearance (config `chart.alertLines`,
+  `alertLineColor`, `alertLineOpacity`; live-previewed like the rest of the
+  chart styling) holds the on/off toggle, the color, and the opacity; on by
+  default in amber. The lines hide together with the pills when
+  notifications are off.
+- Tooltips follow the desktop color scheme: black on white by default, white
+  on gray while the desktop is dark. The preference comes from the
+  freedesktop settings portal (`internal/colorscheme`: read at startup,
+  followed live via its `SettingChanged` signal), falling back to the
+  brightness of the Qt palette when the desktop states none. The window and
+  dialog cards carry it as the `colorScheme` dynamic property, which the
+  theme's `QToolTip` rules key off.
 - Tests gated by `pre-commit` (unit) and `pre-push` (integration) hooks.
 
 ## Open items

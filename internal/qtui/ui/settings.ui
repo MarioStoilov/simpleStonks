@@ -323,6 +323,62 @@
                     </widget>
                   </item>
                   <item>
+                    <widget class="QCheckBox" name="alertLinesBox">
+                      <property name="cursor">
+                        <cursorShape>PointingHandCursor</cursorShape>
+                      </property>
+                      <property name="toolTip">
+                        <string>Draw a horizontal line on the detail chart at each pending price alert that falls inside the charted price range</string>
+                      </property>
+                      <property name="text">
+                        <string>Price alert lines on the detail chart</string>
+                      </property>
+                    </widget>
+                  </item>
+                  <item>
+                    <widget class="QLabel" name="alertLineColorLabel">
+                      <property name="text">
+                        <string>Alert line color</string>
+                      </property>
+                    </widget>
+                  </item>
+                  <item>
+                    <widget class="QPushButton" name="alertLineSwatch">
+                      <property name="cursor">
+                        <cursorShape>PointingHandCursor</cursorShape>
+                      </property>
+                      <property name="minimumSize">
+                        <size>
+                          <width>44</width>
+                          <height>22</height>
+                        </size>
+                      </property>
+                      <property name="maximumSize">
+                        <size>
+                          <width>44</width>
+                          <height>22</height>
+                        </size>
+                      </property>
+                    </widget>
+                  </item>
+                  <item>
+                    <widget class="QLabel" name="alertLineOpacityLabel">
+                      <property name="text">
+                        <string>Alert line opacity (%)</string>
+                      </property>
+                    </widget>
+                  </item>
+                  <item>
+                    <widget class="QSlider" name="alertLineSlider">
+                      <property name="orientation">
+                        <enum>Qt::Horizontal</enum>
+                      </property>
+                      <property name="maximum">
+                        <number>100</number>
+                      </property>
+                    </widget>
+                  </item>
+                  <item>
                     <spacer name="appearanceSpacer">
                       <property name="orientation">
                         <enum>Qt::Vertical</enum>
@@ -361,6 +417,68 @@
                   </item>
                   <item>
                     <widget class="QComboBox" name="durationBox"/>
+                  </item>
+                  <item>
+                    <widget class="QLabel" name="soundRoseLabel">
+                      <property name="text">
+                        <string>Sound when the price rises up to an alert</string>
+                      </property>
+                    </widget>
+                  </item>
+                  <item>
+                    <layout class="QHBoxLayout" name="soundRoseRow" stretch="1,0">
+                      <item>
+                        <widget class="QComboBox" name="soundRoseBox">
+                          <property name="toolTip">
+                            <string>Played by the notification of an alert set above the price; the sounds come from the desktop's sound theme</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item>
+                        <widget class="QPushButton" name="soundRoseTestButton">
+                          <property name="cursor">
+                            <cursorShape>PointingHandCursor</cursorShape>
+                          </property>
+                          <property name="toolTip">
+                            <string>Play this sound with a sample notification</string>
+                          </property>
+                          <property name="text">
+                            <string>Test</string>
+                          </property>
+                        </widget>
+                      </item>
+                    </layout>
+                  </item>
+                  <item>
+                    <widget class="QLabel" name="soundFellLabel">
+                      <property name="text">
+                        <string>Sound when the price falls down to an alert</string>
+                      </property>
+                    </widget>
+                  </item>
+                  <item>
+                    <layout class="QHBoxLayout" name="soundFellRow" stretch="1,0">
+                      <item>
+                        <widget class="QComboBox" name="soundFellBox">
+                          <property name="toolTip">
+                            <string>Played by the notification of an alert set below the price; the sounds come from the desktop's sound theme</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item>
+                        <widget class="QPushButton" name="soundFellTestButton">
+                          <property name="cursor">
+                            <cursorShape>PointingHandCursor</cursorShape>
+                          </property>
+                          <property name="toolTip">
+                            <string>Play this sound with a sample notification</string>
+                          </property>
+                          <property name="text">
+                            <string>Test</string>
+                          </property>
+                        </widget>
+                      </item>
+                    </layout>
                   </item>
                   <item>
                     <widget class="QFrame" name="notifySeparator">

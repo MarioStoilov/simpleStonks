@@ -35,6 +35,8 @@ const (
 	confirmForm     = "confirm.ui"
 	aboutForm       = "about.ui"
 	alertForm       = "alert.ui"
+	calendarForm    = "calendar.ui"
+	calendarDayForm = "calendar_day.ui"
 	previewForm     = "preview.ui"
 	searchForm      = "search.ui"
 	resultRowForm   = "resultrow.ui"

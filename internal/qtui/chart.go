@@ -23,6 +23,11 @@ type chartStyle struct {
 	gridColor  color.NRGBA
 	fill       bool
 	fillAlpha  uint8
+
+	// alertLines draws the price-alert lines in alertColor, which carries
+	// the configured opacity in its alpha.
+	alertLines bool
+	alertColor color.NRGBA
 }
 
 // activeChartStyle is what charts paint with; setChartStyle replaces it and
@@ -48,6 +53,15 @@ func chartStyleOf(cfg config.Chart) chartStyle {
 	if opacity < 0 || opacity > 1 {
 		opacity = constants.DefaultChartFillOpacity
 	}
+	alertColor, ok := parseHexColor(cfg.AlertLineColor)
+	if !ok {
+		alertColor, _ = parseHexColor(constants.DefaultAlertLineColor)
+	}
+	alertOpacity := cfg.AlertLineOpacity
+	if alertOpacity < 0 || alertOpacity > 1 {
+		alertOpacity = constants.DefaultAlertLineOpacity
+	}
+	alertColor.A = alphaByte(alertOpacity)
 	return chartStyle{
 		background: background,
 		grid:       cfg.Grid,
@@ -55,6 +69,8 @@ func chartStyleOf(cfg config.Chart) chartStyle {
 		gridColor:  gridColor,
 		fill:       cfg.Fill,
 		fillAlpha:  alphaByte(opacity),
+		alertLines: cfg.AlertLines,
+		alertColor: alertColor,
 	}
 }
 
@@ -80,6 +96,11 @@ type chartWidget struct {
 	// every setSeries so regular charts can never inherit it.
 	dividerTime time.Time
 	dimFromIdx  int
+
+	// alertPrices are the pending price alerts drawn as horizontal lines
+	// (detail view only, when the chart style has them on). They belong to
+	// the shown symbol, not the series, so setSeries keeps them.
+	alertPrices []float64
 
 	// Hover readout state (only used with hoverReadout enabled): pointer
 	// tracking plus the plotted geometry cached by the last paint.
@@ -148,6 +169,12 @@ func (chart *chartWidget) setSeries(series model.Series, lineColor color.NRGBA) 
 func (chart *chartWidget) setAfterHoursOverlay(boundary time.Time, dimFromIdx int) {
 	chart.dividerTime = boundary
 	chart.dimFromIdx = dimFromIdx
+	chart.Update()
+}
+
+// setAlertLines replaces the price levels drawn as alert lines and repaints.
+func (chart *chartWidget) setAlertLines(prices []float64) {
+	chart.alertPrices = prices
 	chart.Update()
 }
 
@@ -294,6 +321,29 @@ func (chart *chartWidget) paint() {
 		))
 	}
 
+	// Price-alert lines (under the series): one solid hairline per pending
+	// alert that falls inside the plotted price range — the scale is not
+	// stretched to reach far-off alerts, which would flatten the chart.
+	var alertYs []float32
+	var alertValues []float64
+	if style.alertLines && low != high {
+		alertPen := qt.NewQPen3(qColor(style.alertColor))
+		alertPen.SetWidthF(float64(constants.HairlineWidth))
+		painter.SetPenWithPen(alertPen)
+		for _, price := range chart.alertPrices {
+			if price < low || price > high {
+				continue
+			}
+			posY := chartmath.YFor(price, low, high, plotH, constants.ChartPadding)
+			painter.DrawLine(qt.NewQLineF3(
+				float64(leftMargin+constants.ChartPadding), float64(posY),
+				float64(leftMargin+plotW-constants.ChartPadding), float64(posY),
+			))
+			alertYs = append(alertYs, posY)
+			alertValues = append(alertValues, price)
+		}
+	}
+
 	// Line pens: the caller's single color, or — with the area fill on — the
 	// up/down colors split at the reference like the fill itself; each side
 	// gets a dimmed after-hours variant.
@@ -408,6 +458,19 @@ func (chart *chartWidget) paint() {
 		}
 		drawText(lbl.text, leftMargin-constants.AxisGap-lbl.width, posY)
 	}
+
+	// Each alert line carries its price at the right end, above the line (or
+	// below it when clipped at the top), in the line's color.
+	painter.SetPen(qColor(style.alertColor))
+	for idx, posY := range alertYs {
+		text := chartmath.FormatAxisPrice(alertValues[idx])
+		textY := posY - labelH
+		if textY < 0 {
+			textY = posY
+		}
+		drawText(text, width-constants.ChartPadding-float32(chart.metrics.HorizontalAdvance(text)), textY)
+	}
+	painter.SetPen(qColor(constants.ColorAxis))
 
 	// Time (x) labels along the bottom, formatted per the series' range. An
 	// intraday series with a known session is labeled across the full window.

@@ -3,6 +3,7 @@ package qtui
 import (
 	"fmt"
 	"image/color"
+	"log/slog"
 	"strconv"
 	"strings"
 	"time"
@@ -77,6 +78,11 @@ func showSettingsDialog(parent *qt.QWidget, store *config.Store, previewBackgrou
 		gridColor, _ = parseHexColor(constants.DefaultChartGridColor)
 	}
 
+	alertLineColor, ok := parseHexColor(cfg.Chart.AlertLineColor)
+	if !ok {
+		alertLineColor, _ = parseHexColor(constants.DefaultAlertLineColor)
+	}
+
 	// The preview closures are wired after all the controls exist.
 	var preview func()
 	var chartPreview func()
@@ -112,6 +118,19 @@ func showSettingsDialog(parent *qt.QWidget, store *config.Store, previewBackgrou
 	fillSlider := loaded.slider("fillSlider")
 	fillSlider.SetValue(int(cfg.Chart.FillOpacity*constants.PercentMax + 0.5))
 
+	alertLinesBox := loaded.checkBox("alertLinesBox")
+	alertLinesBox.SetChecked(cfg.Chart.AlertLines)
+	alertLineColorLabel := loaded.label("alertLineColorLabel")
+	alertLineSwatch := loaded.button("alertLineSwatch")
+	bindColorSwatch(alertLineSwatch, dialog.QWidget, alertLineColor,
+		constants.TitleAlertColorPicker, func(picked color.NRGBA) {
+			alertLineColor = picked
+			chartPreview()
+		})
+	alertLineOpacityLabel := loaded.label("alertLineOpacityLabel")
+	alertLineSlider := loaded.slider("alertLineSlider")
+	alertLineSlider.SetValue(int(cfg.Chart.AlertLineOpacity*constants.PercentMax + 0.5))
+
 	// A disabled effect grays out the settings that only apply to it.
 	applyEffectStates := func() {
 		for _, widget := range []*qt.QWidget{
@@ -121,6 +140,12 @@ func showSettingsDialog(parent *qt.QWidget, store *config.Store, previewBackgrou
 		}
 		fillOpacityLabel.SetEnabled(fillBox.IsChecked())
 		fillSlider.SetEnabled(fillBox.IsChecked())
+		for _, widget := range []*qt.QWidget{
+			alertLineColorLabel.QWidget, alertLineSwatch.QWidget,
+			alertLineOpacityLabel.QWidget, alertLineSlider.QWidget,
+		} {
+			widget.SetEnabled(alertLinesBox.IsChecked())
+		}
 	}
 	applyEffectStates()
 
@@ -143,6 +168,10 @@ func showSettingsDialog(parent *qt.QWidget, store *config.Store, previewBackgrou
 			GridColor:   hexOf(gridColor),
 			Fill:        fillBox.IsChecked(),
 			FillOpacity: float64(fillSlider.Value()) / constants.PercentMax,
+
+			AlertLines:       alertLinesBox.IsChecked(),
+			AlertLineColor:   hexOf(alertLineColor),
+			AlertLineOpacity: float64(alertLineSlider.Value()) / constants.PercentMax,
 		}
 	}
 	chartPreview = func() {
@@ -163,6 +192,11 @@ func showSettingsDialog(parent *qt.QWidget, store *config.Store, previewBackgrou
 		chartPreview()
 	})
 	fillSlider.OnValueChanged(func(value int) { chartPreview() })
+	alertLinesBox.OnClicked(func() {
+		applyEffectStates()
+		chartPreview()
+	})
+	alertLineSlider.OnValueChanged(func(value int) { chartPreview() })
 
 	// --- Notifications (price alerts) ---
 	notifyBox := loaded.checkBox("notifyBox")
@@ -173,10 +207,37 @@ func showSettingsDialog(parent *qt.QWidget, store *config.Store, previewBackgrou
 		durationBox.AddItem(string(durationOption))
 	}
 	durationBox.SetCurrentText(string(cfg.Notifications.Duration))
-	// Disabled notifications gray out the setting that only applies to them.
+	// One sound per alert direction, each with a Test button that plays the
+	// choice through a sample notification before anything is saved.
+	bindSound := func(boxName, testName string, current notify.Sound) *qt.QComboBox {
+		box := loaded.comboBox(boxName)
+		for _, soundOption := range notify.Sounds {
+			box.AddItem(string(soundOption))
+		}
+		box.SetCurrentText(string(current))
+		loaded.button(testName).OnClicked(func() {
+			sound := notify.Sound(box.CurrentText())
+			duration := notify.Duration(durationBox.CurrentText())
+			// Off the UI thread: the session-bus call may block briefly.
+			go func() {
+				if err := notify.SendSoundTest(sound, duration); err != nil {
+					slog.Error("sound test notification failed", "sound", sound, "err", err)
+				}
+			}()
+		})
+		return box
+	}
+	soundRoseBox := bindSound("soundRoseBox", "soundRoseTestButton", cfg.Notifications.SoundRose)
+	soundFellBox := bindSound("soundFellBox", "soundFellTestButton", cfg.Notifications.SoundFell)
+	// Disabled notifications gray out the settings that only apply to them.
 	applyNotifyState := func() {
-		durationLabel.SetEnabled(notifyBox.IsChecked())
-		durationBox.SetEnabled(notifyBox.IsChecked())
+		for _, widget := range []*qt.QWidget{
+			durationLabel.QWidget, durationBox.QWidget,
+			loaded.label("soundRoseLabel").QWidget, soundRoseBox.QWidget, loaded.button("soundRoseTestButton").QWidget,
+			loaded.label("soundFellLabel").QWidget, soundFellBox.QWidget, loaded.button("soundFellTestButton").QWidget,
+		} {
+			widget.SetEnabled(notifyBox.IsChecked())
+		}
 	}
 	applyNotifyState()
 	notifyBox.OnClicked(func() { applyNotifyState() })
@@ -232,6 +293,8 @@ func showSettingsDialog(parent *qt.QWidget, store *config.Store, previewBackgrou
 			conf.ExtendedHours = extendedBox.IsChecked()
 			conf.Notifications.Enabled = notifyBox.IsChecked()
 			conf.Notifications.Duration = notify.Duration(durationBox.CurrentText())
+			conf.Notifications.SoundRose = notify.Sound(soundRoseBox.CurrentText())
+			conf.Notifications.SoundFell = notify.Sound(soundFellBox.CurrentText())
 			conf.Background.Color = hexOf(background)
 			conf.Background.Opacity = float64(opacitySlider.Value()) / constants.PercentMax
 			conf.Chart = chartOf(gridSize)

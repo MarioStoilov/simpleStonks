@@ -14,7 +14,7 @@ import (
 func TestSendManual(t *testing.T) {
 	clicked := make(chan Alert, 1)
 	OnActivate(func(alert Alert) { clicked <- alert })
-	if err := SendAlert(Alert{Symbol: "TEST", Price: 123.45, Above: true}, 130, DurationLong); err != nil {
+	if err := SendAlert(Alert{Symbol: "TEST", Price: 123.45, Above: true}, 130, DurationLong, SoundBell); err != nil {
 		t.Fatalf("SendAlert: %v", err)
 	}
 	select {

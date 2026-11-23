@@ -42,7 +42,7 @@ type detailView struct {
 	extendedToggle *qt.QCheckBox
 	alertButton    *qt.QPushButton
 	alertsBox      *qt.QHBoxLayout // pending-alert pills under the chart
-	alertPills     []*qt.QFrame
+	alertPills     []alertPill
 	chart          *chartWidget
 	rangeButtons   map[model.Range]*qt.QPushButton
 
@@ -70,7 +70,11 @@ type detailView struct {
 
 	shownPrice float64
 	priceShown bool
-	flashTimer *qt.QTimer
+
+	// priceListener receives every shown price while the alert dialog is
+	// open, so its fields follow the live price.
+	priceListener func(price float64)
+	flashTimer    *qt.QTimer
 }
 
 // newDetailView loads the detail form (detail.ui); showSymbol populates it.
@@ -115,7 +119,8 @@ func newDetailView(parent *qt.QWidget, quotes provider.QuoteProvider, store *con
 	view.alertButton.SetIconSize(qt.NewQSize2(int(constants.HeaderIconSize), int(constants.HeaderIconSize)))
 	view.alertButton.OnClicked(func() {
 		if view.priceShown {
-			showAlertDialog(view.root, view.store, view.symbol, view.shownPrice)
+			showAlertDialog(view.root, view.store, view.symbol, view.shownPrice,
+				func(listener func(price float64)) { view.priceListener = listener })
 		}
 	})
 
@@ -160,6 +165,9 @@ func (view *detailView) showSymbol(symbol string) {
 	view.changeLabel.SetText("")
 	view.extendedLabel.SetText("")
 	view.priceShown = false
+	// An alert dialog still open (a clicked notification can switch symbols
+	// under it) must not follow another symbol's price.
+	view.priceListener = nil
 	view.alertButton.SetEnabled(false)
 	view.setAlerts(view.store.Get().Alerts)
 	view.rng = view.store.Get().DefaultRange
@@ -231,15 +239,25 @@ func (view *detailView) setNotificationsEnabled(enabled bool) {
 	view.alertButton.SetVisible(enabled)
 }
 
+// alertPill is one pending-alert pill under the chart: its alert and the
+// label that shows it.
+type alertPill struct {
+	alert notify.Alert
+	frame *qt.QFrame
+	label *qt.QLabel
+}
+
 // setAlerts rebuilds the pending-alert pills under the chart for the shown
-// symbol: each pill shows the alert's direction and threshold with a remove
-// button. Alert changes (adds, removals, fired alerts, external file edits)
+// symbol: each pill shows the alert's direction, threshold, and distance
+// from the current price, with a remove button; an alert with an expiry
+// date also carries a calendar icon whose tooltip names the date. Alert
+// changes (adds, removals, fired alerts, external file edits)
 // all land here through the config subscription. With notifications
 // disabled the row stays empty.
 func (view *detailView) setAlerts(alerts []notify.Alert) {
 	for _, pill := range view.alertPills {
-		pill.SetParent(nil)
-		pill.DeleteLater()
+		pill.frame.SetParent(nil)
+		pill.frame.DeleteLater()
 	}
 	view.alertPills = nil
 	for view.alertsBox.Count() > 0 { // drop the stretch and stale items
@@ -247,27 +265,43 @@ func (view *detailView) setAlerts(alerts []notify.Alert) {
 	}
 	if !view.notificationsOn {
 		view.alertsBox.AddStretch()
+		view.chart.setAlertLines(nil)
 		return
 	}
+	var prices []float64
 	for _, alert := range alerts {
 		if alert.Symbol != view.symbol {
 			continue
 		}
+		prices = append(prices, alert.Price)
 		removed := alert // capture per iteration for the remove callback
 		loaded := loadForm(alertPillForm)
 		pill := loaded.frame("pill")
-		direction := constants.SymbolAlertUp
-		if !alert.Above {
-			direction = constants.SymbolAlertDown
-		}
 		priceLabel := loaded.label("priceLabel")
-		priceLabel.SetText(fmt.Sprintf(constants.FmtAlertPill, direction, alert.Price))
 		setState(priceLabel.QWidget, "direction", directionOfAlert(alert.Above))
+		expiryIcon := loaded.label("expiryIcon")
+		expiryIcon.SetVisible(alert.Expires != "")
+		if alert.Expires != "" {
+			expiryIcon.SetPixmap(svgPixmap(assets.CalendarSVG, int(constants.PillIconSize)))
+			expiryIcon.SetToolTip(fmt.Sprintf(constants.FmtTipAlertExpiry, alert.Expires))
+		}
 		loaded.button("removeButton").OnClicked(func() { removeAlert(view.store, removed) })
 		view.alertsBox.AddWidget(pill.QWidget)
-		view.alertPills = append(view.alertPills, pill)
+		view.alertPills = append(view.alertPills, alertPill{alert: alert, frame: pill, label: priceLabel})
 	}
 	view.alertsBox.AddStretch()
+	view.updateAlertPills()
+	// The chart marks the same alerts as horizontal lines (when enabled).
+	view.chart.setAlertLines(prices)
+}
+
+// updateAlertPills writes every pill's text against the shown price, so the
+// distances tick along with the headline; until a price is shown the pills
+// carry the threshold alone.
+func (view *detailView) updateAlertPills() {
+	for _, pill := range view.alertPills {
+		pill.label.SetText(alertPillText(pill.alert, view.shownPrice, view.priceShown))
+	}
 }
 
 // directionOfAlert maps an alert's direction to the theme's states.
@@ -484,6 +518,10 @@ func (view *detailView) flashPrice(last float64, flash bool) {
 	view.shownPrice = last
 	view.priceShown = true
 	view.alertButton.SetEnabled(true)
+	view.updateAlertPills()
+	if view.priceListener != nil {
+		view.priceListener(last)
+	}
 }
 
 // loadSidebar refreshes every sidebar tile at 1D.
