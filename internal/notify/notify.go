@@ -105,6 +105,61 @@ func (duration Duration) expireMs() int32 {
 	}
 }
 
+// Sound selects what an alert notification plays.
+type Sound string
+
+const (
+	SoundMessage     Sound = "message"
+	SoundBell        Sound = "bell"
+	SoundComplete    Sound = "complete"
+	SoundInformation Sound = "information"
+	SoundWarning     Sound = "warning"
+	SoundAlarm       Sound = "alarm"
+	SoundNone        Sound = "none"
+)
+
+// Sounds lists the notification-sound choices in menu order.
+var Sounds = []Sound{
+	SoundMessage, SoundBell, SoundComplete, SoundInformation, SoundWarning, SoundAlarm, SoundNone,
+}
+
+// soundNames maps each audible choice to its event in the XDG sound naming
+// specification (a protocol mapping); the desktop's sound theme supplies
+// the audio, and every name here is part of the base freedesktop theme all
+// others fall back to.
+var soundNames = map[Sound]string{
+	SoundMessage:     constants.NotifySoundName,
+	SoundBell:        "bell",
+	SoundComplete:    "complete",
+	SoundInformation: "dialog-information",
+	SoundWarning:     "dialog-warning",
+	SoundAlarm:       "alarm-clock-elapsed",
+}
+
+// hints returns the freedesktop notification hints that make the desktop
+// play the sound: its XDG event name, or the suppress-sound flag for
+// SoundNone. Unknown values (e.g. from a hand-edited config) play the
+// standard message sound.
+func (sound Sound) hints() map[string]dbus.Variant {
+	if sound == SoundNone {
+		return map[string]dbus.Variant{constants.NotifyHintSuppressSound: dbus.MakeVariant(true)}
+	}
+	name, known := soundNames[sound]
+	if !known {
+		name = constants.NotifySoundName
+	}
+	return map[string]dbus.Variant{constants.NotifyHintSoundName: dbus.MakeVariant(name)}
+}
+
+// SoundFor picks the sound of a fired alert by its direction: rose for an
+// alert the price rose up to, fell for one it fell down to.
+func SoundFor(alert Alert, rose, fell Sound) Sound {
+	if alert.Above {
+		return rose
+	}
+	return fell
+}
+
 // Triggered splits the alerts hit by a fresh price for symbol from the rest.
 // An above-alert fires at or beyond its price, a below-alert at or below it —
 // so a tick that jumps past the threshold still fires. Alerts on other
@@ -141,8 +196,8 @@ func OnActivate(callback func(Alert)) {
 
 // SendAlert raises the clickable desktop notification for a fired alert,
 // reporting its threshold and the live price that hit it, staying on screen
-// per the duration setting.
-func SendAlert(alert Alert, price float64, duration Duration) error {
+// per the duration setting and playing sound.
+func SendAlert(alert Alert, price float64, duration Duration, sound Sound) error {
 	direction := constants.MsgAlertRose
 	if !alert.Above {
 		direction = constants.MsgAlertFell
@@ -150,7 +205,7 @@ func SendAlert(alert Alert, price float64, duration Duration) error {
 	id, err := send(
 		fmt.Sprintf(constants.FmtAlertSummary, alert.Symbol),
 		fmt.Sprintf(constants.FmtAlertBody, direction, alert.Price, price),
-		true, duration.expireMs())
+		true, duration.expireMs(), sound)
 	if err == nil {
 		pendingMu.Lock()
 		pendingAlerts[id] = alert
@@ -159,16 +214,18 @@ func SendAlert(alert Alert, price float64, duration Duration) error {
 	return err
 }
 
-// Send shows a plain, non-clickable desktop notification with the desktop's
-// default timeout. It is safe to call from any goroutine.
-func Send(summary, body string) error {
-	_, err := send(summary, body, false, int32(constants.NotifyExpireDefault))
+// SendSoundTest shows a plain, non-clickable sample notification playing
+// sound, so a sound choice can be heard before it is saved. It is safe to
+// call from any goroutine.
+func SendSoundTest(sound Sound, duration Duration) error {
+	_, err := send(constants.TitleSoundTest, fmt.Sprintf(constants.FmtSoundTestBody, sound),
+		false, duration.expireMs(), sound)
 	return err
 }
 
 // send delivers a notification; clickable ones carry the default action and
 // have the signal watcher running so clicks reach the OnActivate callback.
-func send(summary, body string, clickable bool, expireMs int32) (uint32, error) {
+func send(summary, body string, clickable bool, expireMs int32, sound Sound) (uint32, error) {
 	// SessionBus returns a shared connection owned by the dbus package, so
 	// it must not be closed here.
 	conn, err := dbus.SessionBus()
@@ -180,13 +237,11 @@ func send(summary, body string, clickable bool, expireMs int32) (uint32, error) 
 		actions = []string{constants.NotifyActionDefault, constants.LabelNotifyOpen}
 		watchActivations(conn)
 	}
-	// The sound-name hint plays the desktop's standard message sound, and
-	// desktop-entry ties the notification to the app — desktops keep such
-	// notifications in the notification history and offer per-app settings.
-	hints := map[string]dbus.Variant{
-		constants.NotifyHintSoundName:    dbus.MakeVariant(constants.NotifySoundName),
-		constants.NotifyHintDesktopEntry: dbus.MakeVariant(desktopEntry()),
-	}
+	// The sound hint plays (or silences) the chosen sound, and desktop-entry
+	// ties the notification to the app — desktops keep such notifications in
+	// the notification history and offer per-app settings.
+	hints := sound.hints()
+	hints[constants.NotifyHintDesktopEntry] = dbus.MakeVariant(desktopEntry())
 	service := conn.Object(constants.NotifyDBusService, dbus.ObjectPath(constants.NotifyDBusPath))
 	var id uint32
 	err = service.Call(constants.NotifyDBusMethod, 0,

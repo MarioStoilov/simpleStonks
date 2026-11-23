@@ -419,6 +419,68 @@
                     <widget class="QComboBox" name="durationBox"/>
                   </item>
                   <item>
+                    <widget class="QLabel" name="soundRoseLabel">
+                      <property name="text">
+                        <string>Sound when the price rises up to an alert</string>
+                      </property>
+                    </widget>
+                  </item>
+                  <item>
+                    <layout class="QHBoxLayout" name="soundRoseRow" stretch="1,0">
+                      <item>
+                        <widget class="QComboBox" name="soundRoseBox">
+                          <property name="toolTip">
+                            <string>Played by the notification of an alert set above the price; the sounds come from the desktop's sound theme</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item>
+                        <widget class="QPushButton" name="soundRoseTestButton">
+                          <property name="cursor">
+                            <cursorShape>PointingHandCursor</cursorShape>
+                          </property>
+                          <property name="toolTip">
+                            <string>Play this sound with a sample notification</string>
+                          </property>
+                          <property name="text">
+                            <string>Test</string>
+                          </property>
+                        </widget>
+                      </item>
+                    </layout>
+                  </item>
+                  <item>
+                    <widget class="QLabel" name="soundFellLabel">
+                      <property name="text">
+                        <string>Sound when the price falls down to an alert</string>
+                      </property>
+                    </widget>
+                  </item>
+                  <item>
+                    <layout class="QHBoxLayout" name="soundFellRow" stretch="1,0">
+                      <item>
+                        <widget class="QComboBox" name="soundFellBox">
+                          <property name="toolTip">
+                            <string>Played by the notification of an alert set below the price; the sounds come from the desktop's sound theme</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item>
+                        <widget class="QPushButton" name="soundFellTestButton">
+                          <property name="cursor">
+                            <cursorShape>PointingHandCursor</cursorShape>
+                          </property>
+                          <property name="toolTip">
+                            <string>Play this sound with a sample notification</string>
+                          </property>
+                          <property name="text">
+                            <string>Test</string>
+                          </property>
+                        </widget>
+                      </item>
+                    </layout>
+                  </item>
+                  <item>
                     <widget class="QFrame" name="notifySeparator">
                       <property name="minimumSize">
                         <size>

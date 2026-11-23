@@ -290,7 +290,8 @@ func (app *App) handlePrice(symbol string, price float64) {
 		triggered := alert // capture per iteration for the goroutine
 		// Off the UI thread: the session-bus call may block briefly.
 		go func() {
-			if err := notify.SendAlert(triggered, price, cfg.Notifications.Duration); err != nil {
+			sound := notify.SoundFor(triggered, cfg.Notifications.SoundRose, cfg.Notifications.SoundFell)
+			if err := notify.SendAlert(triggered, price, cfg.Notifications.Duration, sound); err != nil {
 				slog.Error("desktop notification failed",
 					"symbol", triggered.Symbol, "price", triggered.Price, "err", err)
 			}

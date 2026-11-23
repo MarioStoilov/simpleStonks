@@ -166,8 +166,12 @@ const (
 	NotifyHintSoundName    = "sound-name"
 	NotifyHintDesktopEntry = "desktop-entry"
 
-	// NotifySoundName is the XDG sound-naming-spec event played with alert
-	// notifications — the desktop's standard incoming-message sound.
+	// NotifyHintSuppressSound is the freedesktop hint that silences a
+	// notification (the "none" sound choice).
+	NotifyHintSuppressSound = "suppress-sound"
+
+	// NotifySoundName is the XDG sound-naming-spec event of the default
+	// alert sound — the desktop's standard incoming-message sound.
 	NotifySoundName = "message-new-instant"
 
 	// EnvSnapName holds the snap name under snap confinement; snap desktop

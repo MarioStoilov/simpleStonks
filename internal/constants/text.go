@@ -110,10 +110,14 @@ const (
 	LabelNotifyOpen   = "Open"
 
 	// Notification settings (Settings → Notifications).
-	LabelNotifications    = "Price alert notifications"
-	TipNotifications      = "Fire desktop notifications when a price alert is hit; hides the alert bell and the pending alerts when off"
-	LabelNotifyDuration   = "Notification duration"
-	LabelClearAlerts      = "Clear all price alerts"
+	LabelNotifications  = "Price alert notifications"
+	TipNotifications    = "Fire desktop notifications when a price alert is hit; hides the alert bell and the pending alerts when off"
+	LabelNotifyDuration = "Notification duration"
+	LabelClearAlerts    = "Clear all price alerts"
+	// TitleSoundTest/FmtSoundTestBody are the sample notification behind
+	// the settings' sound Test buttons; the body names the sound.
+	TitleSoundTest        = "Price alert sound test"
+	FmtSoundTestBody      = "This is the “%s” sound"
 	TitleClearAlerts      = "Clear all price alerts"
 	LabelClear            = "Clear"
 	MsgConfirmClearAlerts = "Are you sure you want to clear all price alerts?\n\n" +

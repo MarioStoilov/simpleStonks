@@ -348,7 +348,12 @@ The core MVP + polish scope is in place:
   settings section (Settings → Notifications + config `notifications`): an
   on/off toggle (off hides the bell and the pending-alert pills and pauses
   triggering — alerts are kept, not consumed silently), a
-  quick/moderate/long on-screen duration, and a "Clear all price alerts"
+  quick/moderate/long on-screen duration, a sound for alerts the price rose
+  up to and another for alerts it fell down to (`soundRose` / `soundFell`:
+  message — the default for both — bell, complete, information, warning,
+  alarm, or none; each maps to an XDG sound-naming event the desktop's
+  sound theme plays, and has a Test button that plays it through a sample
+  notification), and a "Clear all price alerts"
   button behind an irreversible-action confirmation modal. Clicking a
   notification raises the window and opens the detail view of the alert's
   symbol; notifications play the desktop's standard message sound and land

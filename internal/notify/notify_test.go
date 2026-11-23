@@ -3,6 +3,8 @@ package notify
 import (
 	"testing"
 	"time"
+
+	"github.com/MarioStoilov/simplestonks/internal/constants"
 )
 
 func TestTriggered(t *testing.T) {
@@ -104,5 +106,43 @@ func TestExpiredFollowsTheLocalDay(t *testing.T) {
 	}
 	if !alert.ExpiredAt(instant.In(time.FixedZone("east", 3*60*60))) {
 		t.Error("still pending at 02:30 the next day, three hours east")
+	}
+}
+
+func TestSoundHints(t *testing.T) {
+	cases := map[Sound]string{
+		SoundMessage:  "message-new-instant",
+		SoundBell:     "bell",
+		SoundAlarm:    "alarm-clock-elapsed",
+		Sound("loud"): "message-new-instant", // unknown: the standard sound
+		Sound(""):     "message-new-instant",
+	}
+	for sound, want := range cases {
+		hints := sound.hints()
+		name, ok := hints[constants.NotifyHintSoundName]
+		if !ok || name.Value() != want || len(hints) != 1 {
+			t.Errorf("%q hints = %v, want only sound-name %q", sound, hints, want)
+		}
+	}
+
+	hints := SoundNone.hints()
+	if suppress, ok := hints[constants.NotifyHintSuppressSound]; !ok || suppress.Value() != true || len(hints) != 1 {
+		t.Errorf("none hints = %v, want only suppress-sound true", hints)
+	}
+
+	// Every menu choice but none maps to a sound event.
+	for _, sound := range Sounds {
+		if _, mapped := soundNames[sound]; !mapped && sound != SoundNone {
+			t.Errorf("menu sound %q has no sound event", sound)
+		}
+	}
+}
+
+func TestSoundFor(t *testing.T) {
+	if got := SoundFor(Alert{Above: true}, SoundBell, SoundAlarm); got != SoundBell {
+		t.Errorf("rise alert plays %q, want the rose sound", got)
+	}
+	if got := SoundFor(Alert{Above: false}, SoundBell, SoundAlarm); got != SoundAlarm {
+		t.Errorf("fall alert plays %q, want the fell sound", got)
 	}
 }

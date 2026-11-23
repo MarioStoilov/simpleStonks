@@ -158,11 +158,22 @@ type Notifications struct {
 
 	// Duration is how long a notification stays on screen.
 	Duration notify.Duration `json:"duration"`
+
+	// SoundRose and SoundFell are what a notification plays for an alert
+	// the price rose up to and for one it fell down to; they may differ so
+	// the direction is audible.
+	SoundRose notify.Sound `json:"soundRose"`
+	SoundFell notify.Sound `json:"soundFell"`
 }
 
 // DefaultNotifications is the out-of-the-box notification behavior.
 func DefaultNotifications() Notifications {
-	return Notifications{Enabled: true, Duration: notify.DurationModerate}
+	return Notifications{
+		Enabled:   true,
+		Duration:  notify.DurationModerate,
+		SoundRose: notify.SoundMessage,
+		SoundFell: notify.SoundMessage,
+	}
 }
 
 // Config is the full persisted configuration.
